@@ -1,0 +1,40 @@
+# Секреты
+.env
+backend/.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Django
+*.log
+db.sqlite3
+backend/media/
+
+# Node
+node_modules/
+frontend/dist/
+npm-debug.log*
+
+# CSV данные
+backend/*.csv
+
+# Docker
+.dockerignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# C++ build
+cpp_service/recommender
+*.o
+*.out
