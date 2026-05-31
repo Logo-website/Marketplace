@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Category, Product, ProductImage
-
+from .models import Category, Product, ProductImage, Review
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,3 +38,22 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         validated_data['seller'] = self.context['request'].user
         validated_data.setdefault('status', 'active')
         return super().create(validated_data)
+
+class ReviewSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = Review
+        fields = ['id', 'username', 'rating', 'text', 'created_at']
+        read_only_fields = ['id', 'username', 'created_at']
+
+
+class ReviewCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = ['rating', 'text']
+
+    def validate_rating(self, value):
+        if value < 1 or value > 5:
+            raise serializers.ValidationError('Оценка должна быть от 1 до 5')
+        return value

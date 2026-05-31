@@ -13,6 +13,7 @@ import SellerPage from './pages/SellerPage'
 import useAuthStore from './store/authStore'
 import useCartStore from './store/cartStore'
 import WishlistPage from './pages/WishlistPage'
+import CheckoutPage from './pages/CheckoutPage'
 
 function PrivateRoute({ children }) {
   const { isAuthenticated } = useAuthStore()
@@ -61,7 +62,8 @@ export default function App() {
             <Route path="/cart" element={<PrivateRoute><CartPage /></PrivateRoute>} />
             <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
             <Route path="/seller" element={<PrivateRoute><SellerPage /></PrivateRoute>} />
-            <Route path="/wishlist" element={<WishlistPage />} />
+            <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
+            <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
           </Routes>
         </PageWrapper>
       </div>

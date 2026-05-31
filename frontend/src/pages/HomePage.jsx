@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import ProductCard from '../components/ProductCard'
+
+const SORT_OPTIONS = [
+  { id: 'popular',    label: 'Популярные',   icon: '🔥' },
+  { id: 'new',        label: 'Новинки',      icon: '✨' },
+  { id: 'rating',     label: 'По рейтингу',  icon: '⭐' },
+  { id: 'price_asc',  label: 'Дешевле',      icon: '↓' },
+  { id: 'price_desc', label: 'Дороже',       icon: '↑' },
+]
 
 export default function HomePage() {
   const [products, setProducts] = useState([])
@@ -11,11 +19,12 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [sort, setSort] = useState('popular')
   const navigate = useNavigate()
 
   useEffect(() => {
     fetchProducts()
-  }, [selectedCategory, page])
+  }, [selectedCategory, page, sort])
 
   useEffect(() => {
     fetchCategories()
@@ -24,7 +33,7 @@ export default function HomePage() {
   const fetchProducts = async () => {
     setLoading(true)
     try {
-      let url = `/products/?page=${page}`
+      let url = `/products/?page=${page}&sort=${sort}`
       if (selectedCategory) url += `&category=${selectedCategory}`
       const res = await api.get(url)
       setProducts(res.data.results)
@@ -51,6 +60,31 @@ export default function HomePage() {
     window.scrollTo(0, 0)
   }
 
+  const handleSort = (id) => {
+    setSort(id)
+    setPage(1)
+    window.scrollTo(0, 0)
+  }
+
+  const totalPages = Math.ceil(totalCount / 20)
+
+  const getPaginationPages = () => {
+    const pages = []
+    const delta = 2
+    const left = page - delta
+    const right = page + delta + 1
+    let last = null
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= left && i < right)) {
+        if (last && i - last > 1) pages.push('...')
+        pages.push(i)
+        last = i
+      }
+    }
+    return pages
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
 
@@ -62,7 +96,9 @@ export default function HomePage() {
             <div className="relative z-10">
               <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Маркетплейс одежды</span>
               <h1 className="text-3xl font-black text-white mt-2 mb-2">Одежда для любого стиля</h1>
-              <p className="text-gray-400 mb-5">{totalCount > 0 ? `${totalCount.toLocaleString()} товаров` : '728 товаров'} от лучших брендов</p>
+              <p className="text-gray-400 mb-5">
+                {totalCount > 0 ? `${totalCount.toLocaleString()} товаров` : '728 товаров'} от лучших брендов
+              </p>
               <motion.button
                 onClick={() => handleCategoryChange(null)}
                 className="px-5 py-2.5 bg-white text-[#111] rounded-xl font-bold text-sm hover:bg-gray-100 transition"
@@ -105,14 +141,12 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Категории */}
-        <div className="bg-white rounded-2xl p-4 mb-6 border border-gray-100">
+        <div className="bg-white rounded-2xl p-4 mb-4 border border-gray-100">
           <div className="flex flex-wrap gap-2">
             <motion.button
               onClick={() => handleCategoryChange(null)}
               className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
-                !selectedCategory
-                  ? 'bg-[#111] text-white border-[#111]'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                !selectedCategory ? 'bg-[#111] text-white border-[#111]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
               }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -124,9 +158,7 @@ export default function HomePage() {
                 key={cat.id}
                 onClick={() => handleCategoryChange(cat.id)}
                 className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
-                  selectedCategory === cat.id
-                    ? 'bg-[#111] text-white border-[#111]'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                  selectedCategory === cat.id ? 'bg-[#111] text-white border-[#111]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
                 }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -140,100 +172,135 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Заголовок */}
-        <div className="flex items-center justify-between mb-6">
+        {/* Заголовок + сортировка */}
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
             <h2 className="text-xl font-black text-[#111]">
-              {selectedCategory
-                ? categories.find(c => c.id === selectedCategory)?.name
-                : 'Все товары'}
+              {selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Все товары'}
             </h2>
             {!loading && (
               <p className="text-sm text-gray-400 mt-0.5">{totalCount.toLocaleString()} товаров</p>
             )}
           </div>
+
+          {/* Сортировка */}
+          <div className="flex items-center bg-white border border-gray-100 rounded-2xl p-1 gap-1">
+            {SORT_OPTIONS.map(option => (
+              <motion.button
+                key={option.id}
+                onClick={() => handleSort(option.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  sort === option.id
+                    ? 'bg-[#111] text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <span>{option.icon}</span>
+                <span className="hidden sm:block">{option.label}</span>
+              </motion.button>
+            ))}
+          </div>
         </div>
 
         {/* Товары */}
-        {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {[...Array(10)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl overflow-hidden">
-                <div className="skeleton h-48 w-full" />
-                <div className="p-4 flex flex-col gap-2">
-                  <div className="skeleton h-3 rounded-full w-1/3" />
-                  <div className="skeleton h-4 rounded-full w-full" />
-                  <div className="skeleton h-6 rounded-full w-1/2 mt-2" />
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="skeleton"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+            >
+              {[...Array(10)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl overflow-hidden">
+                  <div className="skeleton h-48 w-full" />
+                  <div className="p-4 flex flex-col gap-2">
+                    <div className="skeleton h-3 rounded-full w-1/3" />
+                    <div className="skeleton h-4 rounded-full w-full" />
+                    <div className="skeleton h-6 rounded-full w-1/2 mt-2" />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : products.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl">
-            <p className="text-5xl mb-4">🔍</p>
-            <p className="text-gray-400">Товаров не найдено</p>
-          </div>
-        ) : (
-          <motion.div
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            {products.map((product, i) => (
-              <motion.div
-                key={product.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
-              >
-                <ProductCard product={product} />
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
+              ))}
+            </motion.div>
+          ) : products.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-20 bg-white rounded-2xl"
+            >
+              <p className="text-5xl mb-4">🔍</p>
+              <p className="text-gray-400">Товаров не найдено</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`${sort}-${selectedCategory}-${page}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+            >
+              {products.map((product, i) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.02 }}
+                >
+                  <ProductCard product={product} />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Пагинация */}
         {totalCount > 20 && (
-          <div className="flex justify-center items-center gap-2 mt-10">
+          <div className="flex justify-center items-center gap-1.5 mt-10">
             <motion.button
               onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo(0, 0) }}
               disabled={page === 1}
-              className="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition"
+              className="px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              ← Назад
+              ←
             </motion.button>
 
             <div className="flex gap-1">
-              {[...Array(Math.min(5, Math.ceil(totalCount / 20)))].map((_, i) => {
-                const pageNum = i + 1
-                return (
+              {getPaginationPages().map((p, i) =>
+                p === '...' ? (
+                  <span key={`dots-${i}`} className="w-10 h-10 flex items-center justify-center text-gray-400 text-sm">
+                    ...
+                  </span>
+                ) : (
                   <motion.button
-                    key={pageNum}
-                    onClick={() => { setPage(pageNum); window.scrollTo(0, 0) }}
+                    key={p}
+                    onClick={() => { setPage(p); window.scrollTo(0, 0) }}
                     className={`w-10 h-10 rounded-xl text-sm font-bold transition ${
-                      page === pageNum
-                        ? 'bg-[#111] text-white'
-                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                      page === p ? 'bg-[#111] text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                     }`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    {pageNum}
+                    {p}
                   </motion.button>
                 )
-              })}
+              )}
             </div>
 
             <motion.button
               onClick={() => { setPage(p => p + 1); window.scrollTo(0, 0) }}
               disabled={page * 20 >= totalCount}
-              className="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition"
+              className="px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              Вперёд →
+              →
             </motion.button>
           </div>
         )}

@@ -1,0 +1,373 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import useCartStore from '../store/cartStore'
+import api from '../api'
+
+const PICKUP_POINTS = [
+  { id: 1,  address: 'ул. Ленина, 12, ТЦ Центральный',    time: 'Сегодня, 18:00',      metro: 'Площадь Ленина' },
+  { id: 2,  address: 'пр. Мира, 45, Почта России',          time: 'Завтра, 10:00',       metro: 'Проспект Мира' },
+  { id: 3,  address: 'ул. Советская, 78, PickPoint',        time: 'Сегодня, 20:00',      metro: 'Советская' },
+  { id: 4,  address: 'ул. Гагарина, 33, Boxberry',          time: 'Завтра, 12:00',       metro: 'Гагаринская' },
+  { id: 5,  address: 'пр. Победы, 101, СДЭК',              time: 'Сегодня, 19:00',      metro: 'Площадь Победы' },
+  { id: 6,  address: 'ул. Пушкина, 5, Ozon Пункт',         time: 'Завтра, 09:00',       metro: 'Пушкинская' },
+  { id: 7,  address: 'ул. Чехова, 22, ПВЗ Wildberries',    time: 'Сегодня, 21:00',      metro: 'Чеховская' },
+  { id: 8,  address: 'пр. Строителей, 67, Hermes',          time: 'Завтра, 11:00',       metro: 'Строительная' },
+  { id: 9,  address: 'ул. Садовая, 14, DPD',               time: 'Послезавтра, 10:00',  metro: 'Садовая' },
+  { id: 10, address: 'ул. Молодёжная, 88, СДЭК',           time: 'Завтра, 14:00',       metro: 'Молодёжная' },
+  { id: 11, address: 'пр. Комсомольский, 3, Boxberry',     time: 'Сегодня, 20:00',      metro: 'Комсомольская' },
+  { id: 12, address: 'ул. Октябрьская, 55, PickPoint',     time: 'Завтра, 16:00',       metro: 'Октябрьская' },
+  { id: 13, address: 'ул. Новая, 19, Почта России',        time: 'Послезавтра, 12:00',  metro: 'Новогиреево' },
+  { id: 14, address: 'пр. Северный, 44, Ozon Пункт',       time: 'Завтра, 10:00',       metro: 'Северная' },
+  { id: 15, address: 'ул. Зелёная, 7, СДЭК',              time: 'Сегодня, 18:30',      metro: 'Зеленоград' },
+]
+
+const DELIVERY_METHODS = [
+  {
+    id: 'pickup', label: 'Самовывоз', desc: 'Бесплатно',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+  },
+  {
+    id: 'courier', label: 'Курьер', desc: 'от 299 ₽',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+      </svg>
+    ),
+  },
+  {
+    id: 'post', label: 'Почта России', desc: 'от 199 ₽',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+]
+
+const GUARANTEES = [
+  {
+    label: 'Безопасная оплата',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Возврат 30 дней',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+    ),
+  },
+]
+
+export default function CheckoutPage() {
+  const { items, total, clearCart } = useCartStore()
+  const navigate = useNavigate()
+  const [deliveryMethod, setDeliveryMethod] = useState('pickup')
+  const [selectedPoint, setSelectedPoint] = useState(null)
+  const [address, setAddress] = useState('')
+  const [comment, setComment] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+
+  const handleOrder = async () => {
+    if (deliveryMethod === 'pickup' && !selectedPoint) {
+      alert('Выберите пункт выдачи')
+      return
+    }
+    if (deliveryMethod !== 'pickup' && !address) {
+      alert('Укажите адрес доставки')
+      return
+    }
+    if (!name || !phone) {
+      alert('Укажите имя и телефон')
+      return
+    }
+    setLoading(true)
+    const deliveryAddress = deliveryMethod === 'pickup'
+      ? PICKUP_POINTS.find(p => p.id === selectedPoint)?.address
+      : address
+    try {
+      await api.post('/orders/from-cart/', { delivery_address: deliveryAddress, comment })
+      await clearCart()
+      setSuccess(true)
+      setTimeout(() => navigate('/profile'), 3000)
+    } catch (err) {
+      alert(err.response?.data?.error || 'Ошибка при оформлении заказа')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (success) return (
+    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="text-center bg-white rounded-2xl p-12 border border-gray-100 shadow-sm max-w-sm w-full mx-4"
+      >
+        <motion.div
+          className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-5"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </motion.div>
+        <h2 className="text-2xl font-black text-gray-900 mb-2">Заказ оформлен</h2>
+        <p className="text-gray-400 text-sm">Перенаправляем в личный кабинет...</p>
+      </motion.div>
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-[#f5f5f5]">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+
+        {/* Назад */}
+        <motion.button
+          onClick={() => navigate('/cart')}
+          className="flex items-center gap-2 text-gray-400 hover:text-gray-700 transition mb-6 text-sm font-medium"
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Вернуться в корзину
+        </motion.button>
+
+        <motion.h1
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-3xl font-black text-gray-900 mb-8"
+        >
+          Оформление заказа
+        </motion.h1>
+
+        <div className="flex flex-col lg:flex-row gap-6">
+
+          {/* Левая часть */}
+          <div className="flex-1 flex flex-col gap-4">
+
+            {/* Контактные данные */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              className="bg-white rounded-2xl p-6 border border-gray-100"
+            >
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Контактные данные</h2>
+              <div className="flex flex-col gap-3">
+                <input
+                  type="text" placeholder="Имя и фамилия *" value={name} onChange={(e) => setName(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                />
+                <input
+                  type="tel" placeholder="Номер телефона *" value={phone} onChange={(e) => setPhone(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                />
+              </div>
+            </motion.div>
+
+            {/* Способ доставки */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white rounded-2xl p-6 border border-gray-100"
+            >
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Способ доставки</h2>
+              <div className="flex gap-3">
+                {DELIVERY_METHODS.map(method => (
+                  <motion.button
+                    key={method.id}
+                    onClick={() => setDeliveryMethod(method.id)}
+                    className={`flex-1 p-4 rounded-2xl border-2 text-left transition-all ${
+                      deliveryMethod === method.id
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className={`mb-2 ${deliveryMethod === method.id ? 'text-indigo-600' : 'text-gray-400'}`}>
+                      {method.icon}
+                    </div>
+                    <div className="font-semibold text-sm text-gray-800">{method.label}</div>
+                    <div className={`text-xs font-medium mt-0.5 ${deliveryMethod === method.id ? 'text-indigo-500' : 'text-gray-400'}`}>
+                      {method.desc}
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Пункты выдачи / Адрес */}
+            <AnimatePresence>
+              {deliveryMethod === 'pickup' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-white rounded-2xl p-6 border border-gray-100 overflow-hidden"
+                >
+                  <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Пункт выдачи</h2>
+                  <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1">
+                    {PICKUP_POINTS.map(point => (
+                      <motion.button
+                        key={point.id}
+                        onClick={() => setSelectedPoint(point.id)}
+                        className={`p-4 rounded-xl border-2 text-left transition-all ${
+                          selectedPoint === point.id
+                            ? 'border-indigo-500 bg-indigo-50'
+                            : 'border-gray-100 hover:border-gray-200 bg-gray-50'
+                        }`}
+                        whileHover={{ scale: 1.005 }}
+                        whileTap={{ scale: 0.998 }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-sm text-gray-800">{point.address}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{point.metro}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={`text-xs font-semibold ${selectedPoint === point.id ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                              {point.time}
+                            </p>
+                            {selectedPoint === point.id && (
+                              <span className="text-indigo-500 text-xs">✓</span>
+                            )}
+                          </div>
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {deliveryMethod !== 'pickup' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-white rounded-2xl p-6 border border-gray-100 overflow-hidden"
+                >
+                  <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Адрес доставки</h2>
+                  <input
+                    type="text" placeholder="Введите адрес *" value={address} onChange={(e) => setAddress(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Комментарий */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="bg-white rounded-2xl p-6 border border-gray-100"
+            >
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Комментарий</h2>
+              <textarea
+                placeholder="Необязательно" value={comment} onChange={(e) => setComment(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white resize-none"
+                rows={3}
+              />
+            </motion.div>
+          </div>
+
+          {/* Правая часть */}
+          <motion.div
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="lg:w-80 shrink-0"
+          >
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 sticky top-24">
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Ваш заказ</h2>
+
+              {/* Товары */}
+              <div className="flex flex-col gap-3 mb-4 max-h-48 overflow-y-auto">
+                {items.map(item => (
+                  <div key={item.product_id} className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg shrink-0 overflow-hidden flex items-center justify-center">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
+                      ) : (
+                        <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-700 font-medium line-clamp-1">{item.name}</p>
+                      <p className="text-xs text-gray-400">{item.quantity} шт.</p>
+                    </div>
+                    <p className="text-xs font-bold text-gray-900 shrink-0">
+                      {(Number(item.price) * item.quantity).toLocaleString()} ₽
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Итого */}
+              <div className="border-t border-gray-100 pt-4 mb-5 flex flex-col gap-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Товары ({items.length})</span>
+                  <span className="font-medium text-gray-800">{Number(total).toLocaleString()} ₽</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Доставка</span>
+                  <span className="font-medium text-emerald-600">
+                    {deliveryMethod === 'pickup' ? 'Бесплатно' : 'от 299 ₽'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-base font-black pt-2 border-t border-gray-100">
+                  <span className="text-gray-900">Итого</span>
+                  <span className="text-emerald-600">{Number(total).toLocaleString()} ₽</span>
+                </div>
+              </div>
+
+              <motion.button
+                onClick={handleOrder}
+                disabled={loading}
+                className="w-full bg-[#111] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition disabled:opacity-50 flex items-center justify-center gap-2 mb-4"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {loading ? (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : 'Подтвердить заказ'}
+              </motion.button>
+
+              <div className="flex flex-col gap-2">
+                {GUARANTEES.map(g => (
+                  <div key={g.label} className="flex items-center gap-2 text-xs text-gray-400">
+                    <span className="text-emerald-500">{g.icon}</span>
+                    {g.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  )
+}

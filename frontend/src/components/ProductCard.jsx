@@ -68,7 +68,7 @@ export default function ProductCard({ product }) {
               <img
                 src={imageUrl}
                 alt={product.name}
-                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                className="h-full w-full object-contain group-hover:scale-105 transition-transform duration-500"
                 onError={(e) => {
                   e.target.parentElement.innerHTML = '<div class="h-full flex items-center justify-center text-4xl text-gray-200">📦</div>'
                 }}

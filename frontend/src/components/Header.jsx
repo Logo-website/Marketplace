@@ -1,9 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import useAuthStore from '../store/authStore'
 import useCartStore from '../store/cartStore'
 import useWishlistStore from '../store/wishlistStore'
+import api from '../api'
 
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuthStore()
@@ -11,10 +12,46 @@ export default function Header() {
   const { items: wishlistItems } = useWishlistStore()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const searchRef = useRef(null)
+  const suggestTimeout = useRef(null)
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const fetchSuggestions = (query) => {
+    clearTimeout(suggestTimeout.current)
+    if (query.length < 2) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+    suggestTimeout.current = setTimeout(async () => {
+      try {
+        const res = await api.get(`/products/search/?q=${query}`)
+        const data = Array.isArray(res.data) ? res.data : res.data.results || []
+        setSuggestions(data.slice(0, 6))
+        setShowSuggestions(true)
+      } catch {
+        setSuggestions([])
+      }
+    }, 300)
+  }
 
   const handleSearch = (e) => {
     e.preventDefault()
-    if (search.trim()) navigate(`/search?q=${search}`)
+    if (search.trim()) {
+      setShowSuggestions(false)
+      navigate(`/search?q=${search}`)
+    }
   }
 
   const handleLogout = () => {
@@ -50,12 +87,16 @@ export default function Header() {
             </Link>
 
             {/* Поиск */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
+            <form onSubmit={handleSearch} className="flex-1 max-w-2xl relative" ref={searchRef}>
               <div className="relative">
                 <input
                   type="text"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value)
+                    fetchSuggestions(e.target.value)
+                  }}
+                  onFocus={() => search.length >= 2 && setShowSuggestions(true)}
                   placeholder="Поиск товаров, брендов..."
                   className="w-full bg-white/10 text-white placeholder-gray-500 rounded-xl pl-4 pr-12 py-3 text-sm border border-white/10 focus:outline-none focus:border-white/30 focus:bg-white/15 transition-all"
                 />
@@ -68,6 +109,58 @@ export default function Header() {
                   </svg>
                 </button>
               </div>
+
+              {/* Подсказки */}
+              <AnimatePresence>
+                {showSuggestions && suggestions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
+                  >
+                    {suggestions.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setSearch(item.name)
+                          setShowSuggestions(false)
+                          navigate(`/products/${item.id}`)
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition text-left border-b border-gray-50 last:border-0"
+                      >
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                          {item.images?.[0]?.image_url ? (
+                            <img
+                              src={item.images[0].image_url}
+                              alt=""
+                              className="w-full h-full object-contain"
+                              onError={(e) => { e.target.style.display = 'none' }}
+                            />
+                          ) : (
+                            <span className="text-lg">📦</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 line-clamp-1">{item.name}</p>
+                          <p className="text-xs text-gray-400">{item.category_name}</p>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-600 shrink-0">
+                          {Number(item.price).toLocaleString()} ₽
+                        </span>
+                      </button>
+                    ))}
+                    <button
+                      type="submit"
+                      className="w-full px-4 py-3 text-sm text-indigo-600 font-semibold hover:bg-indigo-50 transition text-center"
+                    >
+                      Показать все результаты по "{search}" →
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </form>
 
             {/* Правая часть */}

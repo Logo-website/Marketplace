@@ -9,6 +9,8 @@ from apps.permissions import IsSeller
 import urllib.request
 import json
 import logging
+from .serializers import CategorySerializer, ProductSerializer, ProductCreateSerializer, ReviewSerializer, ReviewCreateSerializer
+from .models import Category, Product, Review
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +24,32 @@ class CategoryListView(generics.ListAPIView):
 class ProductListView(generics.ListAPIView):
     serializer_class = ProductSerializer
     permission_classes = [permissions.AllowAny]
-    filter_backends = [filters.OrderingFilter]
+    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering_fields = ['price', 'created_at']
+    search_fields = ['name', 'description']
 
     def get_queryset(self):
-        queryset = Product.objects.filter(status='active').select_related('category', 'seller').prefetch_related('images')
+        queryset = Product.objects.filter(status='active').select_related('category', 'seller').prefetch_related(
+            'images')
+
         category_id = self.request.query_params.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
+
+        sort = self.request.query_params.get('sort', 'popular')
+        if sort == 'price_asc':
+            queryset = queryset.order_by('price')
+        elif sort == 'price_desc':
+            queryset = queryset.order_by('-price')
+        elif sort == 'rating':
+            queryset = queryset.order_by('-attributes__rating') if False else queryset.extra(
+                select={'rating_val': "CAST(attributes->>'rating' AS FLOAT)"}
+            ).order_by('-rating_val')
+        elif sort == 'new':
+            queryset = queryset.order_by('-created_at')
+        else:
+            queryset = queryset.order_by('-id')
+
         return queryset
 
 
@@ -110,10 +130,37 @@ class RecommendationsView(APIView):
 
     def get(self, request):
         try:
-            import random
-            products = list(Product.objects.filter(status='active').order_by('?')[:10])
+            products = list(Product.objects.filter(status='active').order_by('?')[:100])
             serializer = ProductSerializer(products, many=True, context={'request': request})
             return Response(serializer.data)
         except Exception as e:
             logger.error(f'Recommendations error: {e}')
             return Response([])
+
+class ReviewListCreateView(generics.ListCreateAPIView):
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return ReviewCreateSerializer
+        return ReviewSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    def get_queryset(self):
+        return Review.objects.filter(product_id=self.kwargs['pk'])
+
+    def perform_create(self, serializer):
+        from apps.orders.models import Order
+        has_purchased = Order.objects.filter(
+            buyer=self.request.user,
+            items__product_id=self.kwargs['pk']
+        ).exists()
+        if not has_purchased:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Вы можете оставить отзыв только на купленный товар')
+        serializer.save(
+            user=self.request.user,
+            product_id=self.kwargs['pk']
+        )

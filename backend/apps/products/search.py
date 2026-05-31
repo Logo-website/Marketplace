@@ -36,7 +36,6 @@ def delete_product(product_id):
 
 
 def search_products(query, min_price=None, max_price=None, category=None):
-    must = [{'multi_match': {'query': query, 'fields': ['name^2', 'description'], 'fuzziness': 'AUTO'}}]
     filters = [{'term': {'status': 'active'}}]
 
     if min_price is not None:
@@ -46,13 +45,25 @@ def search_products(query, min_price=None, max_price=None, category=None):
     if category:
         filters.append({'term': {'category': category}})
 
+    should = [
+        {'multi_match': {
+            'query': query,
+            'fields': ['name^3', 'description'],
+            'fuzziness': 'AUTO'
+        }},
+        {'prefix': {'name': {'value': query.lower(), 'boost': 2}}},
+        {'match_phrase_prefix': {'name': {'query': query, 'boost': 3}}},
+    ]
+
     result = es.search(index=INDEX_NAME, body={
         'query': {
             'bool': {
-                'must': must,
-                'filter': filters
+                'should': should,
+                'filter': filters,
+                'minimum_should_match': 1
             }
-        }
+        },
+        'size': 20
     })
 
     return [int(hit['_id']) for hit in result['hits']['hits']]

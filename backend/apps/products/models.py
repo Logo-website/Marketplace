@@ -46,3 +46,17 @@ class ProductImage(models.Model):
 
     class Meta:
         ordering = ['order']
+
+class Review(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='reviews')
+    rating = models.IntegerField()
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=False, default=None, null=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['product', 'user']
+
+    def __str__(self):
+        return f'{self.user.username} → {self.product.name} ({self.rating}★)'

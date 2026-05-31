@@ -17,19 +17,24 @@ class CartView(views.APIView):
     def get(self, request):
         cart = get_cart(request.user.id)
         product_ids = list(cart.keys())
-        products = Product.objects.filter(id__in=product_ids)
+        products = Product.objects.filter(id__in=product_ids).prefetch_related('images')
         items = []
         total = 0
         for product in products:
             quantity = cart[str(product.id)]
             item_total = product.price * quantity
             total += item_total
+            image_url = None
+            if product.images.exists():
+                img = product.images.first()
+                image_url = img.image_url or (img.image.url if img.image else None)
             items.append({
                 'product_id': product.id,
                 'name': product.name,
                 'price': str(product.price),
                 'quantity': quantity,
-                'total': str(item_total)
+                'total': str(item_total),
+                'image': image_url,
             })
         return Response({'items': items, 'total': str(total)})
 

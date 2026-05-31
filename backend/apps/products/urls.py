@@ -10,6 +10,7 @@ from .views import (
     RecommendationsView,
 )
 from .analytics import SellerAnalyticsView
+from .views import ReviewListCreateView
 
 urlpatterns = [
     path('categories/', CategoryListView.as_view(), name='category-list'),
@@ -21,4 +22,5 @@ urlpatterns = [
     path('my/', SellerProductListView.as_view(), name='seller-products'),
     path('my/<int:pk>/', SellerProductUpdateView.as_view(), name='seller-product-detail'),
     path('analytics/', SellerAnalyticsView.as_view(), name='seller-analytics'),
+    path('<int:pk>/reviews/', ReviewListCreateView.as_view(), name='product-reviews'),
 ]
