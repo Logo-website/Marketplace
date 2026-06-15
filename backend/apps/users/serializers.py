@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User
+from .validators import validate_password_strength
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -11,13 +12,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ['email', 'username', 'password']
 
     def validate_password(self, value):
-        if len(value) < 8:
-            raise serializers.ValidationError('Пароль должен содержать не менее 8 символов')
-        if not any(c.isupper() for c in value):
-            raise serializers.ValidationError('Пароль должен содержать хотя бы одну заглавную букву')
-        if not any(c.isdigit() for c in value):
-            raise serializers.ValidationError('Пароль должен содержать хотя бы одну цифру')
-        return value
+        return validate_password_strength(value)
 
     def validate_email(self, value):
         if User.objects.filter(email=value.lower()).exists():
@@ -33,7 +28,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'username', 'phone', 'role', 'avatar']
+        fields = ['id', 'email', 'username', 'phone', 'role', 'avatar', 'shop_name']
         read_only_fields = ['role']
 
 

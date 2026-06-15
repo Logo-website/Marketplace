@@ -1,28 +1,47 @@
 services:
   db:
     image: postgres:16
-    env_file:
-      - .env
+    env_file: [.env]
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U marketplace_user -d marketplace"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   elasticsearch:
     image: elasticsearch:8.12.0
@@ -30,8 +49,6 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    ports:
-      - "9200:9200"
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     healthcheck:
@@ -39,11 +56,15 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   kafka:
     image: apache/kafka:3.7.0
-    ports:
-      - "9092:9092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -54,62 +75,130 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.1
-    ports:
-      - "8123:8123"
-      - "9000:9000"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   ws:
     build: ./node_service
     ports:
       - "3000:3000"
+    environment:
+      # Общий с Django ключ - node им проверяет подпись JWT (S5). Без него сервис падает.
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - KAFKA_BROKERS=kafka:9092
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
 
   recommender:
     build: ./cpp_service
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
+    environment:
+      - RECOMMENDER_MATRIX_PATH=/data/copurchase_matrix.txt
+    volumes:
+      - recommender_data:/data
+    restart: unless-stopped
 
   backend:
     build: ./backend
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - ./backend:/app
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --access-logfile - --error-logfile -
     ports:
       - "8001:8000"
-    env_file:
-      - .env
+    env_file: [.env]
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       elasticsearch:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
       clickhouse:
-        condition: service_started
+        condition: service_healthy
+    # /data - общий с celery и recommender том матрицы ко-покупок:
+    # backend пишет её через management-команду build_recommendations (демо/сид).
+    volumes:
+      - recommender_data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   celery:
     build: ./backend
-    command: celery -A config worker --loglevel=info
-    volumes:
-      - ./backend:/app
-    env_file:
-      - .env
+    command: celery -A config worker --loglevel=info --concurrency=4
+    env_file: [.env]
     depends_on:
-      - backend
-      - rabbitmq
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    # /data - том матрицы ко-покупок: периодическая задача build_copurchase_matrix
+    # пишет сюда, recommender читает.
+    volumes:
+      - recommender_data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Планировщик периодических задач (P8): по CELERY_BEAT_SCHEDULE раз в час ставит
+  # build_copurchase_matrix в очередь - её выполняет worker (celery) с томом /data.
+  # Beat только планирует, поэтому /data ему не нужен.
+  beat:
+    build: ./backend
+    command: celery -A config beat --loglevel=info
+    env_file: [.env]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
 volumes:
   postgres_data:
   elasticsearch_data:
   clickhouse_data:
+  recommender_data:

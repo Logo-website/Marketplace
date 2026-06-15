@@ -3,9 +3,17 @@ import logging
 from celery import shared_task
 from django.conf import settings
 
+from services.kafka_service import publish_event
+
 logger = logging.getLogger(__name__)
 
 resend.api_key = settings.RESEND_API_KEY
+
+
+@shared_task
+def publish_order_event(topic, data):
+    """Асинхронная публикация события заказа в Kafka (S8). Вне HTTP-пути."""
+    publish_event(topic, data)
 
 STATUS_NAMES = {
     'paid':       'Оплачен',

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import api from '../api'
+import useNotificationStore from './notificationStore'
 
 const useAuthStore = create((set) => ({
   user: null,
@@ -16,6 +17,7 @@ const useAuthStore = create((set) => ({
     } finally {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
+      useNotificationStore.getState().disconnect()
       set({ user: null, isAuthenticated: false })
     }
   },

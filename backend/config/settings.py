@@ -15,7 +15,8 @@ if not SECRET_KEY:
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
+# Пустое значение даёт [], а не [''] (иначе при DEBUG=False все запросы -> 400)
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -26,6 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'corsheaders',
     'apps.users',
     'apps.products',
     'apps.orders',
@@ -37,6 +39,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -88,6 +91,13 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'
 
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
 
 from datetime import timedelta
 
@@ -101,16 +111,43 @@ SIMPLE_JWT = {
 
 
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
+
+# Кэш каталога/карточки (P6b) - отдельная БД Redis от корзины (REDIS_URL=/0),
+# чтобы очистка кэша не задевала корзины пользователей.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.getenv('REDIS_CACHE_URL', 'redis://redis:6379/1'),
+    }
+}
 ELASTICSEARCH_URL = os.getenv('ELASTICSEARCH_URL', 'http://elasticsearch:9200')
 CELERY_BROKER_URL = os.getenv('RABBITMQ_URL', 'amqp://guest:guest@rabbitmq:5672/')
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@marketplace.com')
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Письма идут через Resend SDK напрямую (apps/orders/tasks.py), Django-backend не используется.
 KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:9092')
 CLICKHOUSE_HOST = os.getenv('CLICKHOUSE_HOST', 'clickhouse')
 CLICKHOUSE_PORT = int(os.getenv('CLICKHOUSE_PORT', 9000))
+
+# Рекомендации (P8): C++-сервис ко-покупок + общий файл матрицы.
+# CPP_SERVICE_TIMEOUT держит HTTP-путь от зависания на недоступном C++ (как в P5
+# для ClickHouse/Kafka) - при таймауте RecommendationsView уходит в fallback.
+CPP_SERVICE_URL = os.getenv('CPP_SERVICE_URL', 'http://recommender:8080/')
+CPP_SERVICE_TIMEOUT = float(os.getenv('CPP_SERVICE_TIMEOUT', '1.5'))
+# Файл матрицы ко-покупок в общем volume: пишет Celery (build_copurchase_matrix),
+# читает C++. Один путь для обоих контейнеров.
+RECOMMENDER_MATRIX_PATH = os.getenv('RECOMMENDER_MATRIX_PATH', '/data/copurchase_matrix.txt')
+
+# Периодический пересчёт матрицы ко-покупок (P8). Запускается процессом celery beat;
+# для демо/после сида заказов тот же расчёт даёт management-команда build_recommendations.
+CELERY_BEAT_SCHEDULE = {
+    'build-copurchase-matrix': {
+        'task': 'apps.products.tasks.build_copurchase_matrix',
+        'schedule': float(os.getenv('MATRIX_REBUILD_INTERVAL', str(60 * 60))),  # раз в час
+    },
+}
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Marketplace API',
@@ -135,8 +172,30 @@ REST_FRAMEWORK = {
         'user': '1000/day',
         'login': '10/minute',
         'register': '5/minute',
+        'verify': '5/minute',
+        'password_reset': '5/minute',
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
 }
 RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
+
+# CORS: явный белый список origin фронтенда (S16).
+# Запрос без Origin (curl/мобайл) проходит - CORS касается только браузерных запросов.
+CORS_ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()
+]
+
+# Production-блок безопасности транспорта (S12).
+# В DEBUG не включаем, чтобы не ломать локальную разработку по http.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 год
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    # За reverse-proxy (nginx) Django узнаёт о https по этому заголовку
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    # session+CSRF cookie нужны не для API (там Bearer-токен), а для
+    # Django admin и DRF browsable API - отдельный от API контур
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True

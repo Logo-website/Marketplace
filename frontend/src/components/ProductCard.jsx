@@ -14,8 +14,9 @@ export default function ProductCard({ product }) {
   const [added, setAdded] = useState(false)
 
   const liked = isLiked(product.id)
-  const rating = product.attributes?.rating || 0
-  const reviews = product.attributes?.reviews || 0
+  // Реальный рейтинг из отзывов (P6a); пока отзывов нет - seed-плейсхолдер
+  const rating = product.reviews_count > 0 ? product.rating : (product.attributes?.rating || 0)
+  const reviews = product.reviews_count || product.attributes?.reviews || 0
   const brand = product.attributes?.brand || ''
 
   const handleAddToCart = async (e) => {

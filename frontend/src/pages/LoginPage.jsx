@@ -142,6 +142,12 @@ export default function LoginPage() {
                     </div>
                   </div>
 
+                  <div className="text-right">
+                    <Link to="/forgot-password" className="text-xs text-indigo-500 hover:underline font-medium">
+                        Забыли пароль?
+                    </Link>
+                   </div>
+
                   <motion.button
                     type="submit" disabled={loading}
                     className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-xl font-bold text-sm hover:from-indigo-700 hover:to-purple-700 transition disabled:opacity-50 mt-1 flex items-center justify-center gap-2"

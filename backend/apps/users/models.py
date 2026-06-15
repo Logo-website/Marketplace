@@ -1,13 +1,19 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-import random
+import secrets
 from django.utils import timezone
 from datetime import timedelta
+
+# После скольких неверных попыток ввода код инвалидируется (анти-брутфорс)
+MAX_OTP_ATTEMPTS = 5
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    # Публичное имя магазина/бренда продавца. Отдаётся в каталоге вместо email
+    # (S17: email - персданные, не должен утекать анонимам). Non-PII.
+    shop_name = models.CharField(max_length=120, blank=True)
 
     ROLE_BUYER = 'buyer'
     ROLE_SELLER = 'seller'
@@ -37,9 +43,11 @@ class User(AbstractUser):
 class OTPCode(models.Model):
     email = models.EmailField()
     code = models.CharField(max_length=6)
-    data = models.JSONField(default=dict)  # хранит email, username, password, role
+    # хранит хеш пароля (не плейнтекст) + username, role либо user_id/action
+    data = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     is_used = models.BooleanField(default=False)
+    attempts = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         ordering = ['-created_at']
@@ -51,7 +59,8 @@ class OTPCode(models.Model):
     def generate(cls, email, data):
         # Удаляем старые коды для этого email
         cls.objects.filter(email=email).delete()
-        code = str(random.randint(100000, 999999))
+        # secrets - криптостойкий ГПСЧ, в отличие от random (предсказуемый Mersenne Twister)
+        code = str(secrets.randbelow(900000) + 100000)
         return cls.objects.create(email=email, code=code, data=data)
 
     def __str__(self):

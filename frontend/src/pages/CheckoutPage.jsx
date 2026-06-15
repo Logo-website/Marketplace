@@ -77,8 +77,8 @@ export default function CheckoutPage() {
   const [comment, setComment] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
+  const [countdown, setCountdown] = useState(5)
+  const [orderSummary, setOrderSummary] = useState({ count: 0, total: '0', method: 'pickup' })
 
   const handleOrder = async () => {
     if (deliveryMethod === 'pickup' && !selectedPoint) {
@@ -89,10 +89,7 @@ export default function CheckoutPage() {
       alert('Укажите адрес доставки')
       return
     }
-    if (!name || !phone) {
-      alert('Укажите имя и телефон')
-      return
-    }
+
     setLoading(true)
     const deliveryAddress = deliveryMethod === 'pickup'
       ? PICKUP_POINTS.find(p => p.id === selectedPoint)?.address
@@ -100,8 +97,17 @@ export default function CheckoutPage() {
     try {
       await api.post('/orders/from-cart/', { delivery_address: deliveryAddress, comment })
       await clearCart()
+      setOrderSummary({ count: items.length, total: total, method: deliveryMethod })
       setSuccess(true)
-      setTimeout(() => navigate('/profile'), 3000)
+      let count = 5
+      const timer = setInterval(() => {
+        count -= 1
+        setCountdown(count)
+        if (count <= 0) {
+            clearInterval(timer)
+            navigate('/profile')
+        }
+      }, 1000)
     } catch (err) {
       alert(err.response?.data?.error || 'Ошибка при оформлении заказа')
     } finally {
@@ -110,23 +116,80 @@ export default function CheckoutPage() {
   }
 
   if (success) return (
-    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center px-4">
       <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="text-center bg-white rounded-2xl p-12 border border-gray-100 shadow-sm max-w-sm w-full mx-4"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl border border-gray-100 shadow-sm max-w-md w-full p-8"
       >
+        {/* Иконка */}
         <motion.div
-          className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-5"
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', delay: 0.15 }}
         >
           <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </motion.div>
-        <h2 className="text-2xl font-black text-gray-900 mb-2">Заказ оформлен</h2>
-        <p className="text-gray-400 text-sm">Перенаправляем в личный кабинет...</p>
+
+        {/* Заголовок */}
+        <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Заказ оформлен!</h2>
+        <p className="text-gray-400 text-sm text-center mb-6">Спасибо за покупку в Marketplace</p>
+
+        {/* Детали заказа */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-6 flex flex-col gap-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Товаров</span>
+            <span className="font-semibold text-gray-900">{orderSummary.count} шт.</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Сумма</span>
+            <span className="font-black text-gray-900">{Number(orderSummary.total).toLocaleString()} ₽</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Доставка</span>
+            <span className="font-semibold text-emerald-600">
+              {orderSummary.method === 'pickup' ? 'Бесплатно' : 'от 299 ₽'}
+            </span>
+          </div>
+        </div>
+
+        {/* Что дальше */}
+        <div className="flex flex-col gap-2 mb-6">
+          {[
+            { icon: '📧', text: 'Подтверждение отправлено на вашу почту' },
+            { icon: '📦', text: 'Следите за статусом в личном кабинете' },
+            { icon: '💬', text: 'При вопросах — напишите в поддержку' },
+          ].map((item, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 + i * 0.08 }}
+              className="flex items-center gap-3 text-sm text-gray-500"
+            >
+              <span className="text-base">{item.icon}</span>
+              {item.text}
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Таймер */}
+        <div className="text-center">
+          <p className="text-xs text-gray-400 mb-3">
+            Переход в личный кабинет через {countdown} сек.
+          </p>
+          <motion.button
+            onClick={() => navigate('/profile')}
+            className="w-full bg-[#111] text-white py-3 rounded-xl font-semibold text-sm hover:bg-gray-800 transition"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            Перейти в личный кабинет →
+          </motion.button>
+        </div>
       </motion.div>
     </div>
   )
@@ -161,26 +224,6 @@ export default function CheckoutPage() {
 
           {/* Левая часть */}
           <div className="flex-1 flex flex-col gap-4">
-
-            {/* Контактные данные */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className="bg-white rounded-2xl p-6 border border-gray-100"
-            >
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Контактные данные</h2>
-              <div className="flex flex-col gap-3">
-                <input
-                  type="text" placeholder="Имя и фамилия *" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
-                />
-                <input
-                  type="tel" placeholder="Номер телефона *" value={phone} onChange={(e) => setPhone(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
-                />
-              </div>
-            </motion.div>
 
             {/* Способ доставки */}
             <motion.div

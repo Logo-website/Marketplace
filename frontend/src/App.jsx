@@ -12,8 +12,13 @@ import ProfilePage from './pages/ProfilePage'
 import SellerPage from './pages/SellerPage'
 import useAuthStore from './store/authStore'
 import useCartStore from './store/cartStore'
+import useNotificationStore from './store/notificationStore'
+import NotificationToasts from './components/NotificationToasts'
 import WishlistPage from './pages/WishlistPage'
 import CheckoutPage from './pages/CheckoutPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import NotFoundPage from './pages/NotFoundPage'
+
 
 function PrivateRoute({ children }) {
   const { isAuthenticated } = useAuthStore()
@@ -40,18 +45,24 @@ function PageWrapper({ children }) {
 export default function App() {
   const { fetchProfile, isAuthenticated } = useAuthStore()
   const { fetchCart } = useCartStore()
+  const { connect, disconnect } = useNotificationStore()
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchProfile()
       fetchCart()
+      connect()
     }
-  }, [])
+    // Закрываем WS при размонтировании/смене статуса - реальный logout
+    // дополнительно зовёт disconnect из authStore.
+    return () => disconnect()
+  }, [isAuthenticated])
 
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-[#f5f5f5]">
         <Header />
+        <NotificationToasts />
         <PageWrapper>
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -64,6 +75,8 @@ export default function App() {
             <Route path="/seller" element={<PrivateRoute><SellerPage /></PrivateRoute>} />
             <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
             <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </PageWrapper>
       </div>

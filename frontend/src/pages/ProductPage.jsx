@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
+import ProductCard from '../components/ProductCard'
 import useCartStore from '../store/cartStore'
 import useAuthStore from '../store/authStore'
 import useWishlistStore from '../store/wishlistStore'
@@ -48,6 +49,7 @@ export default function ProductPage() {
   const [submitting, setSubmitting] = useState(false)
   const [reviewError, setReviewError] = useState('')
   const [canReview, setCanReview] = useState(null)
+  const [recommendations, setRecommendations] = useState([])
 
   const { addToCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
@@ -56,8 +58,18 @@ export default function ProductPage() {
   useEffect(() => {
     fetchProduct()
     fetchReviews()
+    fetchRecommendations()
     if (isAuthenticated) checkCanReview()
   }, [id])
+
+  const fetchRecommendations = async () => {
+    try {
+      const res = await api.get(`/products/recommendations/?product_id=${id}`)
+      setRecommendations((res.data || []).filter(p => p.id !== Number(id)))
+    } catch {
+      setRecommendations([])
+    }
+  }
 
   const fetchProduct = async () => {
     try {
@@ -158,8 +170,9 @@ export default function ProductPage() {
     </div>
   )
 
-  const rating = product.attributes?.rating || 0
-  const reviewCount = product.attributes?.reviews || 0
+  // Реальный рейтинг из отзывов (P6a); пока отзывов нет - seed-плейсхолдер
+  const rating = product.reviews_count > 0 ? product.rating : (product.attributes?.rating || 0)
+  const reviewCount = product.reviews_count || product.attributes?.reviews || 0
   const brand = product.attributes?.brand || ''
   const images = product.images || []
   const liked = isLiked(product.id)
@@ -460,6 +473,23 @@ export default function ProductPage() {
             )}
           </div>
         </motion.div>
+
+        {/* С этим покупают (P8: ко-покупки из C++, fallback - популярное по категории) */}
+        {recommendations.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-4"
+          >
+            <h2 className="text-xl font-black text-gray-900 mb-4">С этим покупают</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {recommendations.slice(0, 8).map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </motion.div>
+        )}
 
       </div>
     </div>

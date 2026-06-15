@@ -1,24 +1,38 @@
+import requests
+from django.conf import settings
 from rest_framework import generics, permissions, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Category, Product
-from .serializers import CategorySerializer, ProductSerializer, ProductCreateSerializer
-from .search import search_products, index_product, delete_product
-from clickhouse import track_event
-from apps.permissions import IsSeller
-import urllib.request
-import json
-import logging
-from .serializers import CategorySerializer, ProductSerializer, ProductCreateSerializer, ReviewSerializer, ReviewCreateSerializer
 from .models import Category, Product, Review
+from .serializers import (
+    CategorySerializer, ProductSerializer, ProductCreateSerializer,
+    ReviewSerializer, ReviewCreateSerializer,
+)
+from .search import search_products, autocomplete, index_product, delete_product
+from .caching import cache_get, cache_set
+from services.clickhouse_service import ClickHouseService
+from apps.permissions import IsSeller
+import logging
 
 logger = logging.getLogger(__name__)
+
+CATEGORIES_CACHE_KEY = 'categories:root'
+CATEGORIES_CACHE_TTL = 60 * 60  # категории меняются редко
+PRODUCT_CACHE_KEY = 'product_detail:{}'
+PRODUCT_CACHE_TTL = 60 * 5
 
 
 class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.filter(parent=None)
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
+
+    def list(self, request, *args, **kwargs):
+        data = cache_get(CATEGORIES_CACHE_KEY)
+        if data is None:
+            data = self.get_serializer(self.get_queryset(), many=True).data
+            cache_set(CATEGORIES_CACHE_KEY, data, CATEGORIES_CACHE_TTL)
+        return Response(data)
 
 
 class ProductListView(generics.ListAPIView):
@@ -42,9 +56,7 @@ class ProductListView(generics.ListAPIView):
         elif sort == 'price_desc':
             queryset = queryset.order_by('-price')
         elif sort == 'rating':
-            queryset = queryset.order_by('-attributes__rating') if False else queryset.extra(
-                select={'rating_val': "CAST(attributes->>'rating' AS FLOAT)"}
-            ).order_by('-rating_val')
+            queryset = queryset.order_by('-rating', '-reviews_count')
         elif sort == 'new':
             queryset = queryset.order_by('-created_at')
         else:
@@ -54,42 +66,130 @@ class ProductListView(generics.ListAPIView):
 
 
 class ProductDetailView(generics.RetrieveAPIView):
-    queryset = Product.objects.filter(status='active')
+    queryset = Product.objects.filter(status='active').select_related(
+        'category', 'seller').prefetch_related('images')
     serializer_class = ProductSerializer
     permission_classes = [permissions.AllowAny]
 
     def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
+        pk = kwargs.get('pk')
+        cache_key = PRODUCT_CACHE_KEY.format(pk)
+        data = cache_get(cache_key)
+        if data is None:
+            instance = self.get_object()  # 404, если товара нет или он не active
+            data = self.get_serializer(instance).data
+            cache_set(cache_key, data, PRODUCT_CACHE_TTL)
+        # Просмотр логируем всегда, в т.ч. на cache-hit: вызов снаружи кэша,
+        # аналитика не теряется (разрешение конфликта P5/P6).
         if request.user.is_authenticated:
-            track_event('view', request.user.id, instance.id)
-        return super().retrieve(request, *args, **kwargs)
+            ClickHouseService.log_view(request.user.id, int(pk))
+        return Response(data)
+
+
+def _parse_decimal(value):
+    """Безопасный разбор цены из query-параметра: некорректное значение -> None."""
+    if value in (None, ''):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _products_in_order(product_ids):
+    """Товары по id с сохранением порядка релевантности из ES."""
+    from django.db.models import Case, When, IntegerField
+    preserved_order = Case(
+        *[When(id=pk, then=pos) for pos, pk in enumerate(product_ids)],
+        output_field=IntegerField()
+    )
+    return Product.objects.filter(id__in=product_ids).select_related(
+        'category', 'seller').prefetch_related('images').order_by(preserved_order)
+
+
+def _active_in_order(ids, exclude_id=None):
+    """
+    Активные товары по списку id с сохранением порядка из матрицы рекомендаций.
+    status='active' обязателен: нельзя рекомендовать скрытый/снятый товар
+    (а C++/матрица о статусе не знают - храним только id).
+    """
+    from django.db.models import Case, When, IntegerField
+    ids = [i for i in ids if i != exclude_id]
+    if not ids:
+        return []
+    order = Case(
+        *[When(id=pk, then=pos) for pos, pk in enumerate(ids)],
+        output_field=IntegerField()
+    )
+    return list(
+        Product.objects.filter(id__in=ids, status='active')
+        .select_related('category', 'seller').prefetch_related('images')
+        .order_by(order)
+    )
 
 
 class ProductSearchView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        query = request.query_params.get('q', '')
-        min_price = request.query_params.get('min_price')
-        max_price = request.query_params.get('max_price')
+        query = request.query_params.get('q', '').strip()
+        min_price = _parse_decimal(request.query_params.get('min_price'))
+        max_price = _parse_decimal(request.query_params.get('max_price'))
         category = request.query_params.get('category')
+        page = request.query_params.get('page', 1)
+        page_size = request.query_params.get('page_size', 20)
 
         if not query:
             return Response({'error': 'Введите поисковый запрос'}, status=400)
 
-        product_ids = search_products(query, min_price, max_price, category)
+        result = search_products(query, min_price, max_price, category, page, page_size)
+        product_ids = result['ids']
 
-        if not product_ids:
+        if product_ids:
+            products = _products_in_order(product_ids)
+            results_data = ProductSerializer(products, many=True).data
+        else:
+            results_data = []
+
+        # Обогащаем фасеты категорий именами одним запросом (ES хранит только id).
+        facets = result['facets']
+        cat_ids = [c['id'] for c in facets['categories']]
+        names = dict(Category.objects.filter(id__in=cat_ids).values_list('id', 'name'))
+        for c in facets['categories']:
+            c['name'] = names.get(c['id'], '')
+
+        return Response({
+            'count': result['total'],
+            'results': results_data,
+            'facets': facets,
+        })
+
+
+class AutocompleteView(APIView):
+    """Лёгкие подсказки для строки поиска. Минимальные поля, без фасетов."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+        if len(query) < 2:
             return Response([])
 
-        from django.db.models import Case, When, IntegerField
-        preserved_order = Case(
-            *[When(id=pk, then=pos) for pos, pk in enumerate(product_ids)],
-            output_field=IntegerField()
-        )
-        products = Product.objects.filter(id__in=product_ids).order_by(preserved_order)
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
+        ids = autocomplete(query)
+        if not ids:
+            return Response([])
+
+        products = _products_in_order(ids)
+        data = []
+        for p in products:
+            images = list(p.images.all())
+            data.append({
+                'id': p.id,
+                'name': p.name,
+                'price': str(p.price),
+                'category_name': p.category.name if p.category else '',
+                'image_url': images[0].image_url if images else None,
+            })
+        return Response(data)
 
 
 class ProductCreateView(generics.CreateAPIView):
@@ -126,16 +226,81 @@ class SellerProductUpdateView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class RecommendationsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    """
+    Рекомендации товаров (P8).
+
+    - `?product_id=X` - item-to-item «с этим покупают»: матрица ко-покупок из C++.
+      При недоступности C++/пустой матрице - fallback на популярное по той же категории.
+    - без `product_id` - общие рекомендации (корзина, профиль): популярное по рейтингу.
+      Это неслучайный fallback вместо прежних 100 случайных товаров.
+
+    AllowAny: рекомендации - каталожные данные, не персональные. Блок «с этим
+    покупают» виден и анонимам на публичной странице товара. Прежний контракт без
+    параметров (CartPage/ProfilePage) сохранён - они просто получают популярное.
+
+    Никогда не отдаёт 500: любая ошибка -> пустой список или fallback.
+    """
+    permission_classes = [permissions.AllowAny]
+    N = 12
 
     def get(self, request):
+        raw = request.query_params.get('product_id')
         try:
-            products = list(Product.objects.filter(status='active').order_by('?')[:100])
-            serializer = ProductSerializer(products, many=True, context={'request': request})
-            return Response(serializer.data)
+            product_id = int(raw) if raw not in (None, '') else None
+        except (TypeError, ValueError):
+            product_id = None  # кривой product_id -> деградируем до общих рекомендаций
+
+        try:
+            if product_id is not None:
+                ids = self._copurchase_ids(product_id)
+                products = _active_in_order(ids, exclude_id=product_id)[:self.N]
+                if not products:
+                    products = self._fallback_by_category(product_id)
+            else:
+                products = self._popular()
+            data = ProductSerializer(products, many=True, context={'request': request}).data
+            return Response(data)
         except Exception as e:
             logger.error(f'Recommendations error: {e}')
             return Response([])
+
+    def _copurchase_ids(self, product_id):
+        """Топ сопутствующих id от C++-рекомендатора. Любая проблема -> []."""
+        try:
+            resp = requests.get(
+                settings.CPP_SERVICE_URL,
+                params={'product_id': product_id},
+                timeout=settings.CPP_SERVICE_TIMEOUT,
+            )
+            resp.raise_for_status()
+            ids = resp.json().get('recommendations', [])
+            return [int(i) for i in ids][:self.N]
+        except Exception as e:
+            # warning, не error: недоступный C++ - штатная ситуация, есть fallback
+            logger.warning(f'C++ recommender unavailable for product {product_id}: {e}')
+            return []
+
+    def _fallback_by_category(self, product_id):
+        """Холодный старт / C++ недоступен: популярное по категории товара."""
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return self._popular()
+        qs = Product.objects.filter(status='active').exclude(id=product.id)
+        if product.category_id:
+            qs = qs.filter(category_id=product.category_id)
+        return list(
+            qs.select_related('category', 'seller').prefetch_related('images')
+            .order_by('-rating', '-reviews_count')[:self.N]
+        )
+
+    def _popular(self):
+        """Общие рекомендации: популярное по рейтингу (индексированная колонка P6a)."""
+        return list(
+            Product.objects.filter(status='active')
+            .select_related('category', 'seller').prefetch_related('images')
+            .order_by('-rating', '-reviews_count')[:self.N]
+        )
 
 class ReviewListCreateView(generics.ListCreateAPIView):
     def get_serializer_class(self):

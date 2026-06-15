@@ -10,7 +10,10 @@ celery==5.3.6
 django-celery-results==2.5.1
 kafka-python==2.0.2
 clickhouse-driver==0.2.7
+requests
 drf-spectacular==0.27.1
+django-cors-headers==4.3.1
 pytest==7.4.4
 pytest-django==4.7.0
 resend
+gunicorn==22.0.0

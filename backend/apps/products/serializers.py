@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage
 from .models import Category, Product, ProductImage, Review
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -17,16 +16,25 @@ class ProductImageSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
-    seller_name = serializers.CharField(source='seller.email', read_only=True)
+    # S17: публичное имя магазина, НЕ email продавца. Каталог отдаётся
+    # анонимам (AllowAny) - email тут был утечкой персданных третьих лиц.
+    seller_name = serializers.SerializerMethodField()
+
+    def get_seller_name(self, obj):
+        seller = obj.seller
+        if seller is None:
+            return ''
+        return seller.shop_name or seller.username
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'slug', 'description', 'price',
             'stock', 'attributes', 'status', 'category',
-            'category_name', 'seller_name', 'images', 'created_at'
+            'category_name', 'seller_name', 'images', 'created_at',
+            'rating', 'reviews_count'
         ]
-        read_only_fields = ['seller', 'created_at']
+        read_only_fields = ['seller', 'created_at', 'rating', 'reviews_count']
 
 
 class ProductCreateSerializer(serializers.ModelSerializer):

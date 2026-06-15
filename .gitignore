@@ -1,6 +1,8 @@
 # Секреты
 .env
 backend/.env
+.env.local
+.env.*.local
 
 # Python
 __pycache__/
@@ -12,10 +14,24 @@ dist/
 build/
 .pytest_cache/
 
+# Python virtualenv
+venv/
+.venv/
+env/
+
+# Покрытие тестами
+.coverage
+htmlcov/
+coverage.xml
+
 # Django
 *.log
 db.sqlite3
 backend/media/
+
+# Celery (рантайм-артефакт beat, не в репозиторий)
+backend/celerybeat-schedule
+celerybeat-schedule
 
 # Node
 node_modules/
@@ -38,3 +54,21 @@ backend/*.csv
 cpp_service/recommender
 *.o
 *.out
+*.exe
+
+# OS-файлы
+.DS_Store
+Thumbs.db
+
+# Claude (локальные скиллы и настройки — не в репозиторий)
+.claude/skills/
+.claude/settings.json
+.claude/settings.local.json
+
+# Личные и учебно-портфельные материалы (профиль, бизнес, планы — не в репозиторий)
+ai-clone/
+mastery/
+business/
+plans/
+retrospectives/
+CLAUDE.md

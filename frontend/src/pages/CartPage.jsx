@@ -9,7 +9,7 @@ import ProductCard from '../components/ProductCard'
 
 export default function CartPage() {
   const { items, total, fetchCart, removeFromCart, clearCart } = useCartStore()
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
   const { toggle, isLiked } = useWishlistStore()
   const [purchasedProducts, setPurchasedProducts] = useState([])
   const [recommendations, setRecommendations] = useState([])
@@ -276,7 +276,13 @@ export default function CartPage() {
               </div>
 
               <motion.button
-                onClick={() => navigate('/checkout')}
+                onClick={() => {
+                    if (!user?.phone) {
+                        navigate('/profile?tab=profile&phone=required')
+                        return
+                    }
+                    navigate('/checkout')
+                }}
                 disabled={selectedItems.length === 0}
                 className="w-full bg-[#111] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition disabled:opacity-40 mb-4"
                 whileHover={{ scale: 1.01 }}

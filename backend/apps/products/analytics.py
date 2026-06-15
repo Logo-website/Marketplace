@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Product
-from clickhouse import get_seller_stats
+from services.clickhouse_service import get_seller_stats
 from apps.permissions import IsSeller
 
 class SellerAnalyticsView(APIView):

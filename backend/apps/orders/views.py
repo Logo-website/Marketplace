@@ -1,5 +1,6 @@
 import logging
 from django.db import transaction
+from django.db.models import Exists, OuterRef
 from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -51,21 +52,29 @@ def on_order_created(order):
     """
     Единое место для всех побочных эффектов после создания заказа.
     Вызывается из обоих эндпоинтов.
+
+    Все побочки диспатчатся через transaction.on_commit (commit-safety, S8):
+    иначе Celery-воркер может стартовать задачу до коммита транзакции и не найти
+    заказ (Order.DoesNotExist). Если транзакция не открыта, on_commit выполняет
+    callback немедленно - оба эндпоинта вызывают эту функцию уже после коммита.
+    Через границу Celery передаём только примитивы, не ORM-объекты.
     """
-    try:
-        send_order_confirmation_email.delay(
-            order.id,
-            order.buyer.email,
-            str(order.total_price)
-        )
-    except Exception as e:
-        logger.error(f'Email error for order {order.id}: {e}')
+    order_id = order.id
+    buyer_id = order.buyer_id
+    buyer_email = order.buyer.email
+    total = str(order.total_price)
+    product_ids = [item.product_id for item in order.items.all() if item.product_id]
 
-    KafkaService.order_created(order)
+    def dispatch():
+        try:
+            send_order_confirmation_email.delay(order_id, buyer_email, total)
+            KafkaService.order_created(order)
+            for product_id in product_ids:
+                ClickHouseService.log_purchase(buyer_id, product_id, order_id)
+        except Exception as e:
+            logger.error(f'on_order_created dispatch error for order {order_id}: {e}')
 
-    for item in order.items.all():
-        if item.product:
-            ClickHouseService.log_purchase(order.buyer.id, item.product.id)
+    transaction.on_commit(dispatch)
 
 
 class OrderListCreateView(generics.ListCreateAPIView):
@@ -146,7 +155,18 @@ class OrderStatusUpdateView(generics.UpdateAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role == 'seller':
-            return Order.objects.filter(items__product__seller=user).distinct()
+            # Продавец ведёт заказ только если ВСЕ позиции - его (S4).
+            # Смешанный заказ (есть чужая или удалённая позиция) - только admin,
+            # иначе продавец A смог бы отменить заказ и восстановить сток продавца B.
+            foreign_items = OrderItem.objects.filter(
+                order=OuterRef('pk')
+            ).exclude(product__seller=user)
+            return (
+                Order.objects
+                .filter(items__product__seller=user)
+                .exclude(Exists(foreign_items))
+                .distinct()
+            )
         if user.role == 'admin':
             return Order.objects.all()
         return Order.objects.none()

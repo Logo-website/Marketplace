@@ -1,18 +1,54 @@
 import resend
 import logging
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import make_password
 from django.conf import settings
 from .serializers import RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer
-from .models import User, OTPCode
-from .throttling import LoginRateThrottle, RegisterRateThrottle
+from .models import User, OTPCode, MAX_OTP_ATTEMPTS
+from .validators import validate_password_strength
+from .throttling import (
+    LoginRateThrottle, RegisterRateThrottle,
+    VerifyRateThrottle, PasswordResetRequestThrottle,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def consume_otp(email, code, action=None):
+    """Проверка и атомарное гашение OTP-кода (S3 + S10).
+
+    Возвращает (otp, None) при успехе или (None, Response) с ошибкой.
+    - Неверный код инкрементирует attempts; при >= MAX_OTP_ATTEMPTS код
+      инвалидируется (анти-брутфорс).
+    - Верный код гасится атомарным UPDATE с проверкой rowcount - два
+      параллельных запроса с одним кодом не пройдут оба (защита от гонки).
+    """
+    otp = OTPCode.objects.filter(email=email, is_used=False).order_by('-created_at').first()
+    if not otp or not otp.is_valid():
+        return None, Response({'error': 'Неверный или истёкший код'}, status=400)
+
+    if otp.code != code:
+        otp.attempts += 1
+        if otp.attempts >= MAX_OTP_ATTEMPTS:
+            otp.is_used = True
+        otp.save(update_fields=['attempts', 'is_used'])
+        return None, Response({'error': 'Неверный или истёкший код'}, status=400)
+
+    if action is not None and otp.data.get('action') != action:
+        return None, Response({'error': 'Неверный код'}, status=400)
+
+    claimed = OTPCode.objects.filter(id=otp.id, is_used=False).update(is_used=True)
+    if not claimed:
+        # Код уже погашен параллельным запросом
+        return None, Response({'error': 'Неверный или истёкший код'}, status=400)
+
+    return otp, None
 
 
 def send_otp_email(email, code, subject, heading):
@@ -52,7 +88,8 @@ class RegisterRequestView(APIView):
         otp = OTPCode.generate(email, {
             'email': email,
             'username': data['username'],
-            'password': data['password'],
+            # храним ХЕШ, а не сырой пароль: утечка БД не раскроет пароли (S1)
+            'password': make_password(data['password']),
             'role': 'buyer',
         })
 
@@ -72,28 +109,30 @@ class RegisterRequestView(APIView):
 class RegisterVerifyView(APIView):
     """Шаг 2 — проверяем код и создаём пользователя."""
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [VerifyRateThrottle]
 
     def post(self, request):
-        email = request.data.get('email', '').strip()
+        email = request.data.get('email', '').strip().lower()
         code = request.data.get('code', '').strip()
 
         if not email or not code:
             return Response({'error': 'Укажите email и код'}, status=400)
 
-        otp = OTPCode.objects.filter(email=email, code=code, is_used=False).last()
-        if not otp or not otp.is_valid():
-            return Response({'error': 'Неверный или истёкший код'}, status=400)
+        otp, error = consume_otp(email, code)
+        if error:
+            return error
 
         data = otp.data
         try:
-            user = User.objects.create_user(
+            # password в data - уже хеш (make_password на шаге request),
+            # поэтому присваиваем напрямую, без повторного set_password
+            user = User(
                 email=data['email'],
                 username=data['username'],
-                password=data['password'],
                 role=data.get('role', 'buyer'),
             )
-            otp.is_used = True
-            otp.save()
+            user.password = data['password']
+            user.save()
         except Exception as e:
             logger.error(f'User creation error: {e}')
             return Response({'error': 'Ошибка создания аккаунта'}, status=400)
@@ -145,6 +184,7 @@ class LoginRequestView(APIView):
 class LoginVerifyView(APIView):
     """Шаг 2 входа — проверяем OTP, возвращаем JWT."""
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [VerifyRateThrottle]
 
     def post(self, request):
         email = request.data.get('email', '').strip().lower()
@@ -153,18 +193,15 @@ class LoginVerifyView(APIView):
         if not email or not code:
             return Response({'error': 'Укажите email и код'}, status=400)
 
-        otp = OTPCode.objects.filter(email=email, code=code, is_used=False).last()
-        if not otp or not otp.is_valid():
-            return Response({'error': 'Неверный или истёкший код'}, status=400)
+        otp, error = consume_otp(email, code)
+        if error:
+            return error
 
         user_id = otp.data.get('user_id')
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             return Response({'error': 'Пользователь не найден'}, status=400)
-
-        otp.is_used = True
-        otp.save()
 
         refresh = RefreshToken.for_user(user)
         return Response({
@@ -195,3 +232,71 @@ class LogoutView(APIView):
             return Response({'detail': 'Вы вышли из системы'})
         except TokenError:
             return Response({'error': 'Неверный токен'}, status=400)
+
+class PasswordResetRequestView(APIView):
+    """Шаг 1 — отправляем OTP код для сброса пароля."""
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [PasswordResetRequestThrottle]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        if not email:
+            return Response({'error': 'Укажите email'}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Не раскрываем что пользователь не существует
+            return Response({'detail': 'Код отправлен на почту', 'email': email})
+
+        otp = OTPCode.generate(email, {'user_id': user.id, 'action': 'reset_password'})
+
+        try:
+            send_otp_email(
+                email, otp.code,
+                'Сброс пароля — Marketplace',
+                'Сброс пароля'
+            )
+        except Exception as e:
+            logger.error(f'Resend error (reset): {e}')
+            return Response({'error': 'Ошибка отправки кода. Попробуйте позже.'}, status=500)
+
+        return Response({'detail': 'Код отправлен на почту', 'email': email})
+
+
+class PasswordResetVerifyView(APIView):
+    """Шаг 2 — проверяем OTP и меняем пароль."""
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [VerifyRateThrottle]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        code = request.data.get('code', '').strip()
+        password = request.data.get('password', '')
+        password_confirm = request.data.get('password_confirm', '')
+
+        if not all([email, code, password, password_confirm]):
+            return Response({'error': 'Заполните все поля'}, status=400)
+
+        if password != password_confirm:
+            return Response({'error': 'Пароли не совпадают'}, status=400)
+
+        # Единый валидатор пароля - та же политика, что при регистрации (S6)
+        try:
+            validate_password_strength(password)
+        except serializers.ValidationError as e:
+            return Response({'error': e.detail[0] if e.detail else 'Некорректный пароль'}, status=400)
+
+        otp, error = consume_otp(email, code, action='reset_password')
+        if error:
+            return error
+
+        try:
+            user = User.objects.get(id=otp.data['user_id'])
+            user.set_password(password)
+            user.save()
+        except Exception as e:
+            logger.error(f'Password reset error: {e}')
+            return Response({'error': 'Ошибка сброса пароля'}, status=400)
+
+        return Response({'detail': 'Пароль успешно изменён'})

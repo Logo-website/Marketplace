@@ -27,8 +27,12 @@ class Product(models.Model):
         ('active', 'Активен'),
         ('hidden', 'Скрыт'),
         ('moderation', 'На модерации'),
-    ], default='moderation')
-    created_at = models.DateTimeField(auto_now_add=True)
+    ], default='moderation', db_index=True)
+    # Денормализация рейтинга (P6a): пересчитывается из Review сигналами,
+    # индексируется для сортировки по рейтингу без .extra()+CAST по JSON.
+    rating = models.FloatField(default=0, db_index=True)
+    reviews_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):

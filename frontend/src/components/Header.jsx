@@ -36,9 +36,8 @@ export default function Header() {
     }
     suggestTimeout.current = setTimeout(async () => {
       try {
-        const res = await api.get(`/products/search/?q=${query}`)
-        const data = Array.isArray(res.data) ? res.data : res.data.results || []
-        setSuggestions(data.slice(0, 6))
+        const res = await api.get(`/products/autocomplete/?q=${encodeURIComponent(query)}`)
+        setSuggestions(Array.isArray(res.data) ? res.data : [])
         setShowSuggestions(true)
       } catch {
         setSuggestions([])
@@ -132,9 +131,9 @@ export default function Header() {
                         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition text-left border-b border-gray-50 last:border-0"
                       >
                         <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                          {item.images?.[0]?.image_url ? (
+                          {item.image_url ? (
                             <img
-                              src={item.images[0].image_url}
+                              src={item.image_url}
                               alt=""
                               className="w-full h-full object-contain"
                               onError={(e) => { e.target.style.display = 'none' }}

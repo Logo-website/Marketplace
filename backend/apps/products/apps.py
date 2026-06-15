@@ -6,13 +6,14 @@ class ProductsConfig(AppConfig):
     name = 'apps.products'
 
     def ready(self):
+        from . import signals  # noqa: F401 - регистрация сигналов рейтинга/кэша (P6)
         try:
             from .search import create_index
             create_index()
         except Exception:
             pass
         try:
-            from clickhouse import init_clickhouse
-            init_clickhouse()
+            from services.clickhouse_service import init_events_table
+            init_events_table()
         except Exception:
             pass

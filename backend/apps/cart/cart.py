@@ -1,21 +1,29 @@
 import json
-import redis
 from django.conf import settings
-
-r = redis.from_url(settings.REDIS_URL)
 
 CART_TTL = 60 * 60 * 24 * 7  # 7 дней
 
+_redis = None
+
+
+def get_redis():
+    """Ленивый клиент redis. Соединение создаётся при первом вызове, не на импорте (S9)."""
+    global _redis
+    if _redis is None:
+        import redis
+        _redis = redis.from_url(settings.REDIS_URL)
+    return _redis
+
 
 def get_cart(user_id):
-    data = r.get(f'cart:{user_id}')
+    data = get_redis().get(f'cart:{user_id}')
     if data:
         return json.loads(data)
     return {}
 
 
 def save_cart(user_id, cart):
-    r.setex(f'cart:{user_id}', CART_TTL, json.dumps(cart))
+    get_redis().setex(f'cart:{user_id}', CART_TTL, json.dumps(cart))
 
 
 def add_to_cart(user_id, product_id, quantity=1):
@@ -39,4 +47,4 @@ def remove_from_cart(user_id, product_id):
 
 
 def clear_cart(user_id):
-    r.delete(f'cart:{user_id}')
+    get_redis().delete(f'cart:{user_id}')

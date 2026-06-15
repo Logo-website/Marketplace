@@ -47,8 +47,11 @@ class Order(models.Model):
             if order.status == self.STATUS_CANCELLED:
                 return False
 
-            # Возвращаем остатки
-            for item in order.items.select_related('product').select_for_update():
+            # Возвращаем остатки.
+            # of=('self',) блокирует только строки OrderItem: без него select_for_update
+            # пытается лочить nullable-сторону LEFT JOIN к product (on_delete=SET_NULL),
+            # что Postgres запрещает ("FOR UPDATE cannot be applied to the nullable side").
+            for item in order.items.select_related('product').select_for_update(of=('self',)):
                 if item.product:
                     Product.objects.filter(pk=item.product.pk).update(
                         stock=models.F('stock') + item.quantity
