@@ -14,6 +14,8 @@ import useAuthStore from './store/authStore'
 import useCartStore from './store/cartStore'
 import useNotificationStore from './store/notificationStore'
 import NotificationToasts from './components/NotificationToasts'
+import ToastContainer from './components/ToastContainer'
+import ErrorBoundary from './components/states/ErrorBoundary'
 import WishlistPage from './pages/WishlistPage'
 import CheckoutPage from './pages/CheckoutPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -36,7 +38,10 @@ function PageWrapper({ children }) {
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.2 }}
       >
-        {children}
+        {/* resetKey по маршруту - после краша переход по ссылке сбрасывает boundary */}
+        <ErrorBoundary resetKey={location.pathname}>
+          {children}
+        </ErrorBoundary>
       </motion.div>
     </AnimatePresence>
   )
@@ -63,6 +68,7 @@ export default function App() {
       <div className="min-h-screen bg-[#f5f5f5]">
         <Header />
         <NotificationToasts />
+        <ToastContainer />
         <PageWrapper>
           <Routes>
             <Route path="/" element={<HomePage />} />

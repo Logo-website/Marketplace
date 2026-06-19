@@ -6,6 +6,10 @@ import ProductCard from '../components/ProductCard'
 import useCartStore from '../store/cartStore'
 import useAuthStore from '../store/authStore'
 import useWishlistStore from '../store/wishlistStore'
+import useAsyncData from '../hooks/useAsyncData'
+import EmptyState from '../components/states/EmptyState'
+import ErrorState from '../components/states/ErrorState'
+import { toast } from '../store/toastStore'
 
 const GUARANTEES = [
   {
@@ -37,8 +41,6 @@ const GUARANTEES = [
 export default function ProductPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [product, setProduct] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
   const [adding, setAdding] = useState(false)
@@ -55,11 +57,25 @@ export default function ProductPage() {
   const { isAuthenticated } = useAuthStore()
   const { toggle, isLiked } = useWishlistStore()
 
+  // Товар - через единый хук: skeleton/404/ошибка сети различаются явно.
+  const { data: product, status, error, retry } = useAsyncData(
+    (signal) =>
+      api.get(`/products/${id}/`, { signal }).then((r) => {
+        const p = r.data
+        // Лента «недавно просмотренные» (узел 1.12).
+        const viewed = JSON.parse(localStorage.getItem('recently_viewed') || '[]')
+        const filtered = viewed.filter((x) => x.id !== p.id)
+        localStorage.setItem('recently_viewed', JSON.stringify([p, ...filtered].slice(0, 10)))
+        return p
+      }),
+    [id]
+  )
+
   useEffect(() => {
-    fetchProduct()
     fetchReviews()
     fetchRecommendations()
     if (isAuthenticated) checkCanReview()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const fetchRecommendations = async () => {
@@ -68,21 +84,6 @@ export default function ProductPage() {
       setRecommendations((res.data || []).filter(p => p.id !== Number(id)))
     } catch {
       setRecommendations([])
-    }
-  }
-
-  const fetchProduct = async () => {
-    try {
-      const res = await api.get(`/products/${id}/`)
-      setProduct(res.data)
-      const viewed = JSON.parse(localStorage.getItem('recently_viewed') || '[]')
-      const filtered = viewed.filter(p => p.id !== res.data.id)
-      const updated = [res.data, ...filtered].slice(0, 10)
-      localStorage.setItem('recently_viewed', JSON.stringify(updated))
-    } catch {
-      setProduct(null)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -116,7 +117,7 @@ export default function ProductPage() {
       setAdded(true)
       setTimeout(() => setAdded(false), 2000)
     } catch {
-      alert('Ошибка при добавлении')
+      toast.error('Ошибка при добавлении в корзину')
     } finally {
       setAdding(false)
     }
@@ -143,7 +144,7 @@ export default function ProductPage() {
     }
   }
 
-  if (loading) return (
+  if (status === 'loading') return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="bg-white rounded-2xl p-8 flex gap-8">
         <div className="skeleton w-1/2 h-96 rounded-2xl" />
@@ -156,19 +157,29 @@ export default function ProductPage() {
     </div>
   )
 
-  if (!product) return (
-    <div className="text-center py-24">
-      <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-        <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
-      <p className="text-gray-500 font-semibold mb-1">Товар не найден</p>
-      <button onClick={() => navigate('/')} className="text-sm text-indigo-600 hover:underline mt-1">
-        На главную
-      </button>
+  // 404 - товара нет (осмысленное «не найдено»); иначе сбой сети с повтором.
+  if (status === 'error' && error?.response?.status === 404) return (
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <EmptyState
+        icon={
+          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        }
+        title="Товар не найден"
+        subtitle="Возможно, товар снят с продажи или ссылка устарела"
+        action={{ label: 'На главную', onClick: () => navigate('/') }}
+      />
     </div>
   )
+
+  if (status === 'error') return (
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <ErrorState onRetry={retry} />
+    </div>
+  )
+
+  if (!product) return null
 
   // Реальный рейтинг из отзывов (P6a); пока отзывов нет - seed-плейсхолдер
   const rating = product.reviews_count > 0 ? product.rating : (product.attributes?.rating || 0)

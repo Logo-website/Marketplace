@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import api from '../api'
 import useAuthStore from '../store/authStore'
 import ProductCard from '../components/ProductCard'
+import EmptyState from '../components/states/EmptyState'
+import ErrorState from '../components/states/ErrorState'
 
 const STATUS_CONFIG = {
   created:    { label: 'Создан',       color: 'bg-gray-100 text-gray-600',       icon: '🕐' },
@@ -181,7 +183,9 @@ function ProfileField({ label, fieldKey, value, type, icon, description }) {
 
 export default function ProfilePage() {
   const { user, fetchProfile } = useAuthStore()
+  const navigate = useNavigate()
   const [orders, setOrders] = useState([])
+  const [ordersError, setOrdersError] = useState(false)
   const [recommendations, setRecommendations] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchParams] = useSearchParams()
@@ -203,6 +207,8 @@ export default function ProfilePage() {
   }, [])
 
   const fetchOrders = async () => {
+    setLoading(true)
+    setOrdersError(false)
     try {
       const res = await api.get('/orders/')
       const orderData = res.data.results ?? res.data
@@ -216,7 +222,9 @@ export default function ProfilePage() {
       products.filter(Boolean).forEach(p => { map[p.id] = p })
       setOrderProducts(map)
     } catch {
+      // Отличаем ошибку от «нет заказов»: пустой список != сбой загрузки.
       setOrders([])
+      setOrdersError(true)
     } finally {
       setLoading(false)
     }
@@ -415,11 +423,15 @@ export default function ProfilePage() {
                   </div>
                   {loading ? (
                     <div className="flex flex-col gap-3">{[...Array(3)].map((_, i) => <div key={i} className="bg-white rounded-2xl h-20 animate-pulse" />)}</div>
+                  ) : ordersError ? (
+                    <ErrorState onRetry={fetchOrders} />
                   ) : orders.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-                      <p className="text-5xl mb-4">📭</p>
-                      <p className="text-gray-400">Заказов пока нет</p>
-                    </div>
+                    <EmptyState
+                      icon="📭"
+                      title="Заказов пока нет"
+                      subtitle="Самое время выбрать что-нибудь в каталоге"
+                      action={{ label: 'В каталог', onClick: () => navigate('/') }}
+                    />
                   ) : (
                     <div className="flex flex-col gap-3">
                       {orders.map((order, i) => {

@@ -3,6 +3,10 @@ import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import ProductCard from '../components/ProductCard'
+import useAsyncData from '../hooks/useAsyncData'
+import { ProductGridSkeleton } from '../components/states/Skeleton'
+import EmptyState from '../components/states/EmptyState'
+import ErrorState from '../components/states/ErrorState'
 
 const PAGE_SIZE = 20
 
@@ -18,58 +22,56 @@ export default function SearchPage() {
   const [searchParams] = useSearchParams()
   const query = searchParams.get('q') || ''
 
-  const [products, setProducts] = useState([])
-  const [count, setCount] = useState(0)
-  const [facets, setFacets] = useState({ categories: [], price_ranges: [] })
-  const [loading, setLoading] = useState(true)
-
   const [category, setCategory] = useState(null)        // id выбранной категории
   const [priceKey, setPriceKey] = useState(null)        // key выбранной ценовой корзины
+  const [priceRange, setPriceRange] = useState(null)    // {from,to} выбранной корзины
   const [page, setPage] = useState(1)
 
   // Новый запрос - сбрасываем фильтры и страницу.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setCategory(null)
     setPriceKey(null)
+    setPriceRange(null)
     setPage(1)
   }, [query])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  useEffect(() => {
-    if (query) fetchResults()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, category, priceKey, page])
-
-  const fetchResults = async () => {
-    setLoading(true)
-    try {
+  // Загрузка результатов через единый хук. Пустой запрос - сразу пустой
+  // результат (не вечный скелетон). Границы цены берём из priceRange.
+  const { data, status, retry } = useAsyncData(
+    (signal) => {
+      if (!query) {
+        return Promise.resolve({ results: [], count: 0, facets: { categories: [], price_ranges: [] } })
+      }
       const params = new URLSearchParams({ q: query, page: String(page), page_size: String(PAGE_SIZE) })
       if (category != null) params.set('category', String(category))
-      if (priceKey != null) {
-        const bucket = facets.price_ranges.find((b) => b.key === priceKey)
-        if (bucket?.from != null) params.set('min_price', String(bucket.from))
-        if (bucket?.to != null) params.set('max_price', String(bucket.to))
+      if (priceRange) {
+        if (priceRange.from != null) params.set('min_price', String(priceRange.from))
+        if (priceRange.to != null) params.set('max_price', String(priceRange.to))
       }
-      const res = await api.get(`/products/search/?${params.toString()}`)
-      setProducts(res.data.results || [])
-      setCount(res.data.count || 0)
-      setFacets(res.data.facets || { categories: [], price_ranges: [] })
-    } catch {
-      setProducts([])
-      setCount(0)
-      setFacets({ categories: [], price_ranges: [] })
-    } finally {
-      setLoading(false)
-    }
-  }
+      return api.get(`/products/search/?${params.toString()}`, { signal }).then((r) => r.data)
+    },
+    [query, category, priceKey, page]
+  )
+  const products = data?.results ?? []
+  const count = data?.count ?? 0
+  const facets = data?.facets ?? { categories: [], price_ranges: [] }
 
   const toggleCategory = (id) => {
     setPage(1)
     setCategory((cur) => (cur === id ? null : id))
   }
 
-  const togglePrice = (key) => {
+  const togglePrice = (bucket) => {
     setPage(1)
-    setPriceKey((cur) => (cur === key ? null : key))
+    if (priceKey === bucket.key) {
+      setPriceKey(null)
+      setPriceRange(null)
+    } else {
+      setPriceKey(bucket.key)
+      setPriceRange({ from: bucket.from, to: bucket.to })
+    }
   }
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE))
@@ -90,7 +92,7 @@ export default function SearchPage() {
             Результаты поиска:
             <span className="text-indigo-600 ml-2">«{query}»</span>
           </h1>
-          {!loading && (
+          {status === 'ready' && (
             <p className="text-sm text-gray-400 mt-1">
               {count > 0 ? `Найдено ${count} товаров` : 'Ничего не найдено'}
             </p>
@@ -106,7 +108,7 @@ export default function SearchPage() {
                 <h2 className="text-sm font-bold text-gray-900">Фильтры</h2>
                 {hasFilters && (
                   <button
-                    onClick={() => { setCategory(null); setPriceKey(null); setPage(1) }}
+                    onClick={() => { setCategory(null); setPriceKey(null); setPriceRange(null); setPage(1) }}
                     className="text-xs text-indigo-600 font-semibold hover:underline"
                   >
                     Сбросить
@@ -147,7 +149,7 @@ export default function SearchPage() {
                     {priceBuckets.map((b) => (
                       <button
                         key={b.key}
-                        onClick={() => togglePrice(b.key)}
+                        onClick={() => togglePrice(b)}
                         className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-all ${
                           priceKey === b.key
                             ? 'bg-[#111] text-white'
@@ -164,7 +166,7 @@ export default function SearchPage() {
                 </div>
               )}
 
-              {facets.categories.length === 0 && priceBuckets.length === 0 && !loading && (
+              {facets.categories.length === 0 && priceBuckets.length === 0 && status === 'ready' && (
                 <p className="text-sm text-gray-400">Нет доступных фильтров</p>
               )}
             </div>
@@ -173,43 +175,42 @@ export default function SearchPage() {
           {/* Контент */}
           <div className="flex-1 min-w-0">
             <AnimatePresence mode="wait">
-              {loading ? (
+              {status === 'loading' ? (
                 <motion.div
                   key="skeleton"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
                 >
-                  {[...Array(8)].map((_, i) => (
-                    <div key={i} className="bg-white rounded-2xl overflow-hidden">
-                      <div className="skeleton h-48 w-full" />
-                      <div className="p-4 flex flex-col gap-2">
-                        <div className="skeleton h-3 rounded-full w-1/3" />
-                        <div className="skeleton h-4 rounded-full w-full" />
-                        <div className="skeleton h-6 rounded-full w-1/2 mt-2" />
-                      </div>
-                    </div>
-                  ))}
+                  <ProductGridSkeleton count={8} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" />
+                </motion.div>
+              ) : status === 'error' ? (
+                <motion.div
+                  key="error"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <ErrorState onRetry={retry} />
                 </motion.div>
               ) : products.length === 0 ? (
                 <motion.div
                   key="empty"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-center py-24 bg-white rounded-2xl border border-gray-100"
                 >
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  <p className="text-gray-700 font-semibold mb-1">Ничего не найдено</p>
-                  <p className="text-gray-400 text-sm">
-                    {hasFilters
-                      ? 'Попробуйте сбросить фильтры или изменить запрос'
-                      : `По запросу «${query}» нет результатов — попробуйте другой запрос`}
-                  </p>
+                  <EmptyState
+                    icon={
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    }
+                    title="Ничего не найдено"
+                    subtitle={
+                      hasFilters
+                        ? 'Попробуйте сбросить фильтры или изменить запрос'
+                        : `По запросу «${query}» нет результатов — попробуйте другой запрос`
+                    }
+                  />
                 </motion.div>
               ) : (
                 <motion.div
@@ -234,7 +235,7 @@ export default function SearchPage() {
             </AnimatePresence>
 
             {/* Пагинация */}
-            {!loading && totalPages > 1 && (
+            {status === 'ready' && totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 mt-8">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}

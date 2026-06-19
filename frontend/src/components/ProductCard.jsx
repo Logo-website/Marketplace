@@ -5,6 +5,7 @@ import Tilt from 'react-parallax-tilt'
 import useCartStore from '../store/cartStore'
 import useAuthStore from '../store/authStore'
 import useWishlistStore from '../store/wishlistStore'
+import { toast } from '../store/toastStore'
 
 export default function ProductCard({ product }) {
   const { addToCart } = useCartStore()
@@ -33,7 +34,7 @@ export default function ProductCard({ product }) {
       setAdded(true)
       setTimeout(() => setAdded(false), 2000)
     } catch {
-      alert('Ошибка при добавлении')
+      toast.error('Ошибка при добавлении в корзину')
     } finally {
       setAdding(false)
     }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import useCartStore from '../store/cartStore'
 import api from '../api'
+import { toast } from '../store/toastStore'
 
 const PICKUP_POINTS = [
   { id: 1,  address: 'ул. Ленина, 12, ТЦ Центральный',    time: 'Сегодня, 18:00',      metro: 'Площадь Ленина' },
@@ -82,11 +83,11 @@ export default function CheckoutPage() {
 
   const handleOrder = async () => {
     if (deliveryMethod === 'pickup' && !selectedPoint) {
-      alert('Выберите пункт выдачи')
+      toast.error('Выберите пункт выдачи')
       return
     }
     if (deliveryMethod !== 'pickup' && !address) {
-      alert('Укажите адрес доставки')
+      toast.error('Укажите адрес доставки')
       return
     }
 
@@ -109,7 +110,7 @@ export default function CheckoutPage() {
         }
       }, 1000)
     } catch (err) {
-      alert(err.response?.data?.error || 'Ошибка при оформлении заказа')
+      toast.error(err.response?.data?.error || 'Ошибка при оформлении заказа')
     } finally {
       setLoading(false)
     }

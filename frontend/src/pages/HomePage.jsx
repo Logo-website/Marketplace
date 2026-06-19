@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import ProductCard from '../components/ProductCard'
+import useAsyncData from '../hooks/useAsyncData'
+import { ProductGridSkeleton } from '../components/states/Skeleton'
+import EmptyState from '../components/states/EmptyState'
+import ErrorState from '../components/states/ErrorState'
 
 const SORT_OPTIONS = [
   { id: 'popular',    label: 'Популярные',   icon: '🔥' },
@@ -13,37 +16,26 @@ const SORT_OPTIONS = [
 ]
 
 export default function HomePage() {
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [page, setPage] = useState(1)
-  const [totalCount, setTotalCount] = useState(0)
   const [sort, setSort] = useState('popular')
-  const navigate = useNavigate()
 
-  useEffect(() => {
-    fetchProducts()
-  }, [selectedCategory, page, sort])
+  // Загрузка товаров через единый хук: skeleton/empty/error без путаницы.
+  const { data, status, retry } = useAsyncData(
+    (signal) => {
+      let url = `/products/?page=${page}&sort=${sort}`
+      if (selectedCategory) url += `&category=${selectedCategory}`
+      return api.get(url, { signal }).then((r) => r.data)
+    },
+    [selectedCategory, page, sort]
+  )
+  const products = data?.results ?? []
+  const totalCount = data?.count ?? 0
 
   useEffect(() => {
     fetchCategories()
   }, [])
-
-  const fetchProducts = async () => {
-    setLoading(true)
-    try {
-      let url = `/products/?page=${page}&sort=${sort}`
-      if (selectedCategory) url += `&category=${selectedCategory}`
-      const res = await api.get(url)
-      setProducts(res.data.results)
-      setTotalCount(res.data.count)
-    } catch {
-      setProducts([])
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const fetchCategories = async () => {
     try {
@@ -178,7 +170,7 @@ export default function HomePage() {
             <h2 className="text-xl font-black text-[#111]">
               {selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Все товары'}
             </h2>
-            {!loading && (
+            {status === 'ready' && (
               <p className="text-sm text-gray-400 mt-0.5">{totalCount.toLocaleString()} товаров</p>
             )}
           </div>
@@ -206,34 +198,34 @@ export default function HomePage() {
 
         {/* Товары */}
         <AnimatePresence mode="wait">
-          {loading ? (
+          {status === 'loading' ? (
             <motion.div
               key="skeleton"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
             >
-              {[...Array(10)].map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl overflow-hidden">
-                  <div className="skeleton h-48 w-full" />
-                  <div className="p-4 flex flex-col gap-2">
-                    <div className="skeleton h-3 rounded-full w-1/3" />
-                    <div className="skeleton h-4 rounded-full w-full" />
-                    <div className="skeleton h-6 rounded-full w-1/2 mt-2" />
-                  </div>
-                </div>
-              ))}
+              <ProductGridSkeleton count={10} />
+            </motion.div>
+          ) : status === 'error' ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <ErrorState onRetry={retry} />
             </motion.div>
           ) : products.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center py-20 bg-white rounded-2xl"
             >
-              <p className="text-5xl mb-4">🔍</p>
-              <p className="text-gray-400">Товаров не найдено</p>
+              <EmptyState
+                icon="🔍"
+                title="Товаров не найдено"
+                subtitle="Попробуйте другую категорию или сортировку"
+              />
             </motion.div>
           ) : (
             <motion.div

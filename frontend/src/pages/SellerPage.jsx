@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
+import { toast } from '../store/toastStore'
 
 export default function SellerPage() {
   const [products, setProducts] = useState([])
@@ -60,7 +61,7 @@ export default function SellerPage() {
       setForm({ name: '', slug: '', description: '', price: '', stock: '', category: '' })
       fetchProducts()
     } catch (err) {
-      alert(err.response?.data?.detail || 'Ошибка при добавлении товара')
+      toast.error(err.response?.data?.detail || 'Ошибка при добавлении товара')
     }
   }
 
@@ -70,7 +71,7 @@ export default function SellerPage() {
       await api.delete(`/products/my/${id}/`)
       fetchProducts()
     } catch {
-      alert('Ошибка при удалении')
+      toast.error('Ошибка при удалении')
     }
   }
 

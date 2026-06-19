@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import useWishlistStore from '../store/wishlistStore'
 import ProductCard from '../components/ProductCard'
+import EmptyState from '../components/states/EmptyState'
 
 export default function WishlistPage() {
   const { items } = useWishlistStore()
@@ -21,27 +22,16 @@ export default function WishlistPage() {
         </div>
 
         {items.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl border border-gray-100 py-24 flex flex-col items-center"
-          >
-            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-5">
-              <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <EmptyState
+            icon={
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
-            </div>
-            <p className="text-gray-700 font-semibold mb-1">Список пуст</p>
-            <p className="text-gray-400 text-sm mb-6">Добавляйте товары нажав на сердечко</p>
-            <motion.button
-              onClick={() => navigate('/')}
-              className="bg-[#111] text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-800 transition"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              Перейти в каталог
-            </motion.button>
-          </motion.div>
+            }
+            title="Список пуст"
+            subtitle="Добавляйте товары нажав на сердечко"
+            action={{ label: 'Перейти в каталог', onClick: () => navigate('/') }}
+          />
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             <AnimatePresence>
