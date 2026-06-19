@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import ProductCard from '../components/ProductCard'
@@ -17,9 +18,17 @@ const SORT_OPTIONS = [
 
 export default function HomePage() {
   const [categories, setCategories] = useState([])
-  const [selectedCategory, setSelectedCategory] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState('popular')
+
+  // Категория - источник истины в URL (?category=<id>), чтобы ссылки из
+  // каталог-меню шапки (Ф1) реально фильтровали выдачу, а не были «мёртвым»
+  // кликом. Невалидный параметр (нечисло / битьё URL) -> сброс к «все
+  // категории» (граничный случай из плана Ф1).
+  const categoryParam = searchParams.get('category')
+  const selectedCategory =
+    categoryParam && /^\d+$/.test(categoryParam) ? Number(categoryParam) : null
 
   // Загрузка товаров через единый хук: skeleton/empty/error без путаницы.
   const { data, status, retry } = useAsyncData(
@@ -47,7 +56,10 @@ export default function HomePage() {
   }
 
   const handleCategoryChange = (id) => {
-    setSelectedCategory(id)
+    // Категория - в URL (источник истины для каталог-меню шапки). Пагинацию
+    // сбрасываем тут же: смена категории всегда начинает с первой страницы.
+    if (id) setSearchParams({ category: String(id) })
+    else setSearchParams({})
     setPage(1)
     window.scrollTo(0, 0)
   }

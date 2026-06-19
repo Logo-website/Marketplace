@@ -2,9 +2,18 @@ from rest_framework import serializers
 from .models import Category, Product, ProductImage, Review
 
 class CategorySerializer(serializers.ModelSerializer):
+    # Дерево категорий одним ответом: каждый узел несёт вложенных детей
+    # (Ф1, каталог-меню). Рекурсия по related_name='children'. Глубина
+    # произвольная; на реальных 2-3 уровнях N+1 гасится prefetch во вьюхе
+    # и часовым кэшем categories:root.
+    children = serializers.SerializerMethodField()
+
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'parent']
+        fields = ['id', 'name', 'slug', 'parent', 'children']
+
+    def get_children(self, obj):
+        return CategorySerializer(obj.children.all(), many=True).data
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -41,6 +50,12 @@ class ProductCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['name', 'slug', 'description', 'price', 'stock', 'attributes', 'category', 'status']
+        # status - read-only на seller-write пути: иначе PATCH /products/my/{id}/
+        # с {"status":"active"} даёт продавцу самоодобрение товара из moderation
+        # (обход модерации). active/hidden меняет только выделенный путь (Ф13
+        # visibility-эндпоинт) / Ф17 / админ. Создание ставит статус через
+        # setdefault ниже, не из ввода.
+        read_only_fields = ['status']
 
     def create(self, validated_data):
         validated_data['seller'] = self.context['request'].user

@@ -71,6 +71,25 @@ def test_create_product_unauthorized(api_client, category):
     assert response.status_code == 401
 
 
+# --- Ф1: дерево категорий в каталог-меню ---
+
+@pytest.mark.django_db
+def test_categories_return_nested_children(api_client, category):
+    """GET /categories/ отдаёт корни с вложенными children (дерево для меню)."""
+    child = Category.objects.create(name='Смартфоны', slug='smartphones', parent=category)
+    Category.objects.create(name='Чехлы', slug='cases', parent=child)  # внук, глубина 2
+
+    response = api_client.get('/api/products/categories/')
+    assert response.status_code == 200
+    roots = response.data
+    # в ответе только корень (parent=None), дети - вложенно
+    assert len(roots) == 1
+    assert roots[0]['id'] == category.id
+    assert [c['id'] for c in roots[0]['children']] == [child.id]
+    # рекурсия идёт вглубь: у ребёнка виден его ребёнок
+    assert roots[0]['children'][0]['children'][0]['name'] == 'Чехлы'
+
+
 # --- P6a: денормализация рейтинга ---
 
 @pytest.mark.django_db
@@ -308,6 +327,20 @@ def test_seller_email_not_exposed_in_catalog(api_client, product, seller):
     assert '@' not in response.data['seller_name']
     # без shop_name отдаётся username как публичный хэндл
     assert response.data['seller_name'] == seller.username
+
+
+@pytest.mark.django_db
+def test_seller_cannot_self_approve_via_patch(seller_client, seller, category):
+    """Безопасность: продавец не может PATCH'ем выставить status=active товару
+    на модерации и обойти модерацию (status - read-only на seller-write пути)."""
+    pending = Product.objects.create(
+        seller=seller, category=category, name='На модерации',
+        slug='pending', price=500, stock=3, status='moderation'
+    )
+    response = seller_client.patch(f'/api/products/my/{pending.id}/', {'status': 'active'})
+    assert response.status_code == 200
+    pending.refresh_from_db()
+    assert pending.status == 'moderation'  # самоодобрение заблокировано
 
 
 @pytest.mark.django_db

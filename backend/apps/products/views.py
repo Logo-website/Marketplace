@@ -23,7 +23,9 @@ PRODUCT_CACHE_TTL = 60 * 5
 
 
 class CategoryListView(generics.ListAPIView):
-    queryset = Category.objects.filter(parent=None)
+    # prefetch на 2 уровня вглубь (root -> дети -> внуки) покрывает реальную
+    # глубину каталога одежды без N+1; ответ кэшируется на час (categories:root).
+    queryset = Category.objects.filter(parent=None).prefetch_related('children__children')
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
 
