@@ -7,9 +7,9 @@ import { Skeleton } from '../states/Skeleton'
 import ErrorState from '../states/ErrorState'
 
 // Каталог-меню (узел 1.1): кнопка «Каталог» раскрывает дерево категорий.
-// Клик по категории ведёт на /?category=<id> - HomePage читает параметр из URL
-// и фильтрует выдачу (Этап 3). Дерево грузится одним запросом (categories
-// отдаёт вложенные children, Этап 1) и кэшируется сервером на час.
+// Клик по категории ведёт на /catalog/<id> - экран выдачи категории (Ф2).
+// Дерево грузится одним запросом (categories отдаёт вложенные children, Ф1)
+// и кэшируется сервером на час.
 //
 // onNavigate - колбэк после клика по категории (закрыть мобильное меню).
 // embedded=true рендерит содержимое без кнопки-триггера и дропдауна
@@ -54,7 +54,7 @@ export default function CatalogMenu({ onNavigate, embedded = false }) {
           {categories.map((cat) => (
             <div key={cat.id}>
               <Link
-                to={`/?category=${cat.id}`}
+                to={`/catalog/${cat.id}`}
                 onClick={handleClick}
                 className="block text-sm font-bold text-[#111] hover:text-indigo-600 transition"
               >
@@ -65,7 +65,7 @@ export default function CatalogMenu({ onNavigate, embedded = false }) {
                   {cat.children.map((sub) => (
                     <li key={sub.id}>
                       <Link
-                        to={`/?category=${sub.id}`}
+                        to={`/catalog/${sub.id}`}
                         onClick={handleClick}
                         className="block text-sm text-gray-500 hover:text-[#111] transition"
                       >

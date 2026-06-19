@@ -6,6 +6,7 @@ from .views import (
     ProductCreateView,
     ProductSearchView,
     AutocompleteView,
+    CatalogFacetsView,
     SellerProductListView,
     SellerProductUpdateView,
     RecommendationsView,
@@ -16,6 +17,7 @@ from .views import ReviewListCreateView
 urlpatterns = [
     path('categories/', CategoryListView.as_view(), name='category-list'),
     path('', ProductListView.as_view(), name='product-list'),
+    path('facets/', CatalogFacetsView.as_view(), name='catalog-facets'),
     path('search/', ProductSearchView.as_view(), name='product-search'),
     path('autocomplete/', AutocompleteView.as_view(), name='product-autocomplete'),
     path('recommendations/', RecommendationsView.as_view(), name='recommendations'),

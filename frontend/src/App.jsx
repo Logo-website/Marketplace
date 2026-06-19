@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Header from './components/Header'
 import HomePage from './pages/HomePage'
+import CatalogPage from './pages/CatalogPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ProductPage from './pages/ProductPage'
@@ -72,6 +73,8 @@ export default function App() {
         <PageWrapper>
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/catalog" element={<CatalogPage />} />
+            <Route path="/catalog/:categoryId" element={<CatalogPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/products/:id" element={<ProductPage />} />

@@ -352,3 +352,139 @@ def test_seller_shop_name_used_when_set(api_client, product, seller):
     response = api_client.get(f'/api/products/{product.id}/')
     assert response.status_code == 200
     assert response.data['seller_name'] == 'Бренд Премиум'
+
+
+# --- Ф2: фильтры выдачи каталога и фасеты ---
+
+def _mk_p(seller, category, name, slug, price=1000, stock=5, brand=None, rating=0):
+    """Хелпер: активный товар с опциональным брендом в attributes."""
+    attrs = {}
+    if brand is not None:
+        attrs['brand'] = brand
+    p = Product.objects.create(
+        seller=seller, category=category, name=name, slug=slug,
+        price=price, stock=stock, status='active', attributes=attrs,
+    )
+    if rating:
+        # rating - денормализованная колонка (P6a), не из attributes; ставим прямо.
+        Product.objects.filter(id=p.id).update(rating=rating)
+    return p
+
+
+@pytest.mark.django_db
+def test_catalog_filter_by_brand_narrows(api_client, seller, category):
+    _mk_p(seller, category, 'Nike товар', 'nike-1', brand='Nike')
+    _mk_p(seller, category, 'Adidas товар', 'adidas-1', brand='Adidas')
+
+    response = api_client.get('/api/products/?brand=Nike')
+    assert response.status_code == 200
+    names = [p['name'] for p in response.data['results']]
+    assert names == ['Nike товар']
+
+
+@pytest.mark.django_db
+def test_catalog_filter_multi_brand(api_client, seller, category):
+    _mk_p(seller, category, 'Nike товар', 'nike-2', brand='Nike')
+    _mk_p(seller, category, 'Adidas товар', 'adidas-2', brand='Adidas')
+    _mk_p(seller, category, 'Puma товар', 'puma-2', brand='Puma')
+
+    response = api_client.get('/api/products/?brand=Nike&brand=Adidas')
+    assert response.status_code == 200
+    assert response.data['count'] == 2
+
+
+@pytest.mark.django_db
+def test_catalog_filter_by_price_narrows(api_client, seller, category):
+    _mk_p(seller, category, 'Дешёвый', 'cheap', price=500)
+    _mk_p(seller, category, 'Средний', 'mid', price=2000)
+    _mk_p(seller, category, 'Дорогой', 'pricey', price=9000)
+
+    response = api_client.get('/api/products/?min_price=1000&max_price=3000')
+    assert response.status_code == 200
+    names = [p['name'] for p in response.data['results']]
+    assert names == ['Средний']
+
+
+@pytest.mark.django_db
+def test_catalog_filter_in_stock(api_client, seller, category):
+    _mk_p(seller, category, 'В наличии', 'in-stock', stock=5)
+    _mk_p(seller, category, 'Нет в наличии', 'out-stock', stock=0)
+
+    response = api_client.get('/api/products/?in_stock=1')
+    assert response.status_code == 200
+    names = [p['name'] for p in response.data['results']]
+    assert names == ['В наличии']
+
+
+@pytest.mark.django_db
+def test_catalog_filter_invalid_price_ignored(api_client, seller, category):
+    """Кривая цена (нечисло) не роняет выдачу - игнорируется."""
+    _mk_p(seller, category, 'Товар', 'p-junk', price=1000)
+    response = api_client.get('/api/products/?min_price=abc&max_price=')
+    assert response.status_code == 200
+    assert response.data['count'] == 1
+
+
+@pytest.mark.django_db
+def test_catalog_facets_brand_counts(api_client, seller, category):
+    _mk_p(seller, category, 'Nike 1', 'n1', brand='Nike')
+    _mk_p(seller, category, 'Nike 2', 'n2', brand='Nike')
+    _mk_p(seller, category, 'Adidas 1', 'a1', brand='Adidas')
+
+    response = api_client.get(f'/api/products/facets/?category={category.id}')
+    assert response.status_code == 200
+    brands = {b['value']: b['count'] for b in response.data['brands']}
+    assert brands == {'Nike': 2, 'Adidas': 1}
+    assert response.data['count'] == 3
+
+
+@pytest.mark.django_db
+def test_catalog_facets_price_buckets(api_client, seller, category):
+    _mk_p(seller, category, 'p500', 'b500', price=500)     # 0-1000
+    _mk_p(seller, category, 'p2000', 'b2000', price=2000)  # 1000-3000
+    _mk_p(seller, category, 'p9000', 'b9000', price=9000)  # 3000-10000
+
+    response = api_client.get(f'/api/products/facets/?category={category.id}')
+    assert response.status_code == 200
+    buckets = {b['key']: b['count'] for b in response.data['price_ranges']}
+    assert buckets['0-1000'] == 1
+    assert buckets['1000-3000'] == 1
+    assert buckets['3000-10000'] == 1
+    assert buckets['10000+'] == 0
+
+
+@pytest.mark.django_db
+def test_catalog_facet_excludes_own_filter(api_client, seller, category):
+    """Фасет брендов под выбранным брендом всё равно показывает все бренды
+    (per-facet aggregation), иначе мульти-выбор сломается."""
+    _mk_p(seller, category, 'Nike', 'fn', brand='Nike')
+    _mk_p(seller, category, 'Adidas', 'fa', brand='Adidas')
+
+    response = api_client.get(f'/api/products/facets/?category={category.id}&brand=Nike')
+    assert response.status_code == 200
+    brand_values = {b['value'] for b in response.data['brands']}
+    assert brand_values == {'Nike', 'Adidas'}  # Adidas не пропал
+    # но price-фасет уже под фильтром бренда: только Nike-товары
+    assert response.data['count'] == 1  # count под применённым brand=Nike
+
+
+@pytest.mark.django_db
+def test_catalog_facets_empty_not_500(api_client, category):
+    """Пустая категория без товаров - 200 с нулями, не 500."""
+    response = api_client.get(f'/api/products/facets/?category={category.id}')
+    assert response.status_code == 200
+    assert response.data['count'] == 0
+    assert response.data['brands'] == []
+    assert response.data['in_stock_count'] == 0
+
+
+@pytest.mark.django_db
+def test_catalog_facets_skip_empty_brand(api_client, seller, category):
+    """Товар без бренда не плодит пустую корзину в фасете брендов."""
+    _mk_p(seller, category, 'Без бренда', 'no-brand')  # attributes={}
+    _mk_p(seller, category, 'С брендом', 'with-brand', brand='Nike')
+
+    response = api_client.get(f'/api/products/facets/?category={category.id}')
+    assert response.status_code == 200
+    brand_values = [b['value'] for b in response.data['brands']]
+    assert brand_values == ['Nike']  # пустой бренд отфильтрован

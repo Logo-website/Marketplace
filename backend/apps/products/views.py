@@ -1,5 +1,6 @@
 import requests
 from django.conf import settings
+from django.db.models import Count
 from rest_framework import generics, permissions, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -8,7 +9,7 @@ from .serializers import (
     CategorySerializer, ProductSerializer, ProductCreateSerializer,
     ReviewSerializer, ReviewCreateSerializer,
 )
-from .search import search_products, autocomplete, index_product, delete_product
+from .search import search_products, autocomplete, index_product, delete_product, PRICE_RANGES
 from .caching import cache_get, cache_set
 from services.clickhouse_service import ClickHouseService
 from apps.permissions import IsSeller
@@ -51,6 +52,10 @@ class ProductListView(generics.ListAPIView):
         category_id = self.request.query_params.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
+
+        # Фильтры каталога Ф2 (цена/бренд/рейтинг/наличие). Ставим в get_queryset
+        # как category/sort, не ломая ?ordering=/?search= от DRF-бэкендов.
+        queryset = _apply_catalog_filters(queryset, self.request.query_params)
 
         sort = self.request.query_params.get('sort', 'popular')
         if sort == 'price_asc':
@@ -96,6 +101,134 @@ def _parse_decimal(value):
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+# Фасет брендов может содержать сотни значений (бренд = brand_name OR
+# seller_name в сиде) - отдаём топ-N по счётчику, остальное скрываем за
+# «показать ещё»/поиском внутри группы на клиенте.
+BRAND_FACET_LIMIT = 30
+# Пороги рейтинга для фильтра «от N звёзд». На сид-данных rating=0 у всех -
+# фасет вырожден (см. план Ф2, часть 2), но механизм честный.
+RATING_THRESHOLDS = [4, 3, 2, 1]
+
+# Имена фасетов - чтобы при подсчёте счётчиков исключать собственный фильтр
+# фасета (per-facet filtered aggregation, как post_filter в ES-поиске Ф3).
+FACET_PRICE = 'price'
+FACET_BRAND = 'brand'
+FACET_RATING = 'rating'
+FACET_IN_STOCK = 'in_stock'
+
+
+def _apply_catalog_filters(queryset, params, exclude=None):
+    """Применяет фильтры каталога (цена/бренд/рейтинг/наличие) к queryset.
+
+    exclude - множество имён фасетов, чей собственный фильтр НЕ применять.
+    Нужно для подсчёта фасетов: каждый фасет считается без своего фильтра,
+    но с учётом остальных (per-facet filtered aggregation, как в поиске Ф3),
+    чтобы мульти-выбор внутри группы работал и счётчики совпадали с Ф3.
+
+    Кривые значения (нечисло, мусор) безопасно игнорируются, выдача не падает.
+    """
+    exclude = exclude or set()
+
+    if FACET_PRICE not in exclude:
+        min_price = _parse_decimal(params.get('min_price'))
+        max_price = _parse_decimal(params.get('max_price'))
+        if min_price is not None:
+            queryset = queryset.filter(price__gte=min_price)
+        if max_price is not None:
+            queryset = queryset.filter(price__lte=max_price)
+
+    if FACET_BRAND not in exclude:
+        brands = [b for b in params.getlist('brand') if b]
+        if brands:
+            queryset = queryset.filter(attributes__brand__in=brands)
+
+    if FACET_RATING not in exclude:
+        min_rating = _parse_decimal(params.get('min_rating'))
+        if min_rating is not None:
+            queryset = queryset.filter(rating__gte=min_rating)
+
+    if FACET_IN_STOCK not in exclude:
+        if params.get('in_stock') in ('1', 'true', 'True'):
+            queryset = queryset.filter(stock__gt=0)
+
+    return queryset
+
+
+class CatalogFacetsView(APIView):
+    """Доступные значения фильтров каталога со счётчиками (Ф2, узел 1.3).
+
+    Считает фасеты по Postgres ORM (бренд/рейтинг/наличие лежат в БД, а не в
+    ES-индексе - см. план Ф2, решение 3). Каждый фасет агрегируется БЕЗ своего
+    собственного фильтра, но с учётом остальных активных фильтров и категории
+    (per-facet filtered aggregation, как post_filter в поиске Ф3). Ценовые
+    корзины - из той же константы PRICE_RANGES, что и поиск, чтобы каталог и
+    поиск коридорили цену одинаково.
+
+    Публичный (AllowAny): каталог доступен всем ролям. Пустой результат - не 500.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        params = request.query_params
+        base = Product.objects.filter(status='active')
+        category_id = params.get('category')
+        if category_id:
+            base = base.filter(category_id=category_id)
+
+        # Общий count - под всеми применёнными фильтрами.
+        count = _apply_catalog_filters(base, params).count()
+
+        # Бренды: без фильтра бренда (чтобы мульти-выбор работал). Пустой/None
+        # бренд исключаем - не плодим мёртвую корзину «без бренда».
+        brand_qs = _apply_catalog_filters(base, params, exclude={FACET_BRAND})
+        brand_rows = (
+            brand_qs.values('attributes__brand')
+            .annotate(count=Count('id'))
+            .order_by('-count')
+        )
+        brands = [
+            {'value': r['attributes__brand'], 'count': r['count']}
+            for r in brand_rows if r['attributes__brand']
+        ][:BRAND_FACET_LIMIT]
+
+        # Цена: без фильтра цены. Границы корзин - семантика ES range
+        # (from включительно, to исключительно), чтобы совпасть с Ф3.
+        price_qs = _apply_catalog_filters(base, params, exclude={FACET_PRICE})
+        price_ranges = []
+        for r in PRICE_RANGES:
+            bucket = price_qs
+            if 'from' in r:
+                bucket = bucket.filter(price__gte=r['from'])
+            if 'to' in r:
+                bucket = bucket.filter(price__lt=r['to'])
+            price_ranges.append({
+                'key': r['key'],
+                'from': r.get('from'),
+                'to': r.get('to'),
+                'count': bucket.count(),
+            })
+
+        # Рейтинг: без фильтра рейтинга. На сид-данных rating=0 у всех -
+        # все пороги дадут 0, группа на клиенте не отрисуется (data-driven).
+        rating_qs = _apply_catalog_filters(base, params, exclude={FACET_RATING})
+        rating_thresholds = [
+            {'value': t, 'count': rating_qs.filter(rating__gte=t).count()}
+            for t in RATING_THRESHOLDS
+        ]
+
+        # Наличие: без фильтра наличия.
+        stock_qs = _apply_catalog_filters(base, params, exclude={FACET_IN_STOCK})
+        in_stock_count = stock_qs.filter(stock__gt=0).count()
+
+        return Response({
+            'count': count,
+            'brands': brands,
+            'price_ranges': price_ranges,
+            'rating_thresholds': rating_thresholds,
+            'in_stock_count': in_stock_count,
+        })
 
 
 def _products_in_order(product_ids):
