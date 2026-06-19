@@ -437,6 +437,15 @@ class RecommendationsView(APIView):
             .order_by('-rating', '-reviews_count')[:self.N]
         )
 
+# Допустимые сортировки отзывов: ключ из query -> поле order_by.
+# new по умолчанию (свежие сверху, как Meta.ordering); по оценке - в обе стороны.
+REVIEW_SORTS = {
+    'new': '-created_at',
+    'rating_desc': '-rating',
+    'rating_asc': 'rating',
+}
+
+
 class ReviewListCreateView(generics.ListCreateAPIView):
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -449,7 +458,42 @@ class ReviewListCreateView(generics.ListCreateAPIView):
         return [permissions.AllowAny()]
 
     def get_queryset(self):
-        return Review.objects.filter(product_id=self.kwargs['pk'])
+        qs = Review.objects.filter(product_id=self.kwargs['pk']).select_related('user')
+
+        # Фильтр по оценке (1..5). Кривое значение игнорируем - выдача не падает.
+        rating = self.request.query_params.get('rating')
+        if rating:
+            try:
+                r = int(rating)
+                if 1 <= r <= 5:
+                    qs = qs.filter(rating=r)
+            except (TypeError, ValueError):
+                pass
+
+        # Сортировка из белого списка; неизвестный ключ -> 'new'.
+        sort = self.request.query_params.get('sort', 'new')
+        return qs.order_by(REVIEW_SORTS.get(sort, '-created_at'))
+
+    def list(self, request, *args, **kwargs):
+        # Распределение по звёздам считаем по ВСЕМ отзывам товара (не под
+        # фильтром rating), чтобы гистограмма не схлопывалась при фильтрации.
+        # Средняя оценка тут НЕ дублируется - фронт берёт её из Product.rating
+        # (единственный источник правды, денормализован сигналом P6a).
+        counts = dict(
+            Review.objects.filter(product_id=self.kwargs['pk'])
+            .values_list('rating')
+            .order_by('rating')
+            .annotate(c=Count('id'))
+        )
+        distribution = {str(star): counts.get(star, 0) for star in range(1, 6)}
+
+        response = super().list(request, *args, **kwargs)
+        # super().list даёт пагинированный {count, next, previous, results}.
+        if isinstance(response.data, dict):
+            response.data['distribution'] = distribution
+        else:
+            response.data = {'results': response.data, 'distribution': distribution}
+        return response
 
     def perform_create(self, serializer):
         from apps.orders.models import Order

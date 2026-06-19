@@ -14,8 +14,14 @@ const useCartStore = create((set) => ({
     }
   },
 
-  addToCart: async (productId, quantity = 1) => {
-    await api.post('/cart/', { product_id: productId, quantity })
+  // size - выбранный размер (Ф4). Передаём forward-совместимо: бэкенд-корзина
+  // пока кейится только product_id и size игнорирует. Полное хранение размера
+  // в строке корзины/заказа и per-size остатки - Ф8/Ф12 (план Ф4, решение 2),
+  // здесь контракт Ф8 не ломаем.
+  addToCart: async (productId, quantity = 1, size = null) => {
+    const payload = { product_id: productId, quantity }
+    if (size) payload.size = size
+    await api.post('/cart/', payload)
     const res = await api.get('/cart/')
     set({ items: res.data.items, total: res.data.total })
   },

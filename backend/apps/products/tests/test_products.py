@@ -488,3 +488,83 @@ def test_catalog_facets_skip_empty_brand(api_client, seller, category):
     assert response.status_code == 200
     brand_values = [b['value'] for b in response.data['brands']]
     assert brand_values == ['Nike']  # пустой бренд отфильтрован
+
+
+# --- Ф4: карточка товара (created_at, распределение/сорт/фильтр отзывов) ---
+
+@pytest.fixture
+def buyer_of(db, product):
+    """Покупатель товара (есть заказ с этим товаром) - может оставить отзыв."""
+    from apps.orders.models import Order, OrderItem
+    u = User.objects.create_user(username='buyer1', email='b1@t.com',
+                                 password='testpass123', role='buyer')
+    order = Order.objects.create(buyer=u, total_price=1000, delivery_address='адрес')
+    OrderItem.objects.create(order=order, product=product, product_name=product.name,
+                             quantity=1, price_at_purchase=product.price)
+    return u
+
+
+@pytest.mark.django_db
+def test_review_created_at_set_via_api(api_client, product, buyer_of):
+    """Отзыв через API получает created_at (auto_now_add), а не None.
+    Это чинит ordering и new Date() на фронте (баг узла 1.5)."""
+    api_client.force_authenticate(user=buyer_of)
+    response = api_client.post(f'/api/products/{product.id}/reviews/',
+                               {'rating': 5, 'text': 'отлично'})
+    assert response.status_code == 201
+    review = Review.objects.get(product=product, user=buyer_of)
+    assert review.created_at is not None
+
+
+@pytest.mark.django_db
+def test_review_post_without_purchase_forbidden(auth_client, product):
+    """POST отзыва без покупки -> 403 (серверная проверка, на неё опирается фронт)."""
+    response = auth_client.post(f'/api/products/{product.id}/reviews/',
+                                {'rating': 5, 'text': 'не покупал'})
+    assert response.status_code == 403
+    assert Review.objects.filter(product=product).count() == 0
+
+
+@pytest.mark.django_db
+def test_reviews_distribution(api_client, product, seller, category):
+    """Ответ отзывов несёт распределение по звёздам (count на 1..5)."""
+    u1 = User.objects.create_user(username='r1', email='r1@t.com', password='testpass123', role='buyer')
+    u2 = User.objects.create_user(username='r2', email='r2@t.com', password='testpass123', role='buyer')
+    u3 = User.objects.create_user(username='r3', email='r3@t.com', password='testpass123', role='buyer')
+    Review.objects.create(product=product, user=u1, rating=5, text='супер')
+    Review.objects.create(product=product, user=u2, rating=5, text='класс')
+    Review.objects.create(product=product, user=u3, rating=3, text='средне')
+
+    response = api_client.get(f'/api/products/{product.id}/reviews/')
+    assert response.status_code == 200
+    assert response.data['distribution'] == {'1': 0, '2': 0, '3': 1, '4': 0, '5': 2}
+
+
+@pytest.mark.django_db
+def test_reviews_filter_by_rating(api_client, product):
+    """?rating=5 оставляет только пятёрки, но распределение остаётся полным."""
+    u1 = User.objects.create_user(username='f1', email='f1@t.com', password='testpass123', role='buyer')
+    u2 = User.objects.create_user(username='f2', email='f2@t.com', password='testpass123', role='buyer')
+    Review.objects.create(product=product, user=u1, rating=5, text='пять')
+    Review.objects.create(product=product, user=u2, rating=2, text='два')
+
+    response = api_client.get(f'/api/products/{product.id}/reviews/?rating=5')
+    assert response.status_code == 200
+    ratings = [r['rating'] for r in response.data['results']]
+    assert ratings == [5]
+    # гистограмма не схлопывается под фильтром - видна и двойка
+    assert response.data['distribution'] == {'1': 0, '2': 1, '3': 0, '4': 0, '5': 1}
+
+
+@pytest.mark.django_db
+def test_reviews_sort_by_rating(api_client, product):
+    """?sort=rating_asc сортирует отзывы по оценке по возрастанию."""
+    u1 = User.objects.create_user(username='s1', email='s1@t.com', password='testpass123', role='buyer')
+    u2 = User.objects.create_user(username='s2', email='s2@t.com', password='testpass123', role='buyer')
+    Review.objects.create(product=product, user=u1, rating=5, text='пять')
+    Review.objects.create(product=product, user=u2, rating=2, text='два')
+
+    response = api_client.get(f'/api/products/{product.id}/reviews/?sort=rating_asc')
+    assert response.status_code == 200
+    ratings = [r['rating'] for r in response.data['results']]
+    assert ratings == [2, 5]
