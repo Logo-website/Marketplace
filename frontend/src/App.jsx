@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Header from './components/Header'
+import Footer from './components/Footer'
 import HomePage from './pages/HomePage'
 import CatalogPage from './pages/CatalogPage'
 import LoginPage from './pages/LoginPage'
@@ -66,28 +67,33 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-[#f5f5f5]">
+      {/* flex-col + flex-1 на контенте - футер (сосед PageWrapper) прижимается
+          к низу на коротких страницах (план Ф7, решение 3.2.7). */}
+      <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
         <Header />
         <NotificationToasts />
         <ToastContainer />
-        <PageWrapper>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/catalog" element={<CatalogPage />} />
-            <Route path="/catalog/:categoryId" element={<CatalogPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/products/:id" element={<ProductPage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/cart" element={<PrivateRoute><CartPage /></PrivateRoute>} />
-            <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
-            <Route path="/seller" element={<PrivateRoute><SellerPage /></PrivateRoute>} />
-            <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
-            <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </PageWrapper>
+        <main className="flex-1">
+          <PageWrapper>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/catalog" element={<CatalogPage />} />
+              <Route path="/catalog/:categoryId" element={<CatalogPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/products/:id" element={<ProductPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/cart" element={<PrivateRoute><CartPage /></PrivateRoute>} />
+              <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+              <Route path="/seller" element={<PrivateRoute><SellerPage /></PrivateRoute>} />
+              <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
+              <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </PageWrapper>
+        </main>
+        <Footer />
       </div>
     </BrowserRouter>
   )

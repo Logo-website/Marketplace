@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import useCartStore from '../store/cartStore'
 import useAuthStore from '../store/authStore'
 import useWishlistStore from '../store/wishlistStore'
+import useRecentlyViewedStore from '../store/recentlyViewedStore'
 import useAsyncData from '../hooks/useAsyncData'
 import EmptyState from '../components/states/EmptyState'
 import ErrorState from '../components/states/ErrorState'
@@ -36,17 +37,16 @@ export default function ProductPage() {
 
   // Товар - через единый хук: skeleton/404/ошибка сети различаются явно (Ф0).
   const { data: product, status, error, retry } = useAsyncData(
-    (signal) =>
-      api.get(`/products/${id}/`, { signal }).then((r) => {
-        const p = r.data
-        // Лента «недавно просмотренные» (узел 1.12).
-        const viewed = JSON.parse(localStorage.getItem('recently_viewed') || '[]')
-        const filtered = viewed.filter((x) => x.id !== p.id)
-        localStorage.setItem('recently_viewed', JSON.stringify([p, ...filtered].slice(0, 10)))
-        return p
-      }),
+    (signal) => api.get(`/products/${id}/`, { signal }).then((r) => r.data),
     [id]
   )
+
+  // Запись в ленту «вы недавно смотрели» (узел 1.12) - через стор с try/catch,
+  // не инлайном (план Ф7, этап 5). Пишем после успешной загрузки товара.
+  const addRecentlyViewed = useRecentlyViewedStore((s) => s.add)
+  useEffect(() => {
+    if (product) addRecentlyViewed(product)
+  }, [product, addRecentlyViewed])
 
   // Лента «с этим покупают» - тот же эндпоинт рекомендаций (item-to-item +
   // fallback по категории), отдельную «похожие» не плодим (план Ф4, решение 9).
