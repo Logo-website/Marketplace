@@ -1,6 +1,7 @@
 import requests
 from django.conf import settings
 from django.db.models import Count
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -10,6 +11,7 @@ from .serializers import (
     ReviewSerializer, ReviewCreateSerializer,
 )
 from .search import search_products, autocomplete, index_product, delete_product, PRICE_RANGES
+from .size_charts import get_size_chart
 from .caching import cache_get, cache_set
 from services.clickhouse_service import ClickHouseService
 from apps.permissions import IsSeller
@@ -21,6 +23,8 @@ CATEGORIES_CACHE_KEY = 'categories:root'
 CATEGORIES_CACHE_TTL = 60 * 60  # категории меняются редко
 PRODUCT_CACHE_KEY = 'product_detail:{}'
 PRODUCT_CACHE_TTL = 60 * 5
+SIZE_CHART_CACHE_KEY = 'size_chart:{}'
+SIZE_CHART_CACHE_TTL = 60 * 60  # размерный справочник меняется редко (как категории)
 
 
 class CategoryListView(generics.ListAPIView):
@@ -90,6 +94,34 @@ class ProductDetailView(generics.RetrieveAPIView):
         # аналитика не теряется (разрешение конфликта P5/P6).
         if request.user.is_authenticated:
             ClickHouseService.log_view(request.user.id, int(pk))
+        return Response(data)
+
+
+class SizeChartView(APIView):
+    """Размерная сетка товара (Ф5, узел 1.6). Публичный справочник.
+
+    Резолвит товар -> категория -> группа размеров -> таблица из size_charts.py.
+    - Товар с сеткой -> {group, measurements, conversion}.
+    - Товар без сетки (аксессуары/носки/нет категории) -> {group: null} (200,
+      НЕ 404): фронт отличает «нет сетки» от ошибки сети (урок Ф0).
+    - Несуществующий/неактивный товар -> 404.
+
+    AllowAny: справочник публичен, как весь каталог. Кэш - как у категорий
+    (меняется редко). Мерки тела сюда не приходят - подбор размера считается
+    на клиенте (персданные наружу не уходят, план Ф5 решение 5).
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        cache_key = SIZE_CHART_CACHE_KEY.format(pk)
+        data = cache_get(cache_key)
+        if data is None:
+            # status='active' - паритет с ProductDetailView: сетку скрытого/
+            # снятого товара не отдаём (как и саму карточку).
+            product = get_object_or_404(Product, pk=pk, status='active')
+            chart = get_size_chart(product.category)
+            data = chart if chart is not None else {'group': None}
+            cache_set(cache_key, data, SIZE_CHART_CACHE_TTL)
         return Response(data)
 
 

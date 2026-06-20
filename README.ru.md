@@ -130,6 +130,7 @@
 | Товары | GET | `/api/products/categories/` | Публичный |
 | Товары | GET | `/api/products/{id}/` | Публичный |
 | Товары | GET/POST | `/api/products/{id}/reviews/` | GET публичный, POST после покупки |
+| Товары | GET | `/api/products/{id}/size-chart/` | Публичный (таблица размеров по категории; `{group:null}`, если сетки нет) |
 | Товары | POST | `/api/products/create/` | Продавец |
 | Товары | GET | `/api/products/my/` | Продавец |
 | Товары | GET/PATCH/DELETE | `/api/products/my/{id}/` | Продавец |
@@ -319,6 +320,7 @@ docker compose exec backend python import_reviews.py
 | `build` | `npm run build` | Сборка в `dist/` |
 | `preview` | `npm run preview` | Просмотр production-сборки |
 | `lint` | `npm run lint` | ESLint |
+| `test` | `npm test` | Vitest (юнит-тесты, напр. подбор размера) |
 
 ### Backend
 
@@ -356,11 +358,11 @@ docker compose exec backend pytest
 | Модуль | Что покрыто |
 |---|---|
 | `apps/users/tests/test_auth.py` | Auth: двухшаговый OTP register/login, хеширование пароля, блокировка после неверных попыток, одноразовость кода |
-| `apps/products/tests/test_products.py` | Список/карточка/создание, денормализация рейтинга, кэш карточки, фасеты поиска и автокомплит, рекомендации и fallback, email продавца не раскрыт |
+| `apps/products/tests/test_products.py` | Список/карточка/создание, денормализация рейтинга, кэш карточки, фасеты поиска и автокомплит, рекомендации и fallback, email продавца не раскрыт, эндпоинт размерной сетки и маппинг категория-группа |
 | `apps/orders/tests/test_orders.py` | Создание заказа, списание stock, валидация, отмена покупателем с возвратом, авторизация статуса в мультивендоре |
 | `apps/cart/tests.py` | Добавление/получение/удаление/очистка с проверкой остатков, неактивный товар, авторизация |
 
-**Тестов frontend в репозитории нет.**
+Frontend: **Vitest** - `cd frontend && npm test`. Юнит-тест чистой функции подбора размера `src/utils/sizeMatch.test.js` (Ф5).
 
 ---
 

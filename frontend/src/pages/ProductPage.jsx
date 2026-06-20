@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import useCartStore from '../store/cartStore'
 import useAuthStore from '../store/authStore'
@@ -16,6 +16,7 @@ import VariantPicker from '../components/product/VariantPicker'
 import SpecsTable from '../components/product/SpecsTable'
 import SellerBlock from '../components/product/SellerBlock'
 import ReviewsSection from '../components/product/ReviewsSection'
+import SizeGuideModal from '../components/product/SizeGuideModal'
 
 export default function ProductPage() {
   const { id } = useParams()
@@ -26,6 +27,7 @@ export default function ProductPage() {
   const [selectedSize, setSelectedSize] = useState(null)
   const [selectedColor, setSelectedColor] = useState(null)
   const [sizeHint, setSizeHint] = useState(false)
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false)
 
   const { addToCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
@@ -120,6 +122,10 @@ export default function ProductPage() {
   const sizes = Array.isArray(attrs.sizes) ? attrs.sizes : null
   const colors = Array.isArray(attrs.colors) ? attrs.colors : null
   const hasSizes = !!(sizes && sizes.length)
+  // Ф5: ссылка «Размерная сетка» видна, только если у товара есть сетка
+  // (size_group != null - резолв по категории на бэкенде). Для аксессуаров/
+  // носков/без категории ссылки нет (не мёртвый контрол).
+  const hasSizeChart = !!product.size_group
   const specs = attrs.specs
   const modelParams = attrs.model_params
   const modelRows = modelParams && typeof modelParams === 'object'
@@ -204,7 +210,7 @@ export default function ProductPage() {
                 onSelectSize={(s) => { setSelectedSize(s); setSizeHint(false) }}
                 selectedColor={selectedColor}
                 onSelectColor={onColorSelect}
-                onSizeGuide={() => toast.info('Таблица размеров появится позже')}
+                onSizeGuide={hasSizeChart ? () => setSizeGuideOpen(true) : undefined}
               />
               {sizeHint && (
                 <p className="text-red-500 text-xs -mt-2">Выберите размер перед добавлением в корзину</p>
@@ -227,6 +233,20 @@ export default function ProductPage() {
                   {product.stock > 0 ? `В наличии: ${product.stock} шт.` : 'Нет в наличии'}
                 </span>
               </div>
+
+              {/* Ссылка-вход в размерную сетку (Ф5). Когда у товара есть выбор
+                  размеров, та же ссылка живёт в VariantPicker - тут не дублируем. */}
+              {hasSizeChart && !hasSizes && (
+                <button
+                  onClick={() => setSizeGuideOpen(true)}
+                  className="self-start flex items-center gap-1.5 text-sm text-indigo-600 font-semibold hover:underline"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h7M9 6v12" />
+                  </svg>
+                  Размерная сетка
+                </button>
+              )}
 
               {product.stock > 0 && (
                 <div className="flex items-center gap-4">
@@ -342,6 +362,13 @@ export default function ProductPage() {
           </motion.div>
         )}
       </div>
+
+      {/* Размерная сетка (Ф5) - модалка поверх карточки */}
+      <AnimatePresence>
+        {sizeGuideOpen && (
+          <SizeGuideModal productId={id} onClose={() => setSizeGuideOpen(false)} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

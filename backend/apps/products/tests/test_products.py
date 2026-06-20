@@ -568,3 +568,108 @@ def test_reviews_sort_by_rating(api_client, product):
     assert response.status_code == 200
     ratings = [r['rating'] for r in response.data['results']]
     assert ratings == [2, 5]
+
+
+# --- Ф5: размерная сетка (справочник + эндпоинт + признак сетки в карточке) ---
+
+from apps.products.size_charts import (
+    SIZE_CHARTS, CATEGORY_SIZE_GROUP, size_group_for_category, get_size_chart,
+)
+
+
+def test_size_charts_filled_for_every_group():
+    """Каждая группа несёт непустые мерки и конвертацию с RU/EU/US."""
+    for group, chart in SIZE_CHARTS.items():
+        assert chart['measurements'], f'{group}: пустые мерки'
+        assert chart['conversion'], f'{group}: пустая конвертация'
+        for row in chart['conversion']:
+            assert 'ru' in row and 'eu' in row and 'us' in row, f'{group}: неполная конвертация'
+
+
+def test_size_chart_axes_depend_on_group():
+    """Обувь меряется длиной стопы, одежда - обхватами (не хардкод груди для всех)."""
+    assert all('foot_cm' in r for r in SIZE_CHARTS['shoes']['measurements'])
+    assert all('chest' in r for r in SIZE_CHARTS['top']['measurements'])
+    assert all('waist' in r and 'hips' in r for r in SIZE_CHARTS['bottom']['measurements'])
+
+
+def test_category_group_mapping_covers_all_seed_categories():
+    """Маппинг покрывает ровно 20 сид-категорий по точному имени, без «прочее->null»."""
+    assert len(CATEGORY_SIZE_GROUP) == 20
+    # одежда со своими размерами не упала в null (спорт/костюмы/купальники/комбинезоны)
+    assert CATEGORY_SIZE_GROUP['Спортивная одежда'] == 'top'
+    assert CATEGORY_SIZE_GROUP['Костюмы'] == 'top'
+    assert CATEGORY_SIZE_GROUP['Купальники'] == 'top'
+    assert CATEGORY_SIZE_GROUP['Комбинезоны'] == 'dress'
+    # категории без сетки честно дают None
+    assert CATEGORY_SIZE_GROUP['Носки'] is None
+    assert CATEGORY_SIZE_GROUP['Аксессуары'] is None
+
+
+@pytest.mark.django_db
+def test_get_size_chart_resolver(db):
+    """Резолвер: категория с группой -> таблица; без группы / None -> None."""
+    dresses = Category.objects.create(name='Платья', slug='dresses')
+    socks = Category.objects.create(name='Носки', slug='socks')
+    chart = get_size_chart(dresses)
+    assert chart['group'] == 'dress'
+    assert chart['measurements']
+    assert get_size_chart(socks) is None
+    assert get_size_chart(None) is None
+    assert size_group_for_category(None) is None
+
+
+@pytest.fixture
+def dress_product(db, seller):
+    cat = Category.objects.create(name='Платья', slug='dresses')
+    return Product.objects.create(seller=seller, category=cat, name='Платье',
+                                  slug='dress-1', price=3000, stock=5, status='active')
+
+
+@pytest.fixture
+def socks_product(db, seller):
+    cat = Category.objects.create(name='Носки', slug='socks')
+    return Product.objects.create(seller=seller, category=cat, name='Носки',
+                                  slug='socks-1', price=300, stock=50, status='active')
+
+
+@pytest.mark.django_db
+def test_size_chart_endpoint_returns_table(api_client, dress_product):
+    """Товар с сеткой -> {group, measurements, conversion}; доступ анонимный."""
+    response = api_client.get(f'/api/products/{dress_product.id}/size-chart/')
+    assert response.status_code == 200
+    assert response.data['group'] == 'dress'
+    assert len(response.data['measurements']) > 0
+    assert len(response.data['conversion']) > 0
+
+
+@pytest.mark.django_db
+def test_size_chart_endpoint_null_when_no_group(api_client, socks_product):
+    """Товар без сетки -> {group: null} (200, не 404) - отличить «нет сетки» от ошибки."""
+    response = api_client.get(f'/api/products/{socks_product.id}/size-chart/')
+    assert response.status_code == 200
+    assert response.data['group'] is None
+
+
+@pytest.mark.django_db
+def test_size_chart_endpoint_404_for_missing_product(api_client):
+    """Несуществующий товар -> 404 (не group:null)."""
+    response = api_client.get('/api/products/999999/size-chart/')
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_size_chart_endpoint_cached(api_client, dress_product):
+    cache_key = f'size_chart:{dress_product.id}'
+    assert cache.get(cache_key) is None
+    api_client.get(f'/api/products/{dress_product.id}/size-chart/')
+    assert cache.get(cache_key) is not None
+
+
+@pytest.mark.django_db
+def test_product_serializer_exposes_size_group(api_client, dress_product, socks_product):
+    """Карточка получает size_group - решает видимость ссылки без отдельного запроса."""
+    r1 = api_client.get(f'/api/products/{dress_product.id}/')
+    assert r1.data['size_group'] == 'dress'
+    r2 = api_client.get(f'/api/products/{socks_product.id}/')
+    assert r2.data['size_group'] is None

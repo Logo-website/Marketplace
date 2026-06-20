@@ -3,6 +3,7 @@ from .views import (
     CategoryListView,
     ProductListView,
     ProductDetailView,
+    SizeChartView,
     ProductCreateView,
     ProductSearchView,
     AutocompleteView,
@@ -27,4 +28,5 @@ urlpatterns = [
     path('my/<int:pk>/', SellerProductUpdateView.as_view(), name='seller-product-detail'),
     path('analytics/', SellerAnalyticsView.as_view(), name='seller-analytics'),
     path('<int:pk>/reviews/', ReviewListCreateView.as_view(), name='product-reviews'),
+    path('<int:pk>/size-chart/', SizeChartView.as_view(), name='product-size-chart'),
 ]

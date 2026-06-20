@@ -28,6 +28,10 @@ class ProductSerializer(serializers.ModelSerializer):
     # S17: публичное имя магазина, НЕ email продавца. Каталог отдаётся
     # анонимам (AllowAny) - email тут был утечкой персданных третьих лиц.
     seller_name = serializers.SerializerMethodField()
+    # Ф5: размерная группа товара (верх/низ/платья/обувь) или null. Карточка
+    # решает, показывать ли ссылку «Размерная сетка», без отдельного запроса
+    # (резолв через тот же маппинг из size_charts.py - единый источник правды).
+    size_group = serializers.SerializerMethodField()
 
     def get_seller_name(self, obj):
         seller = obj.seller
@@ -35,12 +39,16 @@ class ProductSerializer(serializers.ModelSerializer):
             return ''
         return seller.shop_name or seller.username
 
+    def get_size_group(self, obj):
+        from .size_charts import size_group_for_category
+        return size_group_for_category(obj.category)
+
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'slug', 'description', 'price',
             'stock', 'attributes', 'status', 'category',
-            'category_name', 'seller_name', 'images', 'created_at',
+            'category_name', 'seller_name', 'size_group', 'images', 'created_at',
             'rating', 'reviews_count'
         ]
         read_only_fields = ['seller', 'created_at', 'rating', 'reviews_count']
