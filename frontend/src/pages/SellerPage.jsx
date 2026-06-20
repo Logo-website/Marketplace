@@ -20,7 +20,7 @@ export default function SellerPage() {
     fetchCategories()
   }, [])
 
-  const fetchProducts = async () => {
+  async function fetchProducts() {
     try {
       const res = await api.get('/products/my/')
       setProducts(res.data.results)
@@ -31,7 +31,7 @@ export default function SellerPage() {
     }
   }
 
-  const fetchAnalytics = async () => {
+  async function fetchAnalytics() {
     try {
       const res = await api.get('/products/analytics/')
       setAnalytics(res.data)
@@ -40,7 +40,7 @@ export default function SellerPage() {
     }
   }
 
-  const fetchCategories = async () => {
+  async function fetchCategories() {
     try {
       const res = await api.get('/products/categories/')
       setCategories(res.data.results || res.data)

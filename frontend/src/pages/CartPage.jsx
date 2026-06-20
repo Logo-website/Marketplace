@@ -4,63 +4,110 @@ import { motion, AnimatePresence } from 'framer-motion'
 import useCartStore from '../store/cartStore'
 import useAuthStore from '../store/authStore'
 import useWishlistStore from '../store/wishlistStore'
+import useRecentlyViewedStore from '../store/recentlyViewedStore'
 import api from '../api'
 import ProductCard from '../components/ProductCard'
 import EmptyState from '../components/states/EmptyState'
 
+// Лента товаров в подвале корзины (смотрели / покупали / рекомендуем).
+// Объявлена на уровне модуля, не внутри CartPage: компонент, созданный во время
+// рендера родителя, пересоздаётся каждый ререндер и теряет состояние/анимации
+// своего поддерева (react-hooks: компоненты не создаём во время рендера).
+function SectionBlock({ title, products, limit }) {
+  if (!products.length) return null
+  const list = limit ? products.slice(0, limit) : products
+  return (
+    <div className="bg-white rounded-2xl p-6 border border-gray-100 mt-4">
+      <h2 className="text-base font-bold text-gray-900 mb-4">{title}</h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {list.map((product, i) => (
+          <motion.div
+            key={product.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.02 }}
+          >
+            <ProductCard product={product} />
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function CartPage() {
-  const { items, total, fetchCart, removeFromCart, clearCart } = useCartStore()
+  const { items, fetchCart, removeFromCart } = useCartStore()
   const { isAuthenticated, user } = useAuthStore()
   const { toggle, isLiked } = useWishlistStore()
+  // Лента «недавно смотрели» через стор с try/catch - битый localStorage не
+  // валит страницу (раньше тут был голый JSON.parse).
+  const recentlyViewed = useRecentlyViewedStore((s) => s.items)
   const [purchasedProducts, setPurchasedProducts] = useState([])
   const [recommendations, setRecommendations] = useState([])
-  const [selectedItems, setSelectedItems] = useState([])
+  // Выбор товаров: храним СНЯТЫЕ галочки, остальное выбрано по умолчанию. Так
+  // выбор выводится из items на лету, без синхронизации стейта в эффекте
+  // (прежний setState-в-эффекте давал каскадные ререндеры).
+  const [deselected, setDeselected] = useState(() => new Set())
   const navigate = useNavigate()
 
-  const recentlyViewed = JSON.parse(localStorage.getItem('recently_viewed') || '[]')
-
+  // Подгрузки нужны только этому эффекту - объявлены внутри него (React-канон:
+  // функция для одного эффекта живёт в нём; нет проблемы порядка/зависимостей).
+  // setState идут после await (асинхронно) - каскадных ререндеров нет.
   useEffect(() => {
     fetchCart()
-    if (isAuthenticated) {
-      fetchPurchased()
-      fetchRecommendations()
+    if (!isAuthenticated) return
+
+    const loadPurchased = async () => {
+      try {
+        const res = await api.get('/orders/')
+        const productIds = [...new Set(
+          res.data.results.flatMap(order => order.items.map(item => item.product))
+        )].slice(0, 10)
+        const products = await Promise.all(
+          productIds.map(id => api.get(`/products/${id}/`).then(r => r.data).catch(() => null))
+        )
+        setPurchasedProducts(products.filter(Boolean))
+      } catch {
+        setPurchasedProducts([])
+      }
     }
+
+    const loadRecommendations = async () => {
+      try {
+        const res = await api.get('/products/recommendations/')
+        setRecommendations(Array.isArray(res.data) ? res.data : [])
+      } catch {
+        setRecommendations([])
+      }
+    }
+
+    loadPurchased()
+    loadRecommendations()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    if (items.length > 0) setSelectedItems(items.map(i => i.product_id))
-  }, [items])
-
-  const fetchPurchased = async () => {
-    try {
-      const res = await api.get('/orders/')
-      const productIds = [...new Set(
-        res.data.results.flatMap(order => order.items.map(item => item.product))
-      )].slice(0, 10)
-      const products = await Promise.all(
-        productIds.map(id => api.get(`/products/${id}/`).then(r => r.data).catch(() => null))
-      )
-      setPurchasedProducts(products.filter(Boolean))
-    } catch {
-      setPurchasedProducts([])
-    }
-  }
-
-  const fetchRecommendations = async () => {
-    try {
-      const res = await api.get('/products/recommendations/')
-      setRecommendations(Array.isArray(res.data) ? res.data : [])
-    } catch {
-      setRecommendations([])
-    }
-  }
+  // Выбранные = все товары, кроме снятых вручную (deselected). Выводится из
+  // items на лету - без синхронизации стейта в эффекте.
+  const selectedItems = items
+    .map((i) => i.product_id)
+    .filter((id) => !deselected.has(id))
 
   const handleSelectAll = () => {
-    setSelectedItems(selectedItems.length === items.length ? [] : items.map(i => i.product_id))
+    // Все выбраны -> снять все (все в deselected); иначе -> выбрать все (пусто).
+    setDeselected(
+      selectedItems.length === items.length
+        ? new Set(items.map((i) => i.product_id))
+        : new Set()
+    )
   }
 
   const handleSelectItem = (id) => {
-    setSelectedItems(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+    setDeselected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   const handleQuantityChange = async (item, delta) => {
@@ -78,25 +125,6 @@ export default function CartPage() {
   const selectedTotal = items
     .filter(i => selectedItems.includes(i.product_id))
     .reduce((sum, i) => sum + Number(i.total), 0)
-
-  const SectionBlock = ({ title, products, limit }) =>
-    products.length > 0 ? (
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 mt-4">
-        <h2 className="text-base font-bold text-gray-900 mb-4">{title}</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {(limit ? products.slice(0, limit) : products).map((product, i) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.02 }}
-            >
-              <ProductCard product={product} />
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    ) : null
 
   if (items.length === 0) return (
     <div className="min-h-screen bg-[#f5f5f5]">

@@ -6,6 +6,7 @@ import useAuthStore from '../store/authStore'
 import ProductCard from '../components/ProductCard'
 import EmptyState from '../components/states/EmptyState'
 import ErrorState from '../components/states/ErrorState'
+import useRecentlyViewedStore from '../store/recentlyViewedStore'
 
 const STATUS_CONFIG = {
   created:    { label: 'Создан',       color: 'bg-gray-100 text-gray-600',       icon: '🕐' },
@@ -198,15 +199,18 @@ export default function ProfilePage() {
   const [hiddenItems, setHiddenItems] = useState(new Set())
   const [orderProducts, setOrderProducts] = useState({})
 
-  const recentlyViewed = JSON.parse(localStorage.getItem('recently_viewed') || '[]')
+  // Лента «недавно смотрели» - через стор с try/catch, не голым JSON.parse
+  // (битый localStorage не валит страницу). Тот же источник, что на главной.
+  const recentlyViewed = useRecentlyViewedStore((s) => s.items)
 
   useEffect(() => {
     fetchProfile()
     fetchOrders()
     fetchRecommendations()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const fetchOrders = async () => {
+  async function fetchOrders() {
     setLoading(true)
     setOrdersError(false)
     try {
@@ -230,7 +234,7 @@ export default function ProfilePage() {
     }
   }
 
-  const fetchRecommendations = async () => {
+  async function fetchRecommendations() {
     try {
       const res = await api.get('/products/recommendations/')
       setRecommendations(Array.isArray(res.data) ? res.data : [])

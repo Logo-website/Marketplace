@@ -7,7 +7,7 @@ const passwordChecks = [
   { id: 'length',  label: 'Не менее 8 символов',          test: (p) => p.length >= 8 },
   { id: 'upper',   label: 'Хотя бы одна заглавная буква', test: (p) => /[A-Z]/.test(p) },
   { id: 'digit',   label: 'Хотя бы одна цифра',           test: (p) => /\d/.test(p) },
-  { id: 'special', label: 'Хотя бы один спецсимвол',      test: (p) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p) },
+  { id: 'special', label: 'Хотя бы один спецсимвол',      test: (p) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p) },
 ]
 
 export default function ForgotPasswordPage() {

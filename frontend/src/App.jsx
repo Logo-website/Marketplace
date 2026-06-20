@@ -63,6 +63,9 @@ export default function App() {
     // Закрываем WS при размонтировании/смене статуса - реальный logout
     // дополнительно зовёт disconnect из authStore.
     return () => disconnect()
+    // Действия сторов (connect/disconnect/fetch*) стабильны - в deps не нужны;
+    // эффект завязан только на смену статуса авторизации.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
 
   return (
