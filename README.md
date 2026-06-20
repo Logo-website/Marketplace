@@ -125,7 +125,7 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Auth | POST | `/api/auth/password-reset/` | Public |
 | Auth | POST | `/api/auth/password-reset/verify/` | Public |
 | Products | GET | `/api/products/` | Public (paginated, filters) |
-| Products | GET | `/api/products/search/?q=` | Public (facets, pagination) |
+| Products | GET | `/api/products/search/?q=` | Public (facets, filters, sort, did-you-mean) |
 | Products | GET | `/api/products/autocomplete/?q=` | Public (lightweight suggestions) |
 | Products | GET | `/api/products/categories/` | Public |
 | Products | GET | `/api/products/{id}/` | Public |

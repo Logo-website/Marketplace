@@ -125,7 +125,7 @@
 | Auth | POST | `/api/auth/password-reset/` | Публичный |
 | Auth | POST | `/api/auth/password-reset/verify/` | Публичный |
 | Товары | GET | `/api/products/` | Публичный (пагинация, фильтры) |
-| Товары | GET | `/api/products/search/?q=` | Публичный (фасеты, пагинация) |
+| Товары | GET | `/api/products/search/?q=` | Публичный (фасеты, фильтры, сортировка, did-you-mean) |
 | Товары | GET | `/api/products/autocomplete/?q=` | Публичный (лёгкие подсказки) |
 | Товары | GET | `/api/products/categories/` | Публичный |
 | Товары | GET | `/api/products/{id}/` | Публичный |

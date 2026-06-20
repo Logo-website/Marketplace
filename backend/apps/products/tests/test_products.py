@@ -184,30 +184,34 @@ def test_search_empty_query_returns_400(api_client):
 
 
 @pytest.mark.django_db
-def test_search_graceful_when_es_down(api_client, monkeypatch):
-    """ES недоступен - поиск отдаёт 200 с пустым результатом, не 500 (graceful)."""
+def test_search_es_down_returns_503(api_client, monkeypatch):
+    """ES недоступен - явная ошибка 503 (а не ложное «ничего не найдено»),
+    чтобы фронт показал ErrorState, а не пустую выдачу (план Ф3, решение 6)."""
     def boom():
         raise ConnectionError('ES down')
     monkeypatch.setattr('apps.products.search.get_es', boom)
 
     response = api_client.get('/api/products/search/?q=куртка')
-    assert response.status_code == 200
-    assert response.data['count'] == 0
-    assert response.data['results'] == []
-    assert response.data['facets']['categories'] == []
+    assert response.status_code == 503
 
 
 @pytest.mark.django_db
 def test_search_contract_with_facets(api_client, product, category, monkeypatch):
-    """View собирает контракт: count, results в порядке ES, фасеты с именами категорий."""
-    def fake_search(query, min_price=None, max_price=None, cat=None, page=1, page_size=20):
+    """View собирает контракт: count, results в порядке ES, фасеты с именами
+    категорий, suggestion проброшен."""
+    def fake_search(query, **kwargs):
         return {
             'ids': [product.id],
             'total': 1,
             'facets': {
                 'categories': [{'id': category.id, 'count': 1}],
                 'price_ranges': [{'key': '0-1000', 'from': None, 'to': 1000, 'count': 1}],
+                'brands': [{'value': 'Nike', 'count': 1}],
+                'rating_thresholds': [{'value': 4, 'count': 0}],
+                'in_stock_count': 1,
             },
+            'suggestion': 'куртка',
+            'error': False,
         }
     monkeypatch.setattr('apps.products.views.search_products', fake_search)
 
@@ -219,6 +223,82 @@ def test_search_contract_with_facets(api_client, product, category, monkeypatch)
     assert cat_facet['id'] == category.id
     assert cat_facet['name'] == category.name  # обогащено именем из БД
     assert response.data['facets']['price_ranges'][0]['count'] == 1
+    assert response.data['facets']['brands'][0]['value'] == 'Nike'
+    assert response.data['facets']['in_stock_count'] == 1
+    assert response.data['suggestion'] == 'куртка'
+
+
+class _FakeES:
+    """ES-клиент-заглушка: запоминает тело запроса, отдаёт заранее заданный ответ."""
+    def __init__(self, response):
+        self._response = response
+        self.last_body = None
+
+    def search(self, index, body):
+        self.last_body = body
+        return self._response
+
+
+def _es_response(**extra):
+    base = {'hits': {'hits': [], 'total': {'value': 0}}, 'aggregations': {}}
+    base.update(extra)
+    return base
+
+
+def test_search_filters_go_into_post_filter(monkeypatch):
+    """Бренд/рейтинг/наличие попадают в post_filter ES-запроса (сужают выдачу,
+    как фильтры каталога Ф2)."""
+    from apps.products import search as search_mod
+    fake = _FakeES(_es_response())
+    monkeypatch.setattr(search_mod, 'get_es', lambda: fake)
+
+    search_mod.search_products('куртка', brands=['Nike'], min_rating=4, in_stock=True)
+    pf = fake.last_body['post_filter']['bool']['filter']
+    assert {'terms': {'brand': ['Nike']}} in pf
+    assert {'range': {'rating': {'gte': 4}}} in pf
+    assert {'term': {'in_stock': True}} in pf
+
+
+def test_search_sort_maps_to_es_sort(monkeypatch):
+    """sort=price_asc -> ES sort по цене; неизвестный sort -> релевантность (без sort)."""
+    from apps.products import search as search_mod
+    fake = _FakeES(_es_response())
+    monkeypatch.setattr(search_mod, 'get_es', lambda: fake)
+
+    search_mod.search_products('куртка', sort='price_asc')
+    assert fake.last_body['sort'] == [{'price': 'asc'}]
+
+    search_mod.search_products('куртка', sort='нечто-кривое')
+    assert 'sort' not in fake.last_body  # откат к релевантности (_score)
+
+
+def test_search_suggestion_on_typo_and_none_on_exact(monkeypatch):
+    """Опечатка -> suggestion; точный запрос (нет опций) -> None."""
+    from apps.products import search as search_mod
+
+    typo = _FakeES(_es_response(suggest={
+        'did_you_mean': [{'text': 'куатка', 'options': [{'text': 'куртка'}]}]
+    }))
+    monkeypatch.setattr(search_mod, 'get_es', lambda: typo)
+    assert search_mod.search_products('куатка')['suggestion'] == 'куртка'
+
+    exact = _FakeES(_es_response(suggest={
+        'did_you_mean': [{'text': 'куртка', 'options': []}]
+    }))
+    monkeypatch.setattr(search_mod, 'get_es', lambda: exact)
+    assert search_mod.search_products('куртка')['suggestion'] is None
+
+
+def test_search_products_error_flag_when_es_down(monkeypatch):
+    """search_products при сбое ES возвращает error=True (не пустой результат)."""
+    from apps.products import search as search_mod
+    def boom():
+        raise ConnectionError('ES down')
+    monkeypatch.setattr(search_mod, 'get_es', boom)
+
+    result = search_mod.search_products('куртка')
+    assert result['error'] is True
+    assert result['ids'] == []
 
 
 @pytest.mark.django_db

@@ -13,10 +13,13 @@ import FilterGroup, { FilterOption } from './FilterGroup'
 // Контракт facets (из CatalogFacetsView):
 //   { brands:[{value,count}], price_ranges:[{key,from,to,count}],
 //     rating_thresholds:[{value,count}], in_stock_count }
+// Поиск (Ф3) дополнительно передаёт categories:[{id,name,count}] - в каталоге
+// категория задаётся маршрутом, в поиске это data-driven группа фильтра.
 //
-// value: { brands:string[], priceKey:string|null, minRating:number|null, inStock:bool }
+// value: { brands:string[], priceKey:string|null, minRating:number|null, inStock:bool,
+//          category?:id|null }
 // handlers: { onToggleBrand(v), onSelectPrice(bucket), onSelectRating(v),
-//             onToggleInStock(), onReset() }
+//             onToggleInStock(), onReset(), onSelectCategory?(id) }
 
 const BRAND_VISIBLE = 8 // первые N брендов; остальные - за «показать ещё»
 
@@ -31,6 +34,10 @@ function FilterBody({ facets, value, handlers, status }) {
   const [showAllBrands, setShowAllBrands] = useState(false)
 
   const brands = facets.brands ?? []
+  // Категория - только в поиске (Ф3): показываем при наличии или если выбрана.
+  const categories = (facets.categories ?? []).filter(
+    (c) => c.count > 0 || c.id === value.category
+  )
   // Корзину цены показываем, если в ней есть товары ИЛИ она сейчас выбрана
   // (иначе выбранный фильтр исчез бы из списка - нельзя снять).
   const priceBuckets = (facets.price_ranges ?? []).filter(
@@ -43,6 +50,7 @@ function FilterBody({ facets, value, handlers, status }) {
 
   const visibleBrands = showAllBrands ? brands : brands.slice(0, BRAND_VISIBLE)
   const hasAny =
+    categories.length > 0 ||
     brands.length > 0 ||
     priceBuckets.length > 0 ||
     ratingOptions.length > 0 ||
@@ -50,6 +58,20 @@ function FilterBody({ facets, value, handlers, status }) {
 
   return (
     <>
+      {categories.length > 0 && (
+        <FilterGroup title="Категория">
+          {categories.map((c) => (
+            <FilterOption
+              key={c.id}
+              label={c.name || 'Без категории'}
+              count={c.count}
+              selected={value.category === c.id}
+              onClick={() => handlers.onSelectCategory(c.id)}
+            />
+          ))}
+        </FilterGroup>
+      )}
+
       {priceBuckets.length > 0 && (
         <FilterGroup title="Цена">
           {priceBuckets.map((b) => (
@@ -130,7 +152,8 @@ export default function FilterSidebar({
     value.brands.length > 0 ||
     value.priceKey != null ||
     value.minRating != null ||
-    value.inStock
+    value.inStock ||
+    value.category != null
 
   const resetButton = hasActive && (
     <button

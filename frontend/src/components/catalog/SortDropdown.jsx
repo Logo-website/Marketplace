@@ -14,10 +14,12 @@ const SORT_OPTIONS = [
 
 // Презентационный селектор сортировки. value - id текущей сортировки (из URL),
 // onChange(id) - выбор нового. На узком экране прячет подписи, оставляя иконки.
-export default function SortDropdown({ value, onChange }) {
+// options - набор опций пропом (по умолчанию каталожный): поиск (Ф3) передаёт
+// свой набор с «по релевантности» вместо «популярное», не дублируя компонент.
+export default function SortDropdown({ value, onChange, options = SORT_OPTIONS }) {
   return (
     <div className="flex items-center bg-white border border-gray-100 rounded-2xl p-1 gap-1">
-      {SORT_OPTIONS.map((option) => (
+      {options.map((option) => (
         <motion.button
           key={option.id}
           onClick={() => onChange(option.id)}

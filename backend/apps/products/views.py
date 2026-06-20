@@ -300,19 +300,30 @@ class ProductSearchView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        query = request.query_params.get('q', '').strip()
-        min_price = _parse_decimal(request.query_params.get('min_price'))
-        max_price = _parse_decimal(request.query_params.get('max_price'))
-        category = request.query_params.get('category')
-        page = request.query_params.get('page', 1)
-        page_size = request.query_params.get('page_size', 20)
-
+        params = request.query_params
+        query = params.get('q', '').strip()
         if not query:
             return Response({'error': 'Введите поисковый запрос'}, status=400)
 
-        result = search_products(query, min_price, max_price, category, page, page_size)
-        product_ids = result['ids']
+        # Те же фильтры, что в каталоге Ф2 (цена/бренд/рейтинг/наличие/категория).
+        result = search_products(
+            query,
+            min_price=_parse_decimal(params.get('min_price')),
+            max_price=_parse_decimal(params.get('max_price')),
+            category=params.get('category'),
+            brands=[b for b in params.getlist('brand') if b],
+            min_rating=_parse_decimal(params.get('min_rating')),
+            in_stock=params.get('in_stock') in ('1', 'true', 'True'),
+            sort=params.get('sort'),
+            page=params.get('page', 1),
+            page_size=params.get('page_size', 20),
+        )
 
+        # ES недоступен - явная ошибка, а не ложное «ничего не найдено» (решение 6).
+        if result.get('error'):
+            return Response({'error': 'Поиск временно недоступен'}, status=503)
+
+        product_ids = result['ids']
         if product_ids:
             products = _products_in_order(product_ids)
             results_data = ProductSerializer(products, many=True).data
@@ -330,6 +341,7 @@ class ProductSearchView(APIView):
             'count': result['total'],
             'results': results_data,
             'facets': facets,
+            'suggestion': result.get('suggestion'),
         })
 
 
