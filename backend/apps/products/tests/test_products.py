@@ -673,3 +673,172 @@ def test_product_serializer_exposes_size_group(api_client, dress_product, socks_
     assert r1.data['size_group'] == 'dress'
     r2 = api_client.get(f'/api/products/{socks_product.id}/')
     assert r2.data['size_group'] is None
+
+
+# --- Ф6: вопросы о товаре (Q&A) ---
+
+@pytest.fixture
+def other_user(db):
+    return User.objects.create_user(
+        username='buyer2', email='buyer2@test.com', password='testpass123', role='buyer'
+    )
+
+
+@pytest.mark.django_db
+def test_qa_list_public(api_client, product, user):
+    """GET вопросов доступен анониму (AllowAny); ветка с вложенными ответами."""
+    from apps.products.models import Question, Answer
+    q = Question.objects.create(product=product, user=user, text='Какой материал?')
+    Answer.objects.create(question=q, user=user, text='Хлопок 100%')
+    response = api_client.get(f'/api/products/{product.id}/questions/')
+    assert response.status_code == 200
+    results = response.data['results']
+    assert len(results) == 1
+    assert results[0]['text'] == 'Какой материал?'
+    assert results[0]['answers'][0]['text'] == 'Хлопок 100%'
+
+
+@pytest.mark.django_db
+def test_qa_ask_without_purchase(auth_client, product):
+    """Вопрос можно задать БЕЗ покупки (ключевое отличие от Review)."""
+    response = auth_client.post(
+        f'/api/products/{product.id}/questions/', {'text': 'Есть ли скидки?'}
+    )
+    assert response.status_code == 201
+
+
+@pytest.mark.django_db
+def test_qa_ask_anonymous_401(api_client, product):
+    """Анонимная запись вопроса -> 401."""
+    response = api_client.post(
+        f'/api/products/{product.id}/questions/', {'text': 'Вопрос'}
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_qa_ask_empty_text_400(auth_client, product):
+    """Пустой/пробельный текст вопроса отклоняется."""
+    response = auth_client.post(
+        f'/api/products/{product.id}/questions/', {'text': '   '}
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_qa_answer_question(auth_client, product, user):
+    from apps.products.models import Question
+    q = Question.objects.create(product=product, user=user, text='Размер?')
+    response = auth_client.post(
+        f'/api/products/{product.id}/questions/{q.id}/answers/', {'text': 'Маломерит'}
+    )
+    assert response.status_code == 201
+
+
+@pytest.mark.django_db
+def test_qa_answer_wrong_product_404(auth_client, product, category, seller, user):
+    """Ответ на вопрос под чужим товаром в URL -> 404."""
+    from apps.products.models import Question
+    other = Product.objects.create(seller=seller, category=category, name='Другой',
+                                   slug='other-p', price=500, stock=5, status='active')
+    q = Question.objects.create(product=product, user=user, text='Вопрос')
+    response = auth_client.post(
+        f'/api/products/{other.id}/questions/{q.id}/answers/', {'text': 'Ответ'}
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_qa_helpful_toggle(auth_client, product, user):
+    """Лайк растит helpful_count; повторный вызов (toggle) снимает; накрутки нет."""
+    from apps.products.models import Question, Answer
+    q = Question.objects.create(product=product, user=user, text='?')
+    a = Answer.objects.create(question=q, user=user, text='Ответ')
+    r1 = auth_client.post(f'/api/products/answers/{a.id}/helpful/')
+    assert r1.status_code == 200
+    assert r1.data['helpful_count'] == 1
+    assert r1.data['liked_by_me'] is True
+    # toggle - снимаем лайк
+    r2 = auth_client.post(f'/api/products/answers/{a.id}/helpful/')
+    assert r2.data['helpful_count'] == 0
+    assert r2.data['liked_by_me'] is False
+
+
+@pytest.mark.django_db
+def test_qa_helpful_no_double_count(auth_client, product, user):
+    """unique_together: один юзер не накрутит счётчик (toggle, а не +1 каждый раз)."""
+    from apps.products.models import Question, Answer, AnswerVote
+    q = Question.objects.create(product=product, user=user, text='?')
+    a = Answer.objects.create(question=q, user=user, text='Ответ')
+    auth_client.post(f'/api/products/answers/{a.id}/helpful/')
+    a.refresh_from_db()
+    assert a.helpful_count == 1
+    assert AnswerVote.objects.filter(answer=a).count() == 1
+
+
+@pytest.mark.django_db
+def test_qa_helpful_anonymous_401(api_client, product, user):
+    from apps.products.models import Question, Answer
+    q = Question.objects.create(product=product, user=user, text='?')
+    a = Answer.objects.create(question=q, user=user, text='Ответ')
+    response = api_client.post(f'/api/products/answers/{a.id}/helpful/')
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_qa_answers_sorted_by_helpful(api_client, product, user, other_user):
+    """Ответы сортируются по полезности (полезные сверху)."""
+    from apps.products.models import Question, Answer, AnswerVote
+    q = Question.objects.create(product=product, user=user, text='?')
+    low = Answer.objects.create(question=q, user=user, text='Менее полезный')
+    high = Answer.objects.create(question=q, user=user, text='Более полезный')
+    # high получает лайк -> helpful_count=1 (сигнал пересчитает)
+    AnswerVote.objects.create(answer=high, user=user)
+    AnswerVote.objects.create(answer=high, user=other_user)
+    response = api_client.get(f'/api/products/{product.id}/questions/')
+    answers = response.data['results'][0]['answers']
+    assert answers[0]['text'] == 'Более полезный'
+    assert answers[0]['helpful_count'] == 2
+    assert answers[1]['text'] == 'Менее полезный'
+
+
+@pytest.mark.django_db
+def test_qa_is_seller_answer_badge(api_client, product, seller, user):
+    """Ответ автора-продавца помечается is_seller_answer (вычисление на сервере)."""
+    from apps.products.models import Question, Answer
+    q = Question.objects.create(product=product, user=user, text='?')
+    Answer.objects.create(question=q, user=seller, text='Ответ продавца')
+    Answer.objects.create(question=q, user=user, text='Ответ покупателя')
+    response = api_client.get(f'/api/products/{product.id}/questions/')
+    answers = response.data['results'][0]['answers']
+    by_text = {a['text']: a['is_seller_answer'] for a in answers}
+    assert by_text['Ответ продавца'] is True
+    assert by_text['Ответ покупателя'] is False
+
+
+@pytest.mark.django_db
+def test_qa_liked_by_me_per_user(auth_client, product, user, other_user):
+    """liked_by_me отражает голос ТЕКУЩЕГО юзера; гостю - всегда False."""
+    from rest_framework.test import APIClient
+    from apps.products.models import Question, Answer, AnswerVote
+    q = Question.objects.create(product=product, user=user, text='?')
+    a = Answer.objects.create(question=q, user=user, text='Ответ')
+    AnswerVote.objects.create(answer=a, user=user)  # лайкнул user (auth_client)
+    # auth_client = user -> liked_by_me True
+    r_auth = auth_client.get(f'/api/products/{product.id}/questions/')
+    assert r_auth.data['results'][0]['answers'][0]['liked_by_me'] is True
+    # гость (отдельный неаутентифицированный клиент) -> False
+    r_anon = APIClient().get(f'/api/products/{product.id}/questions/')
+    assert r_anon.data['results'][0]['answers'][0]['liked_by_me'] is False
+
+
+@pytest.mark.django_db
+def test_qa_missing_product_404(api_client):
+    response = api_client.get('/api/products/999999/questions/')
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_qa_helpful_missing_answer_404(auth_client):
+    response = auth_client.post('/api/products/answers/999999/helpful/')
+    assert response.status_code == 404

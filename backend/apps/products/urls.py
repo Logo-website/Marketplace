@@ -13,7 +13,12 @@ from .views import (
     RecommendationsView,
 )
 from .analytics import SellerAnalyticsView
-from .views import ReviewListCreateView
+from .views import (
+    ReviewListCreateView,
+    QuestionListCreateView,
+    AnswerCreateView,
+    AnswerHelpfulToggleView,
+)
 
 urlpatterns = [
     path('categories/', CategoryListView.as_view(), name='category-list'),
@@ -29,4 +34,8 @@ urlpatterns = [
     path('analytics/', SellerAnalyticsView.as_view(), name='seller-analytics'),
     path('<int:pk>/reviews/', ReviewListCreateView.as_view(), name='product-reviews'),
     path('<int:pk>/size-chart/', SizeChartView.as_view(), name='product-size-chart'),
+    # Q&A (Ф6). literal-префикс answers/ не конфликтует с <int:pk>/.
+    path('<int:pk>/questions/', QuestionListCreateView.as_view(), name='product-questions'),
+    path('<int:pk>/questions/<int:qid>/answers/', AnswerCreateView.as_view(), name='question-answers'),
+    path('answers/<int:aid>/helpful/', AnswerHelpfulToggleView.as_view(), name='answer-helpful'),
 ]

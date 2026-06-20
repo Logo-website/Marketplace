@@ -9,7 +9,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from .caching import cache_delete
-from .models import Category, Product, Review
+from .models import Answer, AnswerVote, Category, Product, Review
 
 PRODUCT_CACHE_KEY = 'product_detail:{}'
 CATEGORIES_CACHE_KEY = 'categories:root'
@@ -51,3 +51,19 @@ def product_changed(sender, instance, **kwargs):
 @receiver(post_delete, sender=Category)
 def category_changed(sender, **kwargs):
     cache_delete(CATEGORIES_CACHE_KEY)
+
+
+def recalc_answer_helpful(answer_id):
+    """Пересчитать helpful_count ответа из реальных строк AnswerVote
+    (зеркало recalc_product_rating). update() не вызывает Answer.post_save -
+    рекурсии нет."""
+    if not answer_id:
+        return
+    cnt = AnswerVote.objects.filter(answer_id=answer_id).count()
+    Answer.objects.filter(id=answer_id).update(helpful_count=cnt)
+
+
+@receiver(post_save, sender=AnswerVote)
+@receiver(post_delete, sender=AnswerVote)
+def answer_vote_changed(sender, instance, **kwargs):
+    recalc_answer_helpful(instance.answer_id)

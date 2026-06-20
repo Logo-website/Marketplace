@@ -67,3 +67,48 @@ class Review(models.Model):
 
     def __str__(self):
         return f'{self.user.username} → {self.product.name} ({self.rating}★)'
+
+
+class Question(models.Model):
+    """Публичный вопрос по товару (Ф6, узел 1.7). В отличие от Review,
+    задать вопрос можно БЕЗ покупки - Q&A снимает возражения ДО неё."""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='questions')
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='questions')
+    text = models.TextField()
+    # auto_now_add=True (НЕ как у Review с default=None): пустая дата ломала бы
+    # ordering -created_at и new Date() на фронте.
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.username} ? {self.product.name}'
+
+
+class Answer(models.Model):
+    """Ответ на вопрос - от любого авторизованного (другой покупатель или
+    продавец). helpful_count - денормализованный счётчик лайков (паттерн
+    Product.rating P6a), индексируется для сортировки по полезности."""
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='answers')
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='answers')
+    text = models.TextField()
+    helpful_count = models.PositiveIntegerField(default=0, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # Полезные сверху; при равенстве - старые раньше (стабильный тай-брейк).
+        ordering = ['-helpful_count', 'created_at']
+
+    def __str__(self):
+        return f'{self.user.username} → Q{self.question_id}'
+
+
+class AnswerVote(models.Model):
+    """Лайк «полезно» на ответ. unique_together исключает накрутку повтором;
+    helpful_count пересчитывается из этих строк сигналом."""
+    answer = models.ForeignKey(Answer, on_delete=models.CASCADE, related_name='votes')
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='answer_votes')
+
+    class Meta:
+        unique_together = ['answer', 'user']

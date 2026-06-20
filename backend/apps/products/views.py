@@ -1,14 +1,15 @@
 import requests
 from django.conf import settings
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Category, Product, Review
+from .models import Answer, AnswerVote, Category, Product, Question, Review
 from .serializers import (
     CategorySerializer, ProductSerializer, ProductCreateSerializer,
     ReviewSerializer, ReviewCreateSerializer,
+    QuestionSerializer, QuestionCreateSerializer, AnswerCreateSerializer,
 )
 from .search import search_products, autocomplete, index_product, delete_product, PRICE_RANGES
 from .size_charts import get_size_chart
@@ -540,3 +541,79 @@ class ReviewListCreateView(generics.ListCreateAPIView):
             user=self.request.user,
             product_id=self.kwargs['pk']
         )
+
+
+class QuestionListCreateView(generics.ListCreateAPIView):
+    """Q&A товара (Ф6): GET - вопросы с вложенными ответами (AllowAny);
+    POST - задать вопрос (IsAuthenticated, покупка НЕ требуется, в отличие
+    от Review - Q&A работает ДО покупки)."""
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return QuestionCreateSerializer
+        return QuestionSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    def _get_product(self):
+        # Кэшируем на инстанс: 404 для несуществующего товара (и на GET, и POST).
+        if not hasattr(self, '_product'):
+            self._product = get_object_or_404(Product, pk=self.kwargs['pk'])
+        return self._product
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        # seller_id для бейджа «Продавец» у ответов (вычисление на сервере).
+        ctx['seller_id'] = self._get_product().seller_id
+        return ctx
+
+    def get_queryset(self):
+        self._get_product()  # 404, если товара нет
+        # Ответы сортируются Answer.Meta.ordering (-helpful_count, created_at).
+        prefetches = [Prefetch('answers', queryset=Answer.objects.select_related('user'))]
+        user = self.request.user
+        if user.is_authenticated:
+            # liked_by_me без N+1: голоса только текущего юзера.
+            prefetches.append(
+                Prefetch('answers__votes', queryset=AnswerVote.objects.filter(user=user))
+            )
+        return (
+            Question.objects.filter(product_id=self.kwargs['pk'])
+            .select_related('user')
+            .prefetch_related(*prefetches)
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user, product=self._get_product())
+
+
+class AnswerCreateView(generics.CreateAPIView):
+    """Ответить на вопрос (Ф6). Любой авторизованный (другой покупатель или
+    продавец). Рабочее место продавца с агрегацией - Ф15."""
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = AnswerCreateSerializer
+
+    def perform_create(self, serializer):
+        # Вопрос привязан к товару из URL: чужой qid под другим товаром -> 404.
+        question = get_object_or_404(
+            Question, pk=self.kwargs['qid'], product_id=self.kwargs['pk']
+        )
+        serializer.save(user=self.request.user, question=question)
+
+
+class AnswerHelpfulToggleView(APIView):
+    """Переключить лайк «полезно» на ответе (Ф6). Toggle: повторный вызов
+    снимает лайк. unique_together(answer, user) исключает накрутку повтором;
+    helpful_count пересчитывается сигналом из AnswerVote."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, aid):
+        answer = get_object_or_404(Answer, pk=aid)
+        vote, created = AnswerVote.objects.get_or_create(answer=answer, user=request.user)
+        if not created:
+            vote.delete()
+        # Сигнал уже пересчитал helpful_count - читаем свежее значение.
+        answer.refresh_from_db(fields=['helpful_count'])
+        return Response({'helpful_count': answer.helpful_count, 'liked_by_me': created})

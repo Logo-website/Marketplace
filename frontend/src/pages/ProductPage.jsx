@@ -16,6 +16,7 @@ import VariantPicker from '../components/product/VariantPicker'
 import SpecsTable from '../components/product/SpecsTable'
 import SellerBlock from '../components/product/SellerBlock'
 import ReviewsSection from '../components/product/ReviewsSection'
+import ProductQA from '../components/product/ProductQA'
 import SizeGuideModal from '../components/product/SizeGuideModal'
 
 export default function ProductPage() {
@@ -338,6 +339,20 @@ export default function ProductPage() {
             productId={id}
             productRating={product.rating}
             reviewsCount={product.reviews_count}
+            isAuthenticated={isAuthenticated}
+            onLoginRequired={() => navigate('/login')}
+          />
+        </motion.div>
+
+        {/* Вопросы о товаре (Ф6, узел 1.7) - отдельный от отзывов блок */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18 }}
+          className="bg-white rounded-2xl border border-gray-100 mt-4 overflow-hidden"
+        >
+          <ProductQA
+            productId={id}
             isAuthenticated={isAuthenticated}
             onLoginRequired={() => navigate('/login')}
           />

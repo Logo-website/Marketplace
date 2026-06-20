@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Product, ProductImage
+from .models import Answer, Category, Product, ProductImage, Question
 
 
 class ProductImageInline(admin.TabularInline):
@@ -19,3 +19,16 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ['status', 'category']
     search_fields = ['name', 'description']
     inlines = [ProductImageInline]
+
+
+# Модерация Q&A до полноценной Ф18 - через стандартную админку.
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    list_display = ['id', 'product', 'user', 'created_at']
+    search_fields = ['text']
+
+
+@admin.register(Answer)
+class AnswerAdmin(admin.ModelAdmin):
+    list_display = ['id', 'question', 'user', 'helpful_count', 'created_at']
+    search_fields = ['text']

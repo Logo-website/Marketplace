@@ -131,6 +131,9 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Products | GET | `/api/products/{id}/` | Public |
 | Products | GET/POST | `/api/products/{id}/reviews/` | GET public, POST authenticated + purchased |
 | Products | GET | `/api/products/{id}/size-chart/` | Public (size table by category; `{group:null}` if none) |
+| Products | GET/POST | `/api/products/{id}/questions/` | GET public, POST authenticated (no purchase required) |
+| Products | POST | `/api/products/{id}/questions/{qid}/answers/` | Authenticated |
+| Products | POST | `/api/products/answers/{aid}/helpful/` | Authenticated (toggle helpful vote) |
 | Products | POST | `/api/products/create/` | Seller |
 | Products | GET | `/api/products/my/` | Seller |
 | Products | GET/PATCH/DELETE | `/api/products/my/{id}/` | Seller |
@@ -349,7 +352,7 @@ cd backend && pytest
 | Module | Coverage |
 |---|---|
 | `apps/users/tests/test_auth.py` | Auth: two-step OTP register/login, password hashing, attempt lockout, single-use code |
-| `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping |
+| `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge) |
 | `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization |
 | `apps/cart/tests.py` | Cart add/get/remove/clear with stock checks, inactive product, auth |
 
