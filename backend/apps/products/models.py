@@ -21,12 +21,25 @@ class Product(models.Model):
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    # «Старая цена» (Ф12, узел 2.3) - только хранение. Бейдж/расчёт скидки - Ф27.
+    old_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # stock - агрегат: при заданных attributes.sizes пересчитывается как сумма
+    # остатков по размерам (Ф12 решение 4.2). Списание при заказе идёт по нему
+    # (Ф8/Ф9), per-size списание - forward в Ф8/Ф9.
     stock = models.PositiveIntegerField(default=0)
+    # Контракт attributes (единый источник правды для Ф4 и Ф12, план Ф12 4.1):
+    #   brand:      str           - текст до Ф20 (сущности Brand нет)
+    #   sizes:      [{label, stock, available}]  available=stock>0 (флаг показа Ф4)
+    #   colors:     [{label, code}]
+    #   specs:      {название: значение}  (состав/уход/страна/сезон/крой)
+    #   size_chart: null          - привязка размерной сетки, заглушка до Ф5
+    #   marking:    str           - «Честный знак», учебная заглушка без интеграции
     attributes = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=20, choices=[
         ('active', 'Активен'),
         ('hidden', 'Скрыт'),
         ('moderation', 'На модерации'),
+        ('draft', 'Черновик'),
     ], default='moderation', db_index=True)
     # Денормализация рейтинга (P6a): пересчитывается из Review сигналами,
     # индексируется для сортировки по рейтингу без .extra()+CAST по JSON.

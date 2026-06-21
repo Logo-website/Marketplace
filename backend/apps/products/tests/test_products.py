@@ -411,14 +411,15 @@ def test_seller_email_not_exposed_in_catalog(api_client, product, seller):
 
 @pytest.mark.django_db
 def test_seller_cannot_self_approve_via_patch(seller_client, seller, category):
-    """Безопасность: продавец не может PATCH'ем выставить status=active товару
-    на модерации и обойти модерацию (status - read-only на seller-write пути)."""
+    """Безопасность (Ф12, план 9): продавец не может PATCH'ем выставить
+    status=active и обойти модерацию. Целевой статус формы ограничен
+    draft|moderation - active отклоняется явной 400, не молча игнорируется."""
     pending = Product.objects.create(
         seller=seller, category=category, name='На модерации',
         slug='pending', price=500, stock=3, status='moderation'
     )
     response = seller_client.patch(f'/api/products/my/{pending.id}/', {'status': 'active'})
-    assert response.status_code == 200
+    assert response.status_code == 400  # active вне choices write-сериализатора
     pending.refresh_from_db()
     assert pending.status == 'moderation'  # самоодобрение заблокировано
 
@@ -916,6 +917,178 @@ def test_qa_liked_by_me_per_user(auth_client, product, user, other_user):
 def test_qa_missing_product_404(api_client):
     response = api_client.get('/api/products/999999/questions/')
     assert response.status_code == 404
+
+
+# --- Ф12: форма карточки товара (создание/редактирование, статусы, фото) ---
+
+def _png_bytes():
+    """Минимальный валидный PNG (1x1) для проверки загрузки фото."""
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new('RGB', (1, 1)).save(buf, format='PNG')
+    return buf.getvalue()
+
+
+@pytest.mark.django_db
+def test_f12_create_sizes_aggregate_stock(seller_client, category):
+    """stock = сумма остатков по размерам, если размеры заданы (план 4.2);
+    sizes получают available=stock>0 (контракт Ф4)."""
+    r = seller_client.post('/api/products/create/', {
+        'name': 'Куртка зимняя', 'price': 5000, 'category': category.id,
+        'status': 'moderation',
+        'attributes': {'sizes': [{'label': 'S', 'stock': 3}, {'label': 'M', 'stock': 0}]},
+    }, format='json')
+    assert r.status_code == 201
+    p = Product.objects.get(name='Куртка зимняя')
+    assert p.stock == 3  # 3 + 0
+    assert p.status == 'moderation'
+    sizes = p.attributes['sizes']
+    assert sizes[0] == {'label': 'S', 'stock': 3, 'available': True}
+    assert sizes[1] == {'label': 'M', 'stock': 0, 'available': False}
+
+
+@pytest.mark.django_db
+def test_f12_default_status_is_draft(seller_client, category):
+    """Без явного статуса - draft (дефолт безопасен, не active, план 4.3)."""
+    r = seller_client.post('/api/products/create/', {
+        'name': 'Без статуса', 'price': 100, 'category': category.id,
+    }, format='json')
+    assert r.status_code == 201
+    assert Product.objects.get(name='Без статуса').status == 'draft'
+
+
+@pytest.mark.django_db
+def test_f12_cannot_create_active(seller_client, category):
+    """Создание с status=active отклоняется (обход модерации, план 9)."""
+    r = seller_client.post('/api/products/create/', {
+        'name': 'Хочу активный', 'price': 100, 'category': category.id, 'status': 'active',
+    }, format='json')
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_f12_slug_autogen_and_collision(seller_client, category):
+    """slug генерится на сервере из name; при коллизии - числовой суффикс."""
+    r1 = seller_client.post('/api/products/create/', {
+        'name': 'Jacket', 'price': 100, 'category': category.id,
+    }, format='json')
+    r2 = seller_client.post('/api/products/create/', {
+        'name': 'Jacket', 'price': 100, 'category': category.id,
+    }, format='json')
+    assert r1.status_code == 201 and r2.status_code == 201
+    slugs = list(Product.objects.filter(name='Jacket').values_list('slug', flat=True))
+    assert 'jacket' in slugs and 'jacket-2' in slugs
+
+
+@pytest.mark.django_db
+def test_f12_validation_price_and_old_price(seller_client, category):
+    """price>0 обязателен; old_price (если задана) строго больше price."""
+    bad_price = seller_client.post('/api/products/create/', {
+        'name': 'Бесплатный', 'price': 0, 'category': category.id,
+    }, format='json')
+    assert bad_price.status_code == 400
+
+    bad_old = seller_client.post('/api/products/create/', {
+        'name': 'Кривая скидка', 'price': 1000, 'old_price': 500, 'category': category.id,
+    }, format='json')
+    assert bad_old.status_code == 400
+    assert 'old_price' in bad_old.data
+
+
+@pytest.mark.django_db
+def test_f12_rejects_duplicate_sizes(seller_client, category):
+    """Дубликат label размера -> 400, не запись битого JSON (граничный случай)."""
+    r = seller_client.post('/api/products/create/', {
+        'name': 'Дубль', 'price': 100, 'category': category.id,
+        'attributes': {'sizes': [{'label': 'M', 'stock': 1}, {'label': 'M', 'stock': 2}]},
+    }, format='json')
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_f12_rejects_garbage_attributes(seller_client, category):
+    """Мусорная структура sizes -> 400, не 500."""
+    r = seller_client.post('/api/products/create/', {
+        'name': 'Мусор', 'price': 100, 'category': category.id,
+        'attributes': {'sizes': 'не список'},
+    }, format='json')
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_f12_edit_keeps_slug_on_name_change(seller_client, seller, category):
+    """PATCH с новым name НЕ меняет slug - стабильность ссылок (план 4.5)."""
+    p = Product.objects.create(seller=seller, category=category, name='Старое',
+                               slug='staroe-fixed', price=100, stock=1, status='draft')
+    r = seller_client.patch(f'/api/products/my/{p.id}/', {'name': 'Новое имя'}, format='json')
+    assert r.status_code == 200
+    p.refresh_from_db()
+    assert p.name == 'Новое имя'
+    assert p.slug == 'staroe-fixed'
+
+
+@pytest.mark.django_db
+def test_f12_upload_image(seller_client, product, settings, tmp_path):
+    """Загрузка фото создаёт ProductImage с инкрементным order."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    img = SimpleUploadedFile('p.png', _png_bytes(), content_type='image/png')
+    r = seller_client.post(f'/api/products/my/{product.id}/images/', {'image': img},
+                           format='multipart')
+    assert r.status_code == 201
+    assert product.images.count() == 1
+    assert product.images.first().order == 1
+
+
+@pytest.mark.django_db
+def test_f12_upload_rejects_non_image(seller_client, product):
+    """Не-изображение -> 400, не 500 и не запись мусора (план 9)."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    bad = SimpleUploadedFile('p.txt', b'not an image', content_type='text/plain')
+    r = seller_client.post(f'/api/products/my/{product.id}/images/', {'image': bad},
+                           format='multipart')
+    assert r.status_code == 400
+    assert product.images.count() == 0
+
+
+@pytest.mark.django_db
+def test_f12_cannot_upload_to_foreign_product(api_client, product, settings, tmp_path):
+    """Чужой товар недоступен для загрузки фото (404, владение, план 9)."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    other = User.objects.create_user(username='seller2', email='s2@test.com',
+                                     password='testpass123', role='seller')
+    api_client.force_authenticate(user=other)
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    img = SimpleUploadedFile('p.png', _png_bytes(), content_type='image/png')
+    r = api_client.post(f'/api/products/my/{product.id}/images/', {'image': img},
+                        format='multipart')
+    assert r.status_code == 404
+    assert product.images.count() == 0
+
+
+@pytest.mark.django_db
+def test_f12_reorder_images(seller_client, product):
+    """PUT порядок -> order проставляется по позиции в списке (план Этап 3)."""
+    from apps.products.models import ProductImage
+    a = ProductImage.objects.create(product=product, image_url='http://x/a.png', order=1)
+    b = ProductImage.objects.create(product=product, image_url='http://x/b.png', order=2)
+    r = seller_client.put(f'/api/products/my/{product.id}/images/',
+                          {'order': [b.id, a.id]}, format='json')
+    assert r.status_code == 200
+    a.refresh_from_db(); b.refresh_from_db()
+    assert b.order == 0 and a.order == 1  # b теперь первым (обложка)
+
+
+@pytest.mark.django_db
+def test_f12_delete_own_image(seller_client, seller, product, settings, tmp_path):
+    """Удаление своего фото работает; чужое - 404."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    from apps.products.models import ProductImage
+    img = ProductImage.objects.create(product=product, image_url='http://x/y.png', order=1)
+    r = seller_client.delete(f'/api/products/my/{product.id}/images/{img.id}/')
+    assert r.status_code == 204
+    assert product.images.count() == 0
 
 
 @pytest.mark.django_db

@@ -3,17 +3,25 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import { toast } from '../store/toastStore'
+import ProductForm from '../components/seller/ProductForm'
+
+// Бейдж статуса товара (Ф12, узел 2.3 / этап 6). Статус «отклонён» появится с
+// модерацией (Ф17) - здесь его нет, в каталог пускает только active.
+const STATUS_BADGE = {
+  active: { label: 'Активен', cls: 'bg-emerald-50 text-emerald-600' },
+  moderation: { label: 'На модерации', cls: 'bg-amber-50 text-amber-600' },
+  draft: { label: 'Черновик', cls: 'bg-gray-100 text-gray-500' },
+  hidden: { label: 'Скрыт', cls: 'bg-gray-100 text-gray-400' },
+}
 
 export default function SellerPage() {
   const [products, setProducts] = useState([])
   const [analytics, setAnalytics] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null) // null - создание, id - правка
   const [categories, setCategories] = useState([])
   const [activeTab, setActiveTab] = useState('products')
-  const [form, setForm] = useState({
-    name: '', slug: '', description: '', price: '', stock: '', category: ''
-  })
 
   useEffect(() => {
     fetchProducts()
@@ -50,21 +58,10 @@ export default function SellerPage() {
     }
   }
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    try {
-      await api.post('/products/create/', form)
-      setShowForm(false)
-      setForm({ name: '', slug: '', description: '', price: '', stock: '', category: '' })
-      fetchProducts()
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Ошибка при добавлении товара')
-    }
-  }
+  const openCreate = () => { setEditingId(null); setShowForm(true) }
+  const openEdit = (id) => { setEditingId(id); setShowForm(true) }
+  const closeForm = () => { setShowForm(false); setEditingId(null) }
+  const handleFormDone = () => { closeForm(); fetchProducts() }
 
   const handleDelete = async (id) => {
     if (!confirm('Удалить товар?')) return
@@ -162,7 +159,7 @@ export default function SellerPage() {
               <span className="hidden sm:inline">Настройки</span>
             </Link>
             <motion.button
-              onClick={() => setShowForm(!showForm)}
+              onClick={() => (showForm ? closeForm() : openCreate())}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
                 showForm
                   ? 'bg-white/10 text-white hover:bg-white/15'
@@ -212,90 +209,22 @@ export default function SellerPage() {
           ))}
         </div>
 
-        {/* Форма добавления */}
+        {/* Форма товара (Ф12): создание/редактирование одним компонентом */}
         <AnimatePresence>
           {showForm && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden mb-6"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mb-6"
             >
-              <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                <h2 className="text-base font-bold text-gray-900 mb-5">Новый товар</h2>
-                <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-
-                  <div className="col-span-2">
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Название *</label>
-                    <input
-                      name="name" placeholder="Название товара" value={form.name} onChange={handleChange}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Slug *</label>
-                    <input
-                      name="slug" placeholder="product-slug" value={form.slug} onChange={handleChange}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Категория *</label>
-                    <select
-                      name="category" value={form.category} onChange={handleChange}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white appearance-none"
-                      required
-                    >
-                      <option value="">Выберите категорию</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Цена ₽ *</label>
-                    <input
-                      name="price" type="number" placeholder="0" value={form.price} onChange={handleChange}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Остаток *</label>
-                    <input
-                      name="stock" type="number" placeholder="0" value={form.stock} onChange={handleChange}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
-                      required
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Описание</label>
-                    <textarea
-                      name="description" placeholder="Описание товара" value={form.description} onChange={handleChange}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white resize-none"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <motion.button
-                      type="submit"
-                      className="w-full bg-[#111] text-white py-3 rounded-xl font-semibold text-sm hover:bg-gray-800 transition"
-                      whileHover={{ scale: 1.01 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      Добавить товар
-                    </motion.button>
-                  </div>
-                </form>
-              </div>
+              <ProductForm
+                key={editingId || 'create'}
+                productId={editingId}
+                categories={categories}
+                onDone={handleFormDone}
+                onCancel={closeForm}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -340,7 +269,7 @@ export default function SellerPage() {
                     </svg>
                   </div>
                   <p className="text-gray-400">Товаров пока нет</p>
-                  <button onClick={() => setShowForm(true)} className="mt-3 text-sm text-indigo-600 hover:underline font-medium">
+                  <button onClick={openCreate} className="mt-3 text-sm text-indigo-600 hover:underline font-medium">
                     Добавить первый товар
                   </button>
                 </div>
@@ -354,10 +283,23 @@ export default function SellerPage() {
                       transition={{ delay: i * 0.03 }}
                       className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all group"
                     >
-                      <div className="h-36 bg-gray-50 flex items-center justify-center">
-                        <svg className="w-10 h-10 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
-                        </svg>
+                      <div className="h-36 bg-gray-50 flex items-center justify-center relative">
+                        {product.images?.[0] ? (
+                          <img
+                            src={product.images[0].image_url || product.images[0].image}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <svg className="w-10 h-10 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
+                          </svg>
+                        )}
+                        {STATUS_BADGE[product.status] && (
+                          <span className={`absolute top-2 left-2 text-[11px] font-semibold px-2 py-0.5 rounded-lg ${STATUS_BADGE[product.status].cls}`}>
+                            {STATUS_BADGE[product.status].label}
+                          </span>
+                        )}
                       </div>
                       <div className="p-4">
                         <p className="font-semibold text-gray-800 text-sm line-clamp-2 mb-2 leading-snug">{product.name}</p>
@@ -365,13 +307,21 @@ export default function SellerPage() {
                           <span className="font-black text-gray-900 text-sm">{Number(product.price).toLocaleString()} ₽</span>
                           <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-lg">{product.stock} шт.</span>
                         </div>
-                        <motion.button
-                          onClick={() => handleDelete(product.id)}
-                          className="w-full py-1.5 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-50 hover:text-red-600 transition opacity-0 group-hover:opacity-100 border border-transparent hover:border-red-100"
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          Удалить
-                        </motion.button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openEdit(product.id)}
+                            className="flex-1 py-1.5 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100 transition border border-gray-200"
+                          >
+                            Изменить
+                          </button>
+                          <motion.button
+                            onClick={() => handleDelete(product.id)}
+                            className="flex-1 py-1.5 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-50 hover:text-red-600 transition border border-transparent hover:border-red-100"
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            Удалить
+                          </motion.button>
+                        </div>
                       </div>
                     </motion.div>
                   ))}

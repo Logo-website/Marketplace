@@ -1,3 +1,4 @@
+from django.utils.text import slugify
 from rest_framework import serializers
 from .models import Answer, Category, Product, ProductImage, Question, Review
 
@@ -46,7 +47,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'slug', 'description', 'price',
+            'id', 'name', 'slug', 'description', 'price', 'old_price',
             'stock', 'attributes', 'status', 'category',
             'category_name', 'seller_name', 'size_group', 'images', 'created_at',
             'rating', 'reviews_count'
@@ -54,21 +55,159 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ['seller', 'created_at', 'rating', 'reviews_count']
 
 
-class ProductCreateSerializer(serializers.ModelSerializer):
+# Лимиты структуры attributes (граничные случаи плана Ф12, часть 6): очень
+# длинные строки обрезаем/режем, мусорные структуры -> 400, не запись битого JSON.
+SIZE_LABEL_MAX = 20
+SPEC_KEY_MAX = 60
+SPEC_VALUE_MAX = 500
+COLOR_CODE_MAX = 20
+BRAND_MAX = 255
+MARKING_MAX = 255
+
+# Целевые статусы формы продавца. active в обход модерации недоступен
+# (S: статус-инъекция, план 9) - его ставит только Ф17/админ.
+WRITE_STATUSES = ('draft', 'moderation')
+
+
+def _unique_slug(name):
+    """Slug на сервере из name (план 4.6): убирает ручной ввод slug и коллизии
+    unique=True. Кириллица -> slugify даёт '' -> fallback 'product'; при занятом
+    slug добавляем числовой суффикс."""
+    base = slugify(name) or 'product'
+    slug = base
+    i = 2
+    while Product.objects.filter(slug=slug).exists():
+        slug = f'{base}-{i}'
+        i += 1
+    return slug
+
+
+def _validate_product_attributes(value):
+    """Валидирует и нормализует contract attributes (план 4.1). Мусорную
+    структуру отклоняет (400), а не пишет битый JSON. Неизвестные ключи
+    отбрасывает - единый источник правды для Ф4."""
+    if value in (None, ''):
+        return {}
+    if not isinstance(value, dict):
+        raise serializers.ValidationError('Должен быть объектом')
+
+    cleaned = {}
+
+    brand = value.get('brand')
+    if brand:
+        cleaned['brand'] = str(brand).strip()[:BRAND_MAX]
+
+    sizes = value.get('sizes')
+    if sizes:
+        if not isinstance(sizes, list):
+            raise serializers.ValidationError({'sizes': 'Размеры должны быть списком'})
+        out, seen = [], set()
+        for item in sizes:
+            if not isinstance(item, dict) or not str(item.get('label', '')).strip():
+                raise serializers.ValidationError({'sizes': 'Каждый размер - объект с label'})
+            label = str(item['label']).strip()[:SIZE_LABEL_MAX]
+            if label.lower() in seen:
+                raise serializers.ValidationError({'sizes': f'Дубликат размера: {label}'})
+            seen.add(label.lower())
+            try:
+                stock = int(item.get('stock', 0))
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({'sizes': 'Остаток размера - целое число'})
+            if stock < 0:
+                raise serializers.ValidationError({'sizes': 'Остаток размера не может быть отрицательным'})
+            # available - флаг ПОКАЗА для Ф4 (VariantPicker читает available, не stock);
+            # stock хранится для агрегата и forward Ф8/Ф9.
+            out.append({'label': label, 'stock': stock, 'available': stock > 0})
+        cleaned['sizes'] = out
+
+    colors = value.get('colors')
+    if colors:
+        if not isinstance(colors, list):
+            raise serializers.ValidationError({'colors': 'Цвета должны быть списком'})
+        out = []
+        for item in colors:
+            if not isinstance(item, dict) or not str(item.get('label', '')).strip():
+                raise serializers.ValidationError({'colors': 'Каждый цвет - объект с label'})
+            color = {'label': str(item['label']).strip()[:SIZE_LABEL_MAX]}
+            code = item.get('code')
+            if code:
+                color['code'] = str(code).strip()[:COLOR_CODE_MAX]
+            out.append(color)
+        cleaned['colors'] = out
+
+    specs = value.get('specs')
+    if specs:
+        if not isinstance(specs, dict):
+            raise serializers.ValidationError({'specs': 'Характеристики - объект ключ-значение'})
+        out = {}
+        for k, v in specs.items():
+            key = str(k).strip()[:SPEC_KEY_MAX]
+            val = str(v).strip()[:SPEC_VALUE_MAX] if v is not None else ''
+            if key and val:
+                out[key] = val
+        if out:
+            cleaned['specs'] = out
+
+    # size_chart - заглушка Ф5 (привязки сетки пока нет): всегда null.
+    cleaned['size_chart'] = None
+
+    marking = value.get('marking')
+    if marking:
+        cleaned['marking'] = str(marking).strip()[:MARKING_MAX]
+
+    return cleaned
+
+
+class ProductWriteSerializer(serializers.ModelSerializer):
+    """Форма карточки товара (Ф12, узел 2.3): создание и редактирование одним
+    сериализатором. Статус ограничен draft|moderation - самоодобрение в active
+    невозможно (план 9). slug генерится на сервере, stock - агрегат по размерам."""
+    # default='draft': форма всегда шлёт статус кнопкой, но дефолт безопасен
+    # (не active). На update partial поле необязательно - статус не сбрасывается.
+    status = serializers.ChoiceField(choices=WRITE_STATUSES, default='draft')
+
     class Meta:
         model = Product
-        fields = ['name', 'slug', 'description', 'price', 'stock', 'attributes', 'category', 'status']
-        # status - read-only на seller-write пути: иначе PATCH /products/my/{id}/
-        # с {"status":"active"} даёт продавцу самоодобрение товара из moderation
-        # (обход модерации). active/hidden меняет только выделенный путь (Ф13
-        # visibility-эндпоинт) / Ф17 / админ. Создание ставит статус через
-        # setdefault ниже, не из ввода.
-        read_only_fields = ['status']
+        fields = ['name', 'description', 'price', 'old_price', 'stock',
+                  'attributes', 'category', 'status']
+
+    def validate_price(self, value):
+        if value is None or value <= 0:
+            raise serializers.ValidationError('Цена должна быть больше 0')
+        return value
+
+    def validate_attributes(self, value):
+        return _validate_product_attributes(value)
+
+    def validate(self, data):
+        # old_price (если задана) строго больше price, иначе «скидка» неположительна
+        # (граничный случай плана). На update price берём из инстанса, если не пришла.
+        price = data.get('price', getattr(self.instance, 'price', None))
+        old_price = data.get('old_price')
+        if old_price is not None and price is not None and old_price <= price:
+            raise serializers.ValidationError(
+                {'old_price': 'Старая цена должна быть больше текущей'}
+            )
+        return data
+
+    def _apply_stock_aggregate(self, validated_data):
+        # stock = сумма остатков по размерам, если размеры заданы (план 4.2);
+        # иначе остаётся значение из поля «остаток».
+        attrs = validated_data.get('attributes')
+        if attrs and attrs.get('sizes'):
+            validated_data['stock'] = sum(s['stock'] for s in attrs['sizes'])
 
     def create(self, validated_data):
         validated_data['seller'] = self.context['request'].user
-        validated_data.setdefault('status', 'active')
+        validated_data['slug'] = _unique_slug(validated_data['name'])
+        self._apply_stock_aggregate(validated_data)
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # slug при правке name НЕ перегенерируем - стабильность внешних ссылок (4.5).
+        validated_data.pop('slug', None)
+        self._apply_stock_aggregate(validated_data)
+        return super().update(instance, validated_data)
 
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)

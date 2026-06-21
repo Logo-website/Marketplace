@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Answer, AnswerVote, Category, Product, Question, Review
 from .serializers import (
-    CategorySerializer, ProductSerializer, ProductCreateSerializer,
+    CategorySerializer, ProductSerializer, ProductWriteSerializer,
     ReviewSerializer, ReviewCreateSerializer, MyReviewSerializer,
     QuestionSerializer, QuestionCreateSerializer, AnswerCreateSerializer,
 )
@@ -386,13 +386,27 @@ class AutocompleteView(APIView):
         return Response(data)
 
 
+def _reindex_product(product):
+    """Синхронизация ES после сохранения формы (Ф12). В индексе - только active:
+    черновик/на модерации в каталог и поиск не попадают (план 4.3). Правка
+    active->moderation удаляет товар из индекса. Индексация best-effort: падение
+    ES не валит сохранение товара (граничный случай плана, ES рассинхрон)."""
+    try:
+        if product.status == 'active':
+            index_product(product)
+        else:
+            delete_product(product.id)
+    except Exception as e:
+        logger.warning(f'ES reindex skipped for product {product.id}: {e}')
+
+
 class ProductCreateView(generics.CreateAPIView):
-    serializer_class = ProductCreateSerializer
+    serializer_class = ProductWriteSerializer
     permission_classes = [IsSeller]
 
     def perform_create(self, serializer):
         product = serializer.save()
-        index_product(product)
+        _reindex_product(product)
 
 
 class SellerProductListView(generics.ListAPIView):
@@ -404,15 +418,21 @@ class SellerProductListView(generics.ListAPIView):
 
 
 class SellerProductUpdateView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = ProductCreateSerializer
     permission_classes = [IsSeller]
+
+    def get_serializer_class(self):
+        # GET (предзаполнение формы редактирования) - полный read-сериализатор
+        # с images/attributes; запись - ProductWriteSerializer.
+        if self.request.method == 'GET':
+            return ProductSerializer
+        return ProductWriteSerializer
 
     def get_queryset(self):
         return Product.objects.filter(seller=self.request.user)
 
     def perform_update(self, serializer):
         product = serializer.save()
-        index_product(product)
+        _reindex_product(product)
 
     def perform_destroy(self, instance):
         delete_product(instance.id)

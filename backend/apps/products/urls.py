@@ -14,6 +14,7 @@ from .views import (
     MyReviewsView,
 )
 from .analytics import SellerAnalyticsView
+from .images import ProductImagesView, ProductImageDetailView
 from .views import (
     ReviewListCreateView,
     QuestionListCreateView,
@@ -33,6 +34,9 @@ urlpatterns = [
     path('<int:pk>/', ProductDetailView.as_view(), name='product-detail'),
     path('create/', ProductCreateView.as_view(), name='product-create'),
     path('my/', SellerProductListView.as_view(), name='seller-products'),
+    # Фото товара (Ф12): литералы images/ до <int:pk>/ детали - не конфликтуют.
+    path('my/<int:pk>/images/', ProductImagesView.as_view(), name='product-images'),
+    path('my/<int:pk>/images/<int:image_id>/', ProductImageDetailView.as_view(), name='product-image-detail'),
     path('my/<int:pk>/', SellerProductUpdateView.as_view(), name='seller-product-detail'),
     path('analytics/', SellerAnalyticsView.as_view(), name='seller-analytics'),
     path('<int:pk>/reviews/', ReviewListCreateView.as_view(), name='product-reviews'),
