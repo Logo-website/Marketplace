@@ -12,6 +12,8 @@ import SearchPage from './pages/SearchPage'
 import CartPage from './pages/CartPage'
 import ProfilePage from './pages/ProfilePage'
 import SellerPage from './pages/SellerPage'
+import SellerOnboardingPage from './pages/SellerOnboardingPage'
+import SellerSettingsPage from './pages/SellerSettingsPage'
 import useAuthStore from './store/authStore'
 import useCartStore from './store/cartStore'
 import useNotificationStore from './store/notificationStore'
@@ -32,6 +34,21 @@ function PrivateRoute({ children }) {
   if (isAuthenticated) return children
   const next = encodeURIComponent(location.pathname + location.search)
   return <Navigate to={`/login?next=${next}`} replace />
+}
+
+function SellerRoute({ children }) {
+  const { isAuthenticated, user } = useAuthStore()
+  const location = useLocation()
+  // Гость - на логин с возвратом. Залогиненный не-продавец - в онбординг /sell
+  // (а не пустой кабинет): дефект «кабинет открыт любому» чинит Ф11.
+  if (!isAuthenticated) {
+    const next = encodeURIComponent(location.pathname + location.search)
+    return <Navigate to={`/login?next=${next}`} replace />
+  }
+  // Профиль ещё грузится (user null до fetchProfile) - не редиректим раньше времени.
+  if (!user) return <div className="max-w-6xl mx-auto px-4 py-20"><div className="bg-white rounded-2xl h-64 skeleton" /></div>
+  if (user.role !== 'seller') return <Navigate to="/sell" replace />
+  return children
 }
 
 function PageWrapper({ children }) {
@@ -95,7 +112,11 @@ export default function App() {
               {/* Корзина доступна гостю (Ф8): вход просим только на оформлении. */}
               <Route path="/cart" element={<CartPage />} />
               <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
-              <Route path="/seller" element={<PrivateRoute><SellerPage /></PrivateRoute>} />
+              {/* /sell - онбординг для залогиненного (любая роль); страница сама
+                  редиректит уже-продавца в настройки. */}
+              <Route path="/sell" element={<PrivateRoute><SellerOnboardingPage /></PrivateRoute>} />
+              <Route path="/seller" element={<SellerRoute><SellerPage /></SellerRoute>} />
+              <Route path="/seller/settings" element={<SellerRoute><SellerSettingsPage /></SellerRoute>} />
               <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
               <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />

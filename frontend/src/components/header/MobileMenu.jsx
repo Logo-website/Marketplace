@@ -50,13 +50,17 @@ export default function MobileMenu({ isAuthenticated, user, onLogout }) {
             </div>
 
             <div className="flex flex-col gap-2 border-t border-gray-100 pt-4">
-              <Link
-                to="/seller"
-                onClick={close}
-                className="px-4 py-2.5 rounded-xl bg-[#111] text-white text-sm font-semibold text-center"
-              >
-                {user?.role === 'seller' ? 'Кабинет продавца' : 'Продавать'}
-              </Link>
+              {/* Продавец -> кабинет; покупатель/гость -> онбординг /sell (Ф11).
+                  Админу «стать продавцом» не предлагаем (таблица ролей 4.1). */}
+              {user?.role !== 'admin' && (
+                <Link
+                  to={user?.role === 'seller' ? '/seller' : '/sell'}
+                  onClick={close}
+                  className="px-4 py-2.5 rounded-xl bg-[#111] text-white text-sm font-semibold text-center"
+                >
+                  {user?.role === 'seller' ? 'Кабинет продавца' : 'Продавать'}
+                </Link>
+              )}
 
               {isAuthenticated ? (
                 <>

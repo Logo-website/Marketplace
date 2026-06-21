@@ -10,12 +10,15 @@ from django.db import transaction
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from django.conf import settings
+from django.utils import timezone
 from .serializers import (
     RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer,
-    AddressSerializer, PasswordChangeSerializer,
+    AddressSerializer, PasswordChangeSerializer, SellerProfileSerializer,
 )
-from .models import User, OTPCode, MAX_OTP_ATTEMPTS, Address
-from .validators import validate_password_strength
+from .models import User, OTPCode, MAX_OTP_ATTEMPTS, Address, SellerProfile
+from .validators import (
+    validate_password_strength, is_onboarding_complete, ONBOARDING_REQUIRED_FIELDS,
+)
 from .throttling import (
     LoginRateThrottle, RegisterRateThrottle,
     VerifyRateThrottle, PasswordResetRequestThrottle,
@@ -277,6 +280,98 @@ class AddressViewSet(viewsets.ModelViewSet):
             fallback = Address.objects.filter(user=user).first()
             if fallback:
                 Address.objects.filter(pk=fallback.pk).update(is_default=True)
+
+
+def _apply_seller_fields(profile, validated, user):
+    """Переносит проверенные данные на профиль + кросс-модельно на User.shop_name.
+    Время принятия оферты ставит сервер ровно один раз (при первом принятии)."""
+    user_data = validated.pop('user', {})
+    if validated.get('offer_accepted') and not profile.offer_accepted_at:
+        profile.offer_accepted_at = timezone.now()
+    for field, value in validated.items():
+        setattr(profile, field, value)
+    # shop_name приходит вложенным (source='user.shop_name') - пишем на User.
+    if 'shop_name' in user_data:
+        user.shop_name = user_data['shop_name']
+
+
+def _profile_is_complete(profile):
+    """Комплект полон по текущему состоянию профиля - единый критерий активации."""
+    data = {f: getattr(profile, f) for f in ONBOARDING_REQUIRED_FIELDS}
+    data['offer_accepted'] = profile.offer_accepted
+    return is_onboarding_complete(data)
+
+
+class SellerOnboardingView(APIView):
+    """POST /auth/seller/onboarding/ - заявка «стать продавцом» (Ф11).
+
+    Невалидный формат поля -> 400, ничего не пишем. Валидно, но комплект неполный
+    -> 200 с черновиком (status=incomplete, роль не меняется). Полный комплект ->
+    в одной транзакции status=active + role=seller (флип ТОЛЬКО из buyer)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        # partial=True: валидируем только присланные поля, без инъекции дефолтов
+        # (иначе повторный POST затёр бы tariff/offer_accepted). 400 - до записи в БД.
+        serializer = SellerProfileSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        validated = dict(serializer.validated_data)
+
+        with transaction.atomic():
+            profile, _ = SellerProfile.objects.get_or_create(user=request.user)
+            _apply_seller_fields(profile, validated, request.user)
+            if _profile_is_complete(profile):
+                profile.status = SellerProfile.STATUS_ACTIVE
+                # Роль флипаем исключительно из buyer: admin/seller не трогаем,
+                # чтобы не сломать синхронизацию is_staff и не «понизить» админа.
+                if request.user.role == User.ROLE_BUYER:
+                    request.user.role = User.ROLE_SELLER
+            profile.save()
+            request.user.save()
+
+        return Response(SellerProfileSerializer(profile).data, status=200)
+
+
+class SellerProfileView(APIView):
+    """GET/PATCH /auth/seller/profile/ - свой профиль и настройки магазина (Ф11).
+
+    GET safe: нет профиля -> 404, черновик на GET не создаётся. PATCH - только
+    активному продавцу; status/role read-only; нельзя обнулить обязательные поля."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            profile = request.user.seller_profile
+        except SellerProfile.DoesNotExist:
+            return Response({'detail': 'Профиль продавца не найден'}, status=404)
+        return Response(SellerProfileSerializer(profile).data)
+
+    def patch(self, request):
+        try:
+            profile = request.user.seller_profile
+        except SellerProfile.DoesNotExist:
+            return Response({'detail': 'Профиль продавца не найден'}, status=404)
+        if profile.status != SellerProfile.STATUS_ACTIVE:
+            return Response({'detail': 'Настройки доступны только активному продавцу'}, status=403)
+
+        serializer = SellerProfileSerializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        validated = dict(serializer.validated_data)
+
+        # Инвариант полноты: активный магазин нельзя привести в неполное состояние.
+        candidate = {f: validated.get(f, getattr(profile, f)) for f in ONBOARDING_REQUIRED_FIELDS}
+        candidate['offer_accepted'] = validated.get('offer_accepted', profile.offer_accepted)
+        if not is_onboarding_complete(candidate):
+            return Response(
+                {'detail': 'Нельзя очистить обязательные данные активного магазина'},
+                status=400,
+            )
+
+        with transaction.atomic():
+            _apply_seller_fields(profile, validated, request.user)
+            profile.save()
+            request.user.save()
+        return Response(SellerProfileSerializer(profile).data)
 
 
 class LogoutView(APIView):

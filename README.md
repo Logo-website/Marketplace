@@ -128,6 +128,8 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Auth | POST | `/api/auth/password-change/` | Authenticated (old → new, no OTP) |
 | Auth | GET/POST | `/api/auth/addresses/` | Authenticated (own delivery addresses) |
 | Auth | GET/PUT/PATCH/DELETE | `/api/auth/addresses/{id}/` | Authenticated (own; one default) |
+| Auth | POST | `/api/auth/seller/onboarding/` | Authenticated (become seller; full set activates, flips role buyer → seller) |
+| Auth | GET/PATCH | `/api/auth/seller/profile/` | Seller (own profile; PATCH only when active) |
 | Products | GET | `/api/products/` | Public (paginated, filters; `?ids=1,2` batch by id, unpaginated — guest cart) |
 | Products | GET | `/api/products/search/?q=` | Public (facets, filters, sort, did-you-mean) |
 | Products | GET | `/api/products/autocomplete/?q=` | Public (lightweight suggestions) |
@@ -175,7 +177,9 @@ SPA in `frontend/`. Dev server proxies `/api` to `http://localhost:8001` (see `v
 | `/cart` | Cart management (guest cart supported) | Public |
 | `/checkout` | Checkout (`POST /orders/from-cart/`) | Private |
 | `/profile` | Account hub (tabs: overview, orders, my data, addresses, my reviews, notifications; `?tab=`) | Private |
-| `/seller` | Seller products and analytics | Private |
+| `/sell` | Seller onboarding (become seller; already-seller → settings) | Private |
+| `/seller` | Seller products and analytics | Seller |
+| `/seller/settings` | Store settings (legal data, requisites, storefront, tariff) | Seller |
 | `/wishlist` | Wishlist (localStorage only) | Private |
 
 ### State
@@ -359,6 +363,7 @@ cd backend && pytest
 | Module | Coverage |
 |---|---|
 | `apps/users/tests/test_auth.py` | Auth: two-step OTP register/login, password hashing, attempt lockout, single-use code |
+| `apps/users/tests/test_seller_onboarding.py` | Seller onboarding: full set activates and flips role, incomplete saves draft, invalid INN → 400, role flip only from buyer, INN by status, requisites not exposed, idempotency, settings PATCH (active-only, can't blank required) |
 | `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge) |
 | `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization, selected-subset checkout, variant snapshot |
 | `apps/cart/tests.py` | Cart add/get/set-quantity/remove/clear with stock checks, inactive product, auth, variant lines, guest-cart merge (clamp/sum/skip), batch by ids |

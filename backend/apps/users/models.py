@@ -47,6 +47,60 @@ class User(AbstractUser):
     def __str__(self):
         return self.email
 
+class SellerProfile(models.Model):
+    """Данные продавца (Ф11, узел 2.14). Отдельная модель, не поля на User:
+    юр-статус/ИНН/реквизиты выплат - персданные (опасная тройка), а User уже
+    отдаётся анонимам в каталоге (shop_name) и владельцу в /auth/profile/.
+    PII живёт только здесь и отдаётся исключительно владельцу.
+
+    Активация (status=active + user.role=seller) - серверный инвариант: только
+    при полном комплекте (юр-данные + реквизиты + принятая оферта). Без
+    реквизитов магазин не активируется (условие карты)."""
+
+    LEGAL_SELF_EMPLOYED = 'self_employed'
+    LEGAL_IP = 'ip'
+    LEGAL_OOO = 'ooo'
+    LEGAL_STATUS_CHOICES = [
+        (LEGAL_SELF_EMPLOYED, 'Самозанятый'),
+        (LEGAL_IP, 'Индивидуальный предприниматель'),
+        (LEGAL_OOO, 'ООО'),
+    ]
+
+    # Тарифы Freemium (pricing.md). Коды провизорные, enum расширяемый под
+    # будущие уровни; цены - LIVE, в код не хардкодим.
+    TARIFF_FREE = 'free'
+    TARIFF_ADVANCED = 'advanced'
+    TARIFF_CHOICES = [
+        (TARIFF_FREE, 'Базовый (бесплатный)'),
+        (TARIFF_ADVANCED, 'Расширенный'),
+    ]
+
+    STATUS_INCOMPLETE = 'incomplete'
+    STATUS_ACTIVE = 'active'
+    STATUS_CHOICES = [
+        (STATUS_INCOMPLETE, 'Черновик'),
+        (STATUS_ACTIVE, 'Активен'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='seller_profile')
+    legal_status = models.CharField(max_length=20, choices=LEGAL_STATUS_CHOICES, blank=True)
+    legal_name = models.CharField(max_length=200, blank=True)
+    inn = models.CharField(max_length=12, blank=True)
+    bank_account = models.CharField(max_length=20, blank=True)
+    bank_bik = models.CharField(max_length=9, blank=True)
+    shop_description = models.TextField(blank=True)
+    shop_logo = models.ImageField(upload_to='shops/', blank=True, null=True)
+    tariff = models.CharField(max_length=20, choices=TARIFF_CHOICES, default=TARIFF_FREE)
+    offer_accepted = models.BooleanField(default=False)
+    offer_accepted_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_INCOMPLETE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'{self.user.email} ({self.get_status_display()})'
+
+
 class Address(models.Model):
     """Адрес доставки покупателя (Ф10, узел 1.13).
 

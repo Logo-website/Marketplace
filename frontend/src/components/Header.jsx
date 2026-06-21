@@ -65,9 +65,9 @@ export default function Header() {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
   const isSeller = user?.role === 'seller'
   const isAdmin = user?.role === 'admin'
-  // «Продавать» виден гостю и покупателю (forward-ссылка в онбординг Ф11, до
-  // неё - /seller). Продавец видит «Продавцу». Админу покупательский вход не
-  // показываем (таблица ролей 4.1).
+  // «Продавать» виден гостю и покупателю -> онбординг /sell (Ф11). Продавец
+  // видит «Продавцу» -> /seller. Админу покупательский вход не показываем
+  // (таблица ролей 4.1).
   const showBecomeSeller = !isSeller && !isAdmin
   const hasQuery = search.trim().length >= 2
 
@@ -311,7 +311,7 @@ export default function Header() {
                   </motion.div>
                 </Link>
               ) : showBecomeSeller ? (
-                <Link to="/seller" className="hidden md:block">
+                <Link to="/sell" className="hidden md:block">
                   <motion.div
                     className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-medium"
                     whileHover={{ scale: 1.02 }}

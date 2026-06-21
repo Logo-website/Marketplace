@@ -7,6 +7,7 @@ from .views import (
     ProfileView, LogoutView,
     PasswordResetRequestView, PasswordResetVerifyView,
     PasswordChangeView, AddressViewSet,
+    SellerOnboardingView, SellerProfileView,
 )
 
 router = SimpleRouter()
@@ -23,4 +24,6 @@ urlpatterns = [
     path('password-reset/', PasswordResetRequestView.as_view(), name='password-reset'),
     path('password-reset/verify/', PasswordResetVerifyView.as_view(), name='password-reset-verify'),
     path('password-change/', PasswordChangeView.as_view(), name='password-change'),
+    path('seller/onboarding/', SellerOnboardingView.as_view(), name='seller-onboarding'),
+    path('seller/profile/', SellerProfileView.as_view(), name='seller-profile'),
 ] + router.urls

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import User, Address
-from .validators import validate_password_strength
+from .models import User, Address, SellerProfile
+from .validators import validate_password_strength, validate_inn
 
 # Параметры фигуры (Ф10): числовые поля с диапазоном + размер одежды строкой.
 # Диапазоны защищают от абсурда (рост 5 см) и нечисловых значений (граничный
@@ -102,6 +102,42 @@ class AddressSerializer(serializers.ModelSerializer):
         if not v:
             raise serializers.ValidationError('Укажите телефон')
         return v
+
+
+class SellerProfileSerializer(serializers.ModelSerializer):
+    """Профиль продавца (Ф11). PII (inn/bank_*/legal_name) - только здесь и
+    только владельцу; в публичных сериализаторах их нет. shop_name живёт на User
+    (его читает каталог), сюда подтягивается через source - запись/чтение
+    названия витрины не теряется между моделями."""
+    # Название витрины хранится на User.shop_name (non-PII, нужно каталогу).
+    shop_name = serializers.CharField(source='user.shop_name', required=False,
+                                      allow_blank=True, max_length=120)
+
+    class Meta:
+        model = SellerProfile
+        fields = ['legal_status', 'legal_name', 'inn', 'bank_account', 'bank_bik',
+                  'shop_name', 'shop_description', 'shop_logo', 'tariff',
+                  'offer_accepted', 'offer_accepted_at', 'status',
+                  'created_at', 'updated_at']
+        # status/role меняются только через активацию (сервер-инвариант),
+        # время принятия оферты ставит сервер - клиент их не пишет.
+        read_only_fields = ['offer_accepted_at', 'status', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        # ИНН валидируем вместе с legal_status (длина зависит от статуса). При
+        # PATCH недостающее берём из текущего профиля. Невалидный формат -> 400
+        # на поле inn; пустой ИНН (черновик) не проверяем - это неполнота, не ошибка.
+        inn = attrs.get('inn')
+        legal_status = attrs.get('legal_status')
+        if self.instance:
+            inn = self.instance.inn if inn is None else inn
+            legal_status = self.instance.legal_status if legal_status is None else legal_status
+        if str(inn or '').strip() and str(legal_status or '').strip():
+            try:
+                attrs['inn'] = validate_inn(inn, legal_status)
+            except serializers.ValidationError as e:
+                raise serializers.ValidationError({'inn': e.detail})
+        return attrs
 
 
 class PasswordChangeSerializer(serializers.Serializer):
