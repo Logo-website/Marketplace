@@ -115,6 +115,15 @@ class OrderFromCartView(APIView):
         if not delivery_address:
             return Response({'error': 'Укажите адрес доставки'}, status=400)
 
+        # Способ доставки/оплаты (Ф9) - валидируем по набору choices, чтобы в заказ
+        # не попал мусор с фронта. Не передан -> дефолт модели (pickup/card).
+        delivery_method = request.data.get('delivery_method', Order.DELIVERY_PICKUP)
+        if delivery_method not in dict(Order.DELIVERY_CHOICES):
+            return Response({'error': 'Недопустимый способ доставки'}, status=400)
+        payment_method = request.data.get('payment_method', Order.PAYMENT_CARD)
+        if payment_method not in dict(Order.PAYMENT_CHOICES):
+            return Response({'error': 'Недопустимый способ оплаты'}, status=400)
+
         # Честный выбор позиций (Ф8 этап 5): если переданы выбранные позиции -
         # оформляем только их, остальное остаётся в корзине. Без items - вся
         # корзина (обратная совместимость со старым контрактом).
@@ -143,6 +152,13 @@ class OrderFromCartView(APIView):
             order = Order.objects.create(
                 buyer=request.user,
                 delivery_address=delivery_address,
+                # (… or '') - клиент может прислать null: get(default) сработает
+                # только при отсутствии ключа, а None.strip() уронил бы в 500.
+                recipient_name=(request.data.get('recipient_name') or '').strip(),
+                recipient_phone=(request.data.get('recipient_phone') or '').strip(),
+                recipient_email=(request.data.get('recipient_email') or '').strip(),
+                delivery_method=delivery_method,
+                payment_method=payment_method,
                 comment=request.data.get('comment', ''),
                 total_price=total_price,
             )

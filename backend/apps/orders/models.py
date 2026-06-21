@@ -20,10 +20,38 @@ class Order(models.Model):
         (STATUS_CANCELLED, 'Отменён'),
     ]
 
+    # Способ доставки (Ф9). Упрощённая схема - реальная FBO/FBS логистика в Ф32.
+    # Постамат сворачивается в самовывоз, отдельного типа пока нет (план Ф9, п.6).
+    DELIVERY_PICKUP = 'pickup'
+    DELIVERY_COURIER = 'courier'
+    DELIVERY_POST = 'post'
+    DELIVERY_CHOICES = [
+        (DELIVERY_PICKUP, 'Самовывоз'),
+        (DELIVERY_COURIER, 'Курьер'),
+        (DELIVERY_POST, 'Почта России'),
+    ]
+
+    # Способ оплаты (Ф9) - заглушка: сохраняется, но реального эквайринга нет (4.5).
+    PAYMENT_CARD = 'card'
+    PAYMENT_ON_DELIVERY = 'on_delivery'
+    PAYMENT_INSTALLMENTS = 'installments'
+    PAYMENT_CHOICES = [
+        (PAYMENT_CARD, 'Картой онлайн'),
+        (PAYMENT_ON_DELIVERY, 'При получении'),
+        (PAYMENT_INSTALLMENTS, 'Частями'),
+    ]
+
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_CREATED)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     delivery_address = models.TextField()
+    # Снимок чекаута (Ф9): получатель/способ доставки/оплата фиксируются на момент
+    # покупки - заказ самодостаточен, как product_name/price_at_purchase в OrderItem.
+    recipient_name = models.CharField(max_length=200, blank=True, default='')
+    recipient_phone = models.CharField(max_length=20, blank=True, default='')
+    recipient_email = models.EmailField(blank=True, default='')
+    delivery_method = models.CharField(max_length=20, choices=DELIVERY_CHOICES, default=DELIVERY_PICKUP)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default=PAYMENT_CARD)
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

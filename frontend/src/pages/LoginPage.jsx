@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import useAuthStore from '../store/authStore'
@@ -14,6 +14,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  // Куда вернуть после входа (Ф9 этап 7). Только внутренний путь: одиночный «/...»,
+  // чтобы ?next=//evil.com не увёл на внешний сайт (open redirect).
+  const nextParam = searchParams.get('next')
+  const redirectTo = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')
+    ? nextParam
+    : '/'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -39,7 +46,7 @@ export default function LoginPage() {
       const res = await api.post('/auth/login/verify/', { email, code })
       // Единый вход + слияние гостевой корзины (Ф8).
       await useAuthStore.getState().login(res.data)
-      navigate('/')
+      navigate(redirectTo)
     } catch (err) {
       setError(err.response?.data?.error || 'Неверный код')
     } finally {

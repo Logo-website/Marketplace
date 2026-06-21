@@ -26,6 +26,7 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1)
   const [adding, setAdding] = useState(false)
   const [added, setAdded] = useState(false)
+  const [buying, setBuying] = useState(false)
   const [selectedSize, setSelectedSize] = useState(null)
   const [selectedColor, setSelectedColor] = useState(null)
   const [sizeHint, setSizeHint] = useState(false)
@@ -76,6 +77,27 @@ export default function ProductPage() {
       toast.error('Ошибка при добавлении в корзину')
     } finally {
       setAdding(false)
+    }
+  }
+
+  // «Купить в 1 клик» (Ф9 этап 8): укороченный путь - кладём товар в корзину и
+  // ведём сразу в чекаут с предвыбором этой одной позиции, минуя сборку корзины.
+  // Гостю /checkout под входом -> редирект на логин с возвратом (Ф9 этап 7).
+  const handleBuyNow = async () => {
+    if (hasSizes && !selectedSize) {
+      setSizeHint(true)
+      toast.error('Выберите размер')
+      return
+    }
+    setBuying(true)
+    try {
+      const color = selectedColor?.label || ''
+      await addToCart(product.id, quantity, selectedSize, color)
+      const key = `${product.id}|${selectedSize || ''}|${color}`
+      navigate('/checkout', { state: { selectedKeys: [key] } })
+    } catch {
+      toast.error('Не удалось перейти к оформлению')
+      setBuying(false)
     }
   }
 
@@ -297,6 +319,22 @@ export default function ProductPage() {
                     В корзину
                   </>
                 )}
+              </motion.button>
+
+              {/* Купить в 1 клик (Ф9 этап 8) - укороченный путь в чекаут */}
+              <motion.button
+                onClick={handleBuyNow}
+                disabled={product.stock === 0 || buying}
+                className="py-3.5 rounded-xl font-bold text-sm border-2 border-[#111] text-[#111] hover:bg-[#111] hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {buying ? (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : 'Купить в 1 клик'}
               </motion.button>
 
               {/* Продавец (имя + forward-заглушки витрины/чата) */}

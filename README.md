@@ -97,9 +97,9 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 - Recommendations endpoint serves **item-to-item co-purchases** via the C++ service (matrix built from ClickHouse order history); without `product_id` it returns popular-by-rating. Falls back to popular-by-category when the C++ service is unavailable.
 
 ### Orders
-- Models: `Order`, `OrderItem` (snapshot `product_name`, `price_at_purchase`, `size`, `color`).
+- Models: `Order` (checkout snapshot: `recipient_name/phone/email`, `delivery_method`, `payment_method`), `OrderItem` (snapshot `product_name`, `price_at_purchase`, `size`, `color`).
 - Create with line items: validates active products, stock, atomic decrement.
-- Checkout from cart: `POST /api/orders/from-cart/` (optional `items` subset orders only the selected lines, the rest stay in the cart).
+- Checkout from cart: `POST /api/orders/from-cart/` (optional `items` subset orders only the selected lines, the rest stay in the cart; accepts recipient fields and `delivery_method`/`payment_method`, validated against their choices — payment is a stub, no real acquiring).
 - Buyer cancel: `POST /api/orders/{id}/cancel/` (`created` or `paid` only); restores stock via `Order.cancel()`.
 - Seller/admin status updates with allowed transitions; cancellation restores stock. A seller may change status only for orders where **every** item is theirs; mixed-seller orders are admin-only (prevents one seller from cancelling another's items).
 - Side effects (`on_order_created`): Celery email, Kafka event, ClickHouse purchase log.

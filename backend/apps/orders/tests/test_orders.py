@@ -311,3 +311,72 @@ def test_order_from_cart_saves_variant(auth_client, user, product, _clean_buyer_
     item = Order.objects.get(buyer=user).items.first()
     assert item.size == 'M'
     assert item.color == 'Чёрный'
+
+
+# --- Ф9: снимок чекаута (получатель, способ доставки/оплаты) ---
+
+@pytest.mark.django_db
+def test_order_from_cart_saves_checkout_snapshot(auth_client, user, product, _clean_buyer_cart):
+    # Получатель и способы доставки/оплаты сохраняются в заказ (видны в профиле).
+    add_to_cart(user.id, cart_key(product.id), 1)
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'Москва',
+        'recipient_name': 'Иван Иванов',
+        'recipient_phone': '+79991234567',
+        'recipient_email': 'ivan@test.com',
+        'delivery_method': 'courier',
+        'payment_method': 'on_delivery',
+    }, format='json')
+    assert r.status_code == 201
+    assert r.data['recipient_name'] == 'Иван Иванов'
+    assert r.data['delivery_method'] == 'courier'
+    assert r.data['payment_method'] == 'on_delivery'
+    order = Order.objects.get(buyer=user)
+    assert order.recipient_phone == '+79991234567'
+    assert order.recipient_email == 'ivan@test.com'
+
+
+@pytest.mark.django_db
+def test_order_from_cart_defaults_delivery_payment(auth_client, user, product, _clean_buyer_cart):
+    # Способы не переданы -> дефолты модели (pickup/card), без ошибки.
+    add_to_cart(user.id, cart_key(product.id), 1)
+    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва'}, format='json')
+    assert r.status_code == 201
+    assert r.data['delivery_method'] == 'pickup'
+    assert r.data['payment_method'] == 'card'
+
+
+@pytest.mark.django_db
+def test_order_from_cart_invalid_delivery_method_rejected(auth_client, user, product, _clean_buyer_cart):
+    # Способ доставки вне набора choices -> 400, заказ не создаётся.
+    add_to_cart(user.id, cart_key(product.id), 1)
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'Москва',
+        'delivery_method': 'teleport',
+    }, format='json')
+    assert r.status_code == 400
+    assert not Order.objects.filter(buyer=user).exists()
+
+
+@pytest.mark.django_db
+def test_order_from_cart_invalid_payment_method_rejected(auth_client, user, product, _clean_buyer_cart):
+    # Способ оплаты вне набора choices -> 400, заказ не создаётся.
+    add_to_cart(user.id, cart_key(product.id), 1)
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'Москва',
+        'payment_method': 'bitcoin',
+    }, format='json')
+    assert r.status_code == 400
+    assert not Order.objects.filter(buyer=user).exists()
+
+
+@pytest.mark.django_db
+def test_order_from_cart_null_recipient_not_crash(auth_client, user, product, _clean_buyer_cart):
+    # Клиент прислал null в поле получателя -> не 500, поле пустеет.
+    add_to_cart(user.id, cart_key(product.id), 1)
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'Москва',
+        'recipient_name': None,
+    }, format='json')
+    assert r.status_code == 201
+    assert r.data['recipient_name'] == ''

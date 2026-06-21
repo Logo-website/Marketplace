@@ -26,7 +26,12 @@ import NotFoundPage from './pages/NotFoundPage'
 
 function PrivateRoute({ children }) {
   const { isAuthenticated } = useAuthStore()
-  return isAuthenticated ? children : <Navigate to="/login" />
+  const location = useLocation()
+  // Гостя ведём на логин, запоминая, куда он шёл (Ф9 этап 7): «вход просим только
+  // на оформлении» - после входа возвращаем в /checkout, а не на главную.
+  if (isAuthenticated) return children
+  const next = encodeURIComponent(location.pathname + location.search)
+  return <Navigate to={`/login?next=${next}`} replace />
 }
 
 function PageWrapper({ children }) {

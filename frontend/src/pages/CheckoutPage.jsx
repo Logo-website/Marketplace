@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import useCartStore, { itemKey } from '../store/cartStore'
+import useAuthStore from '../store/authStore'
 import api from '../api'
 import { toast } from '../store/toastStore'
 
@@ -50,6 +51,19 @@ const DELIVERY_METHODS = [
   },
 ]
 
+// Способы оплаты (Ф9). Заглушка: способ сохраняется, реального эквайринга нет (4.5).
+const PAYMENT_METHODS = [
+  { id: 'card',        label: 'Картой онлайн',  desc: 'Демо-оплата' },
+  { id: 'on_delivery', label: 'При получении',  desc: 'Наличными или картой' },
+  { id: 'installments', label: 'Частями',       desc: 'Демо-рассрочка' },
+]
+
+// Человекочитаемый статус заказа на экране «Спасибо» (Ф9).
+const STATUS_LABELS = {
+  created: 'Создан', paid: 'Оплачен', processing: 'В обработке',
+  shipped: 'Отправлен', delivered: 'Доставлен', cancelled: 'Отменён',
+}
+
 const GUARANTEES = [
   {
     label: 'Безопасная оплата',
@@ -71,6 +85,7 @@ const GUARANTEES = [
 
 export default function CheckoutPage() {
   const { items, fetchCart } = useCartStore()
+  const { user } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
   // Выбранные в корзине позиции (Ф8 этап 5). Прямой заход без выбора -> вся
@@ -84,12 +99,38 @@ export default function CheckoutPage() {
   const [selectedPoint, setSelectedPoint] = useState(null)
   const [address, setAddress] = useState('')
   const [comment, setComment] = useState('')
+  // Получатель (Ф9 этап 2): префилл из профиля, поля редактируемые.
+  const [recipientName, setRecipientName] = useState('')
+  const [recipientPhone, setRecipientPhone] = useState('')
+  const [recipientEmail, setRecipientEmail] = useState('')
+  // Оплата (Ф9 этап 3): заглушка, способ только сохраняется в заказ.
+  const [paymentMethod, setPaymentMethod] = useState('card')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [countdown, setCountdown] = useState(5)
-  const [orderSummary, setOrderSummary] = useState({ count: 0, total: '0', method: 'pickup' })
+  const [orderSummary, setOrderSummary] = useState({ count: 0, total: '0', method: 'pickup', id: null, status: 'created' })
+
+  // Префилл получателя из профиля - один раз, когда профиль подгрузился. Дальше
+  // поля редактируемые (можно оформить на другого человека), повторно не затираем.
+  const prefilled = useRef(false)
+  useEffect(() => {
+    if (user && !prefilled.current) {
+      setRecipientName(user.username || '')
+      setRecipientPhone(user.phone || '')
+      setRecipientEmail(user.email || '')
+      prefilled.current = true
+    }
+  }, [user])
 
   const handleOrder = async () => {
+    if (!recipientName.trim()) {
+      toast.error('Укажите имя получателя')
+      return
+    }
+    if (!recipientPhone.trim()) {
+      toast.error('Укажите телефон получателя')
+      return
+    }
     if (deliveryMethod === 'pickup' && !selectedPoint) {
       toast.error('Выберите пункт выдачи')
       return
@@ -104,18 +145,29 @@ export default function CheckoutPage() {
       ? PICKUP_POINTS.find(p => p.id === selectedPoint)?.address
       : address
     // Передаём ровно выбранные позиции; без выбора - бэкенд берёт всю корзину.
-    const payload = { delivery_address: deliveryAddress, comment }
+    const payload = {
+      delivery_address: deliveryAddress,
+      comment,
+      recipient_name: recipientName.trim(),
+      recipient_phone: recipientPhone.trim(),
+      recipient_email: recipientEmail.trim(),
+      delivery_method: deliveryMethod,
+      payment_method: paymentMethod,
+    }
     if (selectedKeys) {
       payload.items = orderItems.map((i) => ({
         product_id: i.product_id, size: i.size || '', color: i.color || '',
       }))
     }
     try {
-      await api.post('/orders/from-cart/', payload)
+      const res = await api.post('/orders/from-cart/', payload)
       // Перечитываем корзину: бэкенд убрал только оформленные позиции,
       // невыбранное остаётся (не clearCart всей корзины).
       await fetchCart()
-      setOrderSummary({ count: orderItems.length, total: String(orderTotal), method: deliveryMethod })
+      setOrderSummary({
+        count: orderItems.length, total: String(orderTotal), method: deliveryMethod,
+        id: res.data?.id ?? null, status: res.data?.status ?? 'created',
+      })
       setSuccess(true)
       let count = 5
       const timer = setInterval(() => {
@@ -158,6 +210,16 @@ export default function CheckoutPage() {
 
         {/* Детали заказа */}
         <div className="bg-gray-50 rounded-xl p-4 mb-6 flex flex-col gap-3">
+          {orderSummary.id ? (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Номер заказа</span>
+              <span className="font-black text-gray-900">#{orderSummary.id}</span>
+            </div>
+          ) : null}
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Статус</span>
+            <span className="font-semibold text-indigo-600">{STATUS_LABELS[orderSummary.status] ?? 'Создан'}</span>
+          </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Товаров</span>
             <span className="font-semibold text-gray-900">{orderSummary.count} шт.</span>
@@ -242,6 +304,35 @@ export default function CheckoutPage() {
 
           {/* Левая часть */}
           <div className="flex-1 flex flex-col gap-4">
+
+            {/* Получатель */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              className="bg-white rounded-2xl p-6 border border-gray-100"
+            >
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Получатель</h2>
+              <div className="flex flex-col gap-3">
+                <input
+                  type="text" placeholder="Имя и фамилия *" value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                />
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="tel" placeholder="Телефон *" value={recipientPhone}
+                    onChange={(e) => setRecipientPhone(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                  />
+                  <input
+                    type="email" placeholder="E-mail" value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                  />
+                </div>
+              </div>
+            </motion.div>
 
             {/* Способ доставки */}
             <motion.div
@@ -335,6 +426,41 @@ export default function CheckoutPage() {
               )}
             </AnimatePresence>
 
+            {/* Оплата - заглушка (Ф9 этап 3): способ сохраняется, эквайринга нет (4.5) */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.13 }}
+              className="bg-white rounded-2xl p-6 border border-gray-100"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Оплата</h2>
+                <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">демо</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {PAYMENT_METHODS.map(method => (
+                  <motion.button
+                    key={method.id}
+                    onClick={() => setPaymentMethod(method.id)}
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 text-left transition-all ${
+                      paymentMethod === method.id
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-100 hover:border-gray-200 bg-gray-50'
+                    }`}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <div>
+                      <div className="font-semibold text-sm text-gray-800">{method.label}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">{method.desc}</div>
+                    </div>
+                    <span className={`w-4 h-4 rounded-full border-2 shrink-0 ${
+                      paymentMethod === method.id ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'
+                    }`} />
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+
             {/* Комментарий */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -400,6 +526,15 @@ export default function CheckoutPage() {
                   <span className="text-gray-900">Итого</span>
                   <span className="text-emerald-600">{orderTotal.toLocaleString()} ₽</span>
                 </div>
+              </div>
+
+              {/* Промокод/баллы - вход-подсказка (Ф9 решение 3.6). Логика - Ф27,
+                  итог здесь не меняется; второй ввод не плодим. */}
+              <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 rounded-xl px-3 py-2.5 mb-4">
+                <svg className="w-4 h-4 shrink-0 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                Промокод и баллы — на шаге оформления, скоро
               </div>
 
               <motion.button

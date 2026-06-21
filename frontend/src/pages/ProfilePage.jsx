@@ -17,6 +17,10 @@ const STATUS_CONFIG = {
   cancelled:  { label: 'Отменён',      color: 'bg-red-100 text-red-600',         icon: '❌' },
 }
 
+// Ярлыки снимка чекаута (Ф9): способ доставки/оплаты в развороте заказа.
+const DELIVERY_LABELS = { pickup: 'Самовывоз', courier: 'Курьер', post: 'Почта России' }
+const PAYMENT_LABELS = { card: 'Картой онлайн', on_delivery: 'При получении', installments: 'Частями' }
+
 const NAV_ITEMS = [
   { id: 'main',     label: 'Обзор',     icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> },
   { id: 'orders',   label: 'Заказы',    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg> },
@@ -463,7 +467,9 @@ export default function ProfilePage() {
                               {isExpanded && (
                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-gray-100 overflow-hidden">
                                   <div className="p-5 flex flex-col gap-2">
-                                    {order.delivery_address && <p className="text-sm text-gray-500 mb-2">📍 {order.delivery_address}</p>}
+                                    {order.recipient_name && <p className="text-sm text-gray-500">👤 {order.recipient_name}{order.recipient_phone ? `, ${order.recipient_phone}` : ''}</p>}
+                                    {order.delivery_address && <p className="text-sm text-gray-500">📍 {DELIVERY_LABELS[order.delivery_method] ?? 'Доставка'}: {order.delivery_address}</p>}
+                                    {order.payment_method && <p className="text-sm text-gray-500 mb-2">💳 {PAYMENT_LABELS[order.payment_method] ?? 'Оплата'}</p>}
                                     {(order.items ?? []).map(item => (
                                       <div key={item.id} className="flex justify-between text-sm py-2 border-b border-gray-50 last:border-0">
                                         <span className="text-gray-700">{item.product_name}</span>
