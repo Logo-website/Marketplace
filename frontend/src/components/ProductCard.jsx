@@ -3,13 +3,11 @@ import { motion } from 'framer-motion'
 import { useState } from 'react'
 import Tilt from 'react-parallax-tilt'
 import useCartStore from '../store/cartStore'
-import useAuthStore from '../store/authStore'
 import useWishlistStore from '../store/wishlistStore'
 import { toast } from '../store/toastStore'
 
 export default function ProductCard({ product }) {
   const { addToCart } = useCartStore()
-  const { isAuthenticated } = useAuthStore()
   const { toggle, isLiked } = useWishlistStore()
   const [adding, setAdding] = useState(false)
   const [added, setAdded] = useState(false)
@@ -23,10 +21,7 @@ export default function ProductCard({ product }) {
   const handleAddToCart = async (e) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!isAuthenticated) {
-      window.location.href = '/login'
-      return
-    }
+    // Гостю не редиректим на логин - корзина собирается без входа (Ф8).
     if (adding) return
     setAdding(true)
     try {

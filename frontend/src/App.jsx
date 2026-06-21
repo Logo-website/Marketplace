@@ -55,9 +55,10 @@ export default function App() {
   const { connect, disconnect } = useNotificationStore()
 
   useEffect(() => {
+    // Корзину грузим всегда: гостю - из localStorage (счётчик в шапке), Ф8.
+    fetchCart()
     if (isAuthenticated) {
       fetchProfile()
-      fetchCart()
       connect()
     }
     // Закрываем WS при размонтировании/смене статуса - реальный logout
@@ -86,7 +87,8 @@ export default function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/products/:id" element={<ProductPage />} />
               <Route path="/search" element={<SearchPage />} />
-              <Route path="/cart" element={<PrivateRoute><CartPage /></PrivateRoute>} />
+              {/* Корзина доступна гостю (Ф8): вход просим только на оформлении. */}
+              <Route path="/cart" element={<CartPage />} />
               <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
               <Route path="/seller" element={<PrivateRoute><SellerPage /></PrivateRoute>} />
               <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />

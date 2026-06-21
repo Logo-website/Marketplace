@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import useCartStore from '../store/cartStore'
+import useCartStore, { itemKey } from '../store/cartStore'
 import useAuthStore from '../store/authStore'
 import useWishlistStore from '../store/wishlistStore'
 import useRecentlyViewedStore from '../store/recentlyViewedStore'
+import { toast } from '../store/toastStore'
 import api from '../api'
 import ProductCard from '../components/ProductCard'
 import EmptyState from '../components/states/EmptyState'
@@ -36,23 +37,20 @@ function SectionBlock({ title, products, limit }) {
 }
 
 export default function CartPage() {
-  const { items, fetchCart, removeFromCart } = useCartStore()
-  const { isAuthenticated, user } = useAuthStore()
+  const { items, fetchCart, setItemQty, removeItem } = useCartStore()
+  const { isAuthenticated } = useAuthStore()
   const { toggle, isLiked } = useWishlistStore()
   // Лента «недавно смотрели» через стор с try/catch - битый localStorage не
   // валит страницу (раньше тут был голый JSON.parse).
   const recentlyViewed = useRecentlyViewedStore((s) => s.items)
   const [purchasedProducts, setPurchasedProducts] = useState([])
   const [recommendations, setRecommendations] = useState([])
-  // Выбор товаров: храним СНЯТЫЕ галочки, остальное выбрано по умолчанию. Так
-  // выбор выводится из items на лету, без синхронизации стейта в эффекте
-  // (прежний setState-в-эффекте давал каскадные ререндеры).
+  // Выбор товаров: храним СНЯТЫЕ ключи (product|size|color), остальное выбрано
+  // по умолчанию. Выбор выводится из items на лету, без синхронизации в эффекте.
   const [deselected, setDeselected] = useState(() => new Set())
+  const [promo, setPromo] = useState('')
   const navigate = useNavigate()
 
-  // Подгрузки нужны только этому эффекту - объявлены внутри него (React-канон:
-  // функция для одного эффекта живёт в нём; нет проблемы порядка/зависимостей).
-  // setState идут после await (асинхронно) - каскадных ререндеров нет.
   useEffect(() => {
     fetchCart()
     if (!isAuthenticated) return
@@ -62,7 +60,7 @@ export default function CartPage() {
         const res = await api.get('/orders/')
         const productIds = [...new Set(
           res.data.results.flatMap(order => order.items.map(item => item.product))
-        )].slice(0, 10)
+        )].filter(Boolean).slice(0, 10)
         const products = await Promise.all(
           productIds.map(id => api.get(`/products/${id}/`).then(r => r.data).catch(() => null))
         )
@@ -86,45 +84,104 @@ export default function CartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Выбранные = все товары, кроме снятых вручную (deselected). Выводится из
-  // items на лету - без синхронизации стейта в эффекте.
-  const selectedItems = items
-    .map((i) => i.product_id)
-    .filter((id) => !deselected.has(id))
+  // Выбранные = все строки, кроме снятых вручную. Идентичность строки -
+  // составной ключ (один товар в двух размерах = две независимые строки).
+  const selectedKeys = items.map(itemKey).filter((k) => !deselected.has(k))
+  const allSelected = selectedKeys.length === items.length && items.length > 0
 
   const handleSelectAll = () => {
-    // Все выбраны -> снять все (все в deselected); иначе -> выбрать все (пусто).
-    setDeselected(
-      selectedItems.length === items.length
-        ? new Set(items.map((i) => i.product_id))
-        : new Set()
-    )
+    setDeselected(allSelected ? new Set(items.map(itemKey)) : new Set())
   }
 
-  const handleSelectItem = (id) => {
+  const handleSelectItem = (key) => {
     setDeselected((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
       return next
     })
   }
 
+  // Установка точного количества (set, не delete+post): при отказе по стоку
+  // позиция не теряется - показываем тост, количество остаётся прежним.
   const handleQuantityChange = async (item, delta) => {
     const newQty = item.quantity + delta
     if (newQty < 1) return
+    if (newQty > item.stock) {
+      toast.error(`Доступно только ${item.stock} шт.`)
+      return
+    }
     try {
-      await removeFromCart(item.product_id)
-      await api.post('/cart/', { product_id: item.product_id, quantity: newQty })
-      await fetchCart()
+      await setItemQty(item, newQty)
     } catch (e) {
-      console.error(e)
+      toast.error(e.response?.data?.error || 'Не удалось изменить количество')
     }
   }
 
+  const handleRemove = async (item) => {
+    try {
+      await removeItem(item)
+    } catch {
+      toast.error('Не удалось удалить товар')
+    }
+  }
+
+  // Перенести в избранное = добавить в вишлист И убрать из корзины (раньше был
+  // только toggle - «копировать», а не «перенести»). Если уже в избранном -
+  // не снимаем лайк (toggle убрал бы), просто переносим.
+  const moveToWishlist = async (item) => {
+    if (!isLiked(item.product_id)) {
+      toggle({
+        id: item.product_id,
+        name: item.name,
+        price: item.price,
+        stock: item.stock,
+        images: item.image ? [{ image_url: item.image }] : [],
+      })
+    }
+    try {
+      await removeItem(item)
+      toast.success('Перенесено в избранное')
+    } catch {
+      toast.error('Не удалось перенести')
+    }
+  }
+
+  const applyPromo = () => {
+    if (!promo.trim()) return
+    // Логика промокодов - Ф27. Здесь поле-вход, как требует карта (узел 1.8).
+    toast.info('Промокоды скоро будут доступны')
+  }
+
+  const handleCheckout = () => {
+    if (selectedKeys.length === 0) return
+    // Гость: вход просим только на оформлении (Ф8/Ф9). После входа гостевая
+    // корзина сливается, пользователь возвращается за покупкой.
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+    // Честный выбор позиций: на чекаут уходят ровно выбранные строки (Ф8 этап 5).
+    navigate('/checkout', { state: { selectedKeys } })
+  }
+
   const selectedTotal = items
-    .filter(i => selectedItems.includes(i.product_id))
+    .filter((i) => selectedKeys.includes(itemKey(i)))
     .reduce((sum, i) => sum + Number(i.total), 0)
+
+  // Группировка по продавцам (узел 1.8): товары разных магазинов - разные
+  // под-блоки. Подготовка к FBO/FBS (Ф32); сейчас визуальная группировка без
+  // разной стоимости доставки (единая упрощённая схема, оговорка карты).
+  const groups = []
+  const groupIndex = {}
+  for (const item of items) {
+    const gk = item.seller_id != null ? `s${item.seller_id}` : `n:${item.seller_name || ''}`
+    if (!(gk in groupIndex)) {
+      groupIndex[gk] = groups.length
+      groups.push({ key: gk, sellerName: item.seller_name || 'Магазин', items: [] })
+    }
+    groups[groupIndex[gk]].items.push(item)
+  }
 
   if (items.length === 0) return (
     <div className="min-h-screen bg-[#f5f5f5]">
@@ -169,7 +226,7 @@ export default function CartPage() {
               <label className="flex items-center gap-3 cursor-pointer select-none">
                 <input
                   type="checkbox"
-                  checked={selectedItems.length === items.length && items.length > 0}
+                  checked={allSelected}
                   onChange={handleSelectAll}
                   className="w-4 h-4 accent-indigo-600 rounded"
                 />
@@ -186,95 +243,122 @@ export default function CartPage() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <AnimatePresence>
-                {items.map((item, i) => (
-                  <motion.div
-                    key={item.product_id}
-                    initial={{ opacity: 0, x: -16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 16, height: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="bg-white rounded-2xl p-4 border border-gray-100"
-                  >
-                    <div className="flex items-start gap-4">
+              {groups.map((group) => (
+                <div key={group.key} className="flex flex-col gap-3">
 
-                      {/* Чекбокс */}
-                      <input
-                        type="checkbox"
-                        checked={selectedItems.includes(item.product_id)}
-                        onChange={() => handleSelectItem(item.product_id)}
-                        className="w-4 h-4 accent-indigo-600 mt-3 shrink-0 rounded"
-                      />
-
-                      {/* Картинка */}
-                      <div className="w-24 h-24 bg-gray-50 rounded-xl shrink-0 overflow-hidden flex items-center justify-center border border-gray-100">
-                        {item.image ? (
-                          <img src={item.image} alt={item.name} className="w-full h-full object-contain"
-                            onError={(e) => { e.target.style.display = 'none' }} />
-                        ) : (
-                          <svg className="w-8 h-8 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
-                          </svg>
-                        )}
-                      </div>
-
-                      {/* Инфо */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-800 text-sm line-clamp-2 mb-2 leading-snug">{item.name}</p>
-
-                        <p className="text-xl font-black text-gray-900 mb-1">
-                          {(Number(item.price) * item.quantity).toLocaleString()} ₽
-                        </p>
-                        <p className="text-xs text-gray-400 mb-3">
-                          {Number(item.price).toLocaleString()} ₽ × {item.quantity} шт.
-                        </p>
-
-                        {/* Количество */}
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden w-fit">
-                            <motion.button
-                              onClick={() => handleQuantityChange(item, -1)}
-                              className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 transition text-gray-600 font-bold"
-                              whileTap={{ scale: 0.85 }}
-                            >−</motion.button>
-                            <span className="w-9 text-center text-sm font-bold text-gray-800">{item.quantity}</span>
-                            <motion.button
-                              onClick={() => handleQuantityChange(item, 1)}
-                              className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 transition text-gray-600 font-bold"
-                              whileTap={{ scale: 0.85 }}
-                            >+</motion.button>
-                          </div>
-                        </div>
-
-                        {/* Действия */}
-                        <div className="flex items-center gap-3">
-                          <motion.button
-                            onClick={() => toggle(item)}
-                            className={`flex items-center gap-1.5 text-xs font-medium transition ${
-                              isLiked(item.product_id) ? 'text-red-500' : 'text-gray-400 hover:text-gray-600'
-                            }`}
-                            whileTap={{ scale: 0.9 }}
-                          >
-                            <svg className="w-4 h-4" fill={isLiked(item.product_id) ? 'currentColor' : 'none'}
-                              stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                            </svg>
-                            В избранное
-                          </motion.button>
-                          <span className="text-gray-200">·</span>
-                          <motion.button
-                            onClick={() => removeFromCart(item.product_id)}
-                            className="text-xs text-gray-400 hover:text-red-500 transition font-medium"
-                            whileTap={{ scale: 0.9 }}
-                          >
-                            Удалить
-                          </motion.button>
-                        </div>
-                      </div>
+                  {/* Заголовок-витрина продавца (видно, если продавцов больше одного) */}
+                  {groups.length > 1 && (
+                    <div className="flex items-center gap-2 px-1 pt-1">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h18v4H3V3zm0 4l1 13a1 1 0 001 1h12a1 1 0 001-1l1-13" />
+                      </svg>
+                      <span className="text-sm font-bold text-gray-700 line-clamp-1">{group.sellerName}</span>
                     </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                  )}
+
+                  <AnimatePresence>
+                    {group.items.map((item, i) => {
+                      const key = itemKey(item)
+                      return (
+                        <motion.div
+                          key={key}
+                          initial={{ opacity: 0, x: -16 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 16, height: 0 }}
+                          transition={{ delay: i * 0.04 }}
+                          className="bg-white rounded-2xl p-4 border border-gray-100"
+                        >
+                          <div className="flex items-start gap-4">
+
+                            {/* Чекбокс */}
+                            <input
+                              type="checkbox"
+                              checked={!deselected.has(key)}
+                              onChange={() => handleSelectItem(key)}
+                              className="w-4 h-4 accent-indigo-600 mt-3 shrink-0 rounded"
+                            />
+
+                            {/* Картинка */}
+                            <div className="w-24 h-24 bg-gray-50 rounded-xl shrink-0 overflow-hidden flex items-center justify-center border border-gray-100">
+                              {item.image ? (
+                                <img src={item.image} alt={item.name} className="w-full h-full object-contain"
+                                  onError={(e) => { e.target.style.display = 'none' }} />
+                              ) : (
+                                <svg className="w-8 h-8 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
+                                </svg>
+                              )}
+                            </div>
+
+                            {/* Инфо */}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-800 text-sm line-clamp-2 mb-1 leading-snug">{item.name}</p>
+
+                              {/* Вариант: размер / цвет (если у товара есть) */}
+                              {(item.size || item.color) && (
+                                <p className="text-xs text-gray-400 mb-2">
+                                  {item.size && <span>Размер: <span className="text-gray-600 font-medium">{item.size}</span></span>}
+                                  {item.size && item.color && <span className="mx-1.5">·</span>}
+                                  {item.color && <span>Цвет: <span className="text-gray-600 font-medium">{item.color}</span></span>}
+                                </p>
+                              )}
+
+                              <p className="text-xl font-black text-gray-900 mb-1">
+                                {(Number(item.price) * item.quantity).toLocaleString()} ₽
+                              </p>
+                              <p className="text-xs text-gray-400 mb-3">
+                                {Number(item.price).toLocaleString()} ₽ × {item.quantity} шт.
+                                {item.stock <= 5 && <span className="text-amber-600 ml-2">осталось {item.stock}</span>}
+                              </p>
+
+                              {/* Количество */}
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden w-fit">
+                                  <motion.button
+                                    onClick={() => handleQuantityChange(item, -1)}
+                                    disabled={item.quantity <= 1}
+                                    className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 transition text-gray-600 font-bold disabled:opacity-30"
+                                    whileTap={{ scale: 0.85 }}
+                                  >−</motion.button>
+                                  <span className="w-9 text-center text-sm font-bold text-gray-800">{item.quantity}</span>
+                                  <motion.button
+                                    onClick={() => handleQuantityChange(item, 1)}
+                                    disabled={item.quantity >= item.stock}
+                                    className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 transition text-gray-600 font-bold disabled:opacity-30"
+                                    whileTap={{ scale: 0.85 }}
+                                  >+</motion.button>
+                                </div>
+                              </div>
+
+                              {/* Действия */}
+                              <div className="flex items-center gap-3">
+                                <motion.button
+                                  onClick={() => moveToWishlist(item)}
+                                  className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-red-500 transition"
+                                  whileTap={{ scale: 0.9 }}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                  </svg>
+                                  В избранное
+                                </motion.button>
+                                <span className="text-gray-200">·</span>
+                                <motion.button
+                                  onClick={() => handleRemove(item)}
+                                  className="text-xs text-gray-400 hover:text-red-500 transition font-medium"
+                                  whileTap={{ scale: 0.9 }}
+                                >
+                                  Удалить
+                                </motion.button>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )
+                    })}
+                  </AnimatePresence>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -287,8 +371,25 @@ export default function CartPage() {
             <div className="bg-white rounded-2xl p-6 border border-gray-100 sticky top-24">
               <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Ваш заказ</h2>
               <p className="text-xs text-gray-400 mb-4">
-                Выбрано {selectedItems.length} из {items.length} товаров
+                Выбрано {selectedKeys.length} из {items.length} товаров
               </p>
+
+              {/* Промокод - поле-вход (логика в Ф27) */}
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text"
+                  value={promo}
+                  onChange={(e) => setPromo(e.target.value)}
+                  placeholder="Промокод"
+                  className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                />
+                <button
+                  onClick={applyPromo}
+                  className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm font-semibold hover:bg-gray-200 transition shrink-0"
+                >
+                  Применить
+                </button>
+              </div>
 
               <div className="flex justify-between items-baseline mb-5">
                 <span className="text-gray-500 text-sm">Итого</span>
@@ -298,14 +399,8 @@ export default function CartPage() {
               </div>
 
               <motion.button
-                onClick={() => {
-                    if (!user?.phone) {
-                        navigate('/profile?tab=profile&phone=required')
-                        return
-                    }
-                    navigate('/checkout')
-                }}
-                disabled={selectedItems.length === 0}
+                onClick={handleCheckout}
+                disabled={selectedKeys.length === 0}
                 className="w-full bg-[#111] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition disabled:opacity-40 mb-4"
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}

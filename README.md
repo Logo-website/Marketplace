@@ -97,16 +97,17 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 - Recommendations endpoint serves **item-to-item co-purchases** via the C++ service (matrix built from ClickHouse order history); without `product_id` it returns popular-by-rating. Falls back to popular-by-category when the C++ service is unavailable.
 
 ### Orders
-- Models: `Order`, `OrderItem` (snapshot `product_name`, `price_at_purchase`).
+- Models: `Order`, `OrderItem` (snapshot `product_name`, `price_at_purchase`, `size`, `color`).
 - Create with line items: validates active products, stock, atomic decrement.
-- Checkout from cart: `POST /api/orders/from-cart/`.
+- Checkout from cart: `POST /api/orders/from-cart/` (optional `items` subset orders only the selected lines, the rest stay in the cart).
 - Buyer cancel: `POST /api/orders/{id}/cancel/` (`created` or `paid` only); restores stock via `Order.cancel()`.
 - Seller/admin status updates with allowed transitions; cancellation restores stock. A seller may change status only for orders where **every** item is theirs; mixed-seller orders are admin-only (prevents one seller from cancelling another's items).
 - Side effects (`on_order_created`): Celery email, Kafka event, ClickHouse purchase log.
 
 ### Cart
-- Redis-backed (`apps/cart/cart.py`), 7-day TTL.
-- Add/remove/clear with stock checks on add.
+- Redis-backed (`apps/cart/cart.py`), 7-day TTL. Authenticated users only; guests keep the cart in the browser (`localStorage`).
+- Composite line key `product_id|size|color` (one product in two sizes = two lines); add/set-quantity/remove/clear with stock checks.
+- Merge guest cart into the server cart on login: `POST /api/cart/merge/` (sums quantities, clamps to stock, skips unavailable).
 
 ### Background tasks
 - Celery tasks: order confirmation/status emails (`apps/orders/tasks.py`), Kafka order events, ClickHouse analytics (`track_event`), and the periodic co-purchase matrix rebuild (`build_copurchase_matrix`, hourly via beat). Order side effects are dispatched through `transaction.on_commit` for commit-safety.
@@ -124,7 +125,7 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Auth | POST | `/api/auth/logout/` | Authenticated |
 | Auth | POST | `/api/auth/password-reset/` | Public |
 | Auth | POST | `/api/auth/password-reset/verify/` | Public |
-| Products | GET | `/api/products/` | Public (paginated, filters) |
+| Products | GET | `/api/products/` | Public (paginated, filters; `?ids=1,2` batch by id, unpaginated — guest cart) |
 | Products | GET | `/api/products/search/?q=` | Public (facets, filters, sort, did-you-mean) |
 | Products | GET | `/api/products/autocomplete/?q=` | Public (lightweight suggestions) |
 | Products | GET | `/api/products/categories/` | Public |
@@ -144,7 +145,8 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Orders | GET | `/api/orders/{id}/` | Authenticated (own orders) |
 | Orders | PATCH | `/api/orders/{id}/status/` | Seller / admin |
 | Orders | POST | `/api/orders/{id}/cancel/` | Authenticated (buyer, own order) |
-| Cart | GET/POST/DELETE | `/api/cart/` | Authenticated |
+| Cart | GET/POST/PUT/DELETE | `/api/cart/` | Authenticated (guests use a local cart) |
+| Cart | POST | `/api/cart/merge/` | Authenticated (merge guest cart on login) |
 | Docs | GET | `/api/docs/` | Authenticated by default |
 | Admin | — | `/admin/` | Django admin (`is_staff`) |
 
@@ -166,7 +168,7 @@ SPA in `frontend/`. Dev server proxies `/api` to `http://localhost:8001` (see `v
 | `/products/:id` | Product detail, reviews, add to cart | Public |
 | `/login`, `/register` | OTP-based auth flows | Public |
 | `/forgot-password` | Password reset OTP | Public |
-| `/cart` | Cart management | Private |
+| `/cart` | Cart management (guest cart supported) | Public |
 | `/checkout` | Checkout (`POST /orders/from-cart/`) | Private |
 | `/profile` | Profile and order history | Private |
 | `/seller` | Seller products and analytics | Private |
@@ -174,7 +176,7 @@ SPA in `frontend/`. Dev server proxies `/api` to `http://localhost:8001` (see `v
 
 ### State
 - `authStore` — JWT in `localStorage`, profile fetch, logout with blacklist.
-- `cartStore` — syncs with `/api/cart/`.
+- `cartStore` — syncs with `/api/cart/` when authenticated, with `localStorage` (`guest_cart`) for guests; merges into the server cart on login.
 - `wishlistStore` — **client-only** (`localStorage`), no backend API.
 
 ### API client
@@ -353,8 +355,8 @@ cd backend && pytest
 |---|---|
 | `apps/users/tests/test_auth.py` | Auth: two-step OTP register/login, password hashing, attempt lockout, single-use code |
 | `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge) |
-| `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization |
-| `apps/cart/tests.py` | Cart add/get/remove/clear with stock checks, inactive product, auth |
+| `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization, selected-subset checkout, variant snapshot |
+| `apps/cart/tests.py` | Cart add/get/set-quantity/remove/clear with stock checks, inactive product, auth, variant lines, guest-cart merge (clamp/sum/skip), batch by ids |
 
 Frontend: **Vitest** - `cd frontend && npm test`. Unit test of the pure size-matching function `src/utils/sizeMatch.test.js` (Ф5).
 

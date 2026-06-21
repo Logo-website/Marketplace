@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import useCartStore from '../store/cartStore'
+import useCartStore, { itemKey } from '../store/cartStore'
 import api from '../api'
 import { toast } from '../store/toastStore'
 
@@ -70,8 +70,16 @@ const GUARANTEES = [
 ]
 
 export default function CheckoutPage() {
-  const { items, total, clearCart } = useCartStore()
+  const { items, fetchCart } = useCartStore()
   const navigate = useNavigate()
+  const location = useLocation()
+  // Выбранные в корзине позиции (Ф8 этап 5). Прямой заход без выбора -> вся
+  // корзина (обратная совместимость).
+  const selectedKeys = location.state?.selectedKeys || null
+  const orderItems = selectedKeys
+    ? items.filter((i) => selectedKeys.includes(itemKey(i)))
+    : items
+  const orderTotal = orderItems.reduce((sum, i) => sum + Number(i.total), 0)
   const [deliveryMethod, setDeliveryMethod] = useState('pickup')
   const [selectedPoint, setSelectedPoint] = useState(null)
   const [address, setAddress] = useState('')
@@ -95,10 +103,19 @@ export default function CheckoutPage() {
     const deliveryAddress = deliveryMethod === 'pickup'
       ? PICKUP_POINTS.find(p => p.id === selectedPoint)?.address
       : address
+    // Передаём ровно выбранные позиции; без выбора - бэкенд берёт всю корзину.
+    const payload = { delivery_address: deliveryAddress, comment }
+    if (selectedKeys) {
+      payload.items = orderItems.map((i) => ({
+        product_id: i.product_id, size: i.size || '', color: i.color || '',
+      }))
+    }
     try {
-      await api.post('/orders/from-cart/', { delivery_address: deliveryAddress, comment })
-      await clearCart()
-      setOrderSummary({ count: items.length, total: total, method: deliveryMethod })
+      await api.post('/orders/from-cart/', payload)
+      // Перечитываем корзину: бэкенд убрал только оформленные позиции,
+      // невыбранное остаётся (не clearCart всей корзины).
+      await fetchCart()
+      setOrderSummary({ count: orderItems.length, total: String(orderTotal), method: deliveryMethod })
       setSuccess(true)
       let count = 5
       const timer = setInterval(() => {
@@ -345,8 +362,8 @@ export default function CheckoutPage() {
 
               {/* Товары */}
               <div className="flex flex-col gap-3 mb-4 max-h-48 overflow-y-auto">
-                {items.map(item => (
-                  <div key={item.product_id} className="flex items-center gap-3">
+                {orderItems.map(item => (
+                  <div key={itemKey(item)} className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gray-100 rounded-lg shrink-0 overflow-hidden flex items-center justify-center">
                       {item.image ? (
                         <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
@@ -370,8 +387,8 @@ export default function CheckoutPage() {
               {/* Итого */}
               <div className="border-t border-gray-100 pt-4 mb-5 flex flex-col gap-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Товары ({items.length})</span>
-                  <span className="font-medium text-gray-800">{Number(total).toLocaleString()} ₽</span>
+                  <span className="text-gray-500">Товары ({orderItems.length})</span>
+                  <span className="font-medium text-gray-800">{orderTotal.toLocaleString()} ₽</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Доставка</span>
@@ -381,13 +398,13 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between text-base font-black pt-2 border-t border-gray-100">
                   <span className="text-gray-900">Итого</span>
-                  <span className="text-emerald-600">{Number(total).toLocaleString()} ₽</span>
+                  <span className="text-emerald-600">{orderTotal.toLocaleString()} ₽</span>
                 </div>
               </div>
 
               <motion.button
                 onClick={handleOrder}
-                disabled={loading}
+                disabled={loading || orderItems.length === 0}
                 className="w-full bg-[#111] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition disabled:opacity-50 flex items-center justify-center gap-2 mb-4"
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}

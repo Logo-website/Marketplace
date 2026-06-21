@@ -37,10 +37,8 @@ export default function LoginPage() {
     setError('')
     try {
       const res = await api.post('/auth/login/verify/', { email, code })
-      localStorage.setItem('access_token', res.data.access)
-      localStorage.setItem('refresh_token', res.data.refresh)
-      await useAuthStore.getState().fetchProfile()
-      useAuthStore.setState({ isAuthenticated: true })
+      // Единый вход + слияние гостевой корзины (Ф8).
+      await useAuthStore.getState().login(res.data)
       navigate('/')
     } catch (err) {
       setError(err.response?.data?.error || 'Неверный код')

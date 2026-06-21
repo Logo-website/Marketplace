@@ -67,6 +67,10 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
     product_name = models.CharField(max_length=500, default='')
+    # Вариант снимком (Ф8): размер/цвет фиксируются на момент покупки, как
+    # product_name/price - заказ остаётся читаемым после удаления товара.
+    size = models.CharField(max_length=50, blank=True, default='')
+    color = models.CharField(max_length=50, blank=True, default='')
     quantity = models.PositiveIntegerField(default=1)
     price_at_purchase = models.DecimalField(max_digits=10, decimal_places=2)
 

@@ -2,7 +2,7 @@ import pytest
 from apps.products.models import Category, Product
 from apps.orders.models import Order, OrderItem
 from apps.users.models import User
-from apps.cart.cart import add_to_cart, clear_cart
+from apps.cart.cart import add_to_cart, clear_cart, cart_key, get_cart
 
 
 @pytest.fixture
@@ -263,3 +263,51 @@ def test_second_order_cannot_oversell_stock(auth_client, product):
     assert r.status_code == 400
     product.refresh_from_db()
     assert product.stock == 1
+
+
+# --- Ф8: честный выбор позиций и вариант в заказе ---
+
+@pytest.fixture
+def product2(db, seller, category):
+    return Product.objects.create(
+        seller=seller, category=category, name='Второй товар',
+        slug='second-product-order', price=500, stock=10, status='active',
+    )
+
+
+@pytest.mark.django_db
+def test_order_from_cart_subset_leaves_rest(auth_client, user, product, product2, _clean_buyer_cart):
+    # В корзине два товара, оформляем только один - второй остаётся в корзине.
+    add_to_cart(user.id, cart_key(product.id), 1)
+    add_to_cart(user.id, cart_key(product2.id), 1)
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'Москва',
+        'items': [{'product_id': product.id}],
+    }, format='json')
+    assert r.status_code == 201
+    assert len(r.data['items']) == 1
+    cart = get_cart(user.id)
+    assert cart_key(product.id) not in cart   # оформленный убран
+    assert cart_key(product2.id) in cart       # невыбранный остался
+
+
+@pytest.mark.django_db
+def test_order_from_cart_empty_selection_rejected(auth_client, user, product, _clean_buyer_cart):
+    # Переданы позиции, которых нет в корзине -> нечего оформлять.
+    add_to_cart(user.id, cart_key(product.id), 1)
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'Москва',
+        'items': [{'product_id': 999999}],
+    }, format='json')
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_order_from_cart_saves_variant(auth_client, user, product, _clean_buyer_cart):
+    # Размер/цвет из корзины сохраняются в OrderItem (снимок варианта).
+    add_to_cart(user.id, cart_key(product.id, 'M', 'Чёрный'), 1)
+    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва'}, format='json')
+    assert r.status_code == 201
+    item = Order.objects.get(buyer=user).items.first()
+    assert item.size == 'M'
+    assert item.color == 'Чёрный'

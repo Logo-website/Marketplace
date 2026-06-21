@@ -77,11 +77,8 @@ export default function RegisterPage() {
     setErrors({})
     try {
       const res = await api.post('/auth/register/verify/', { email: form.email, code })
-      // Сохраняем токены и входим
-      localStorage.setItem('access_token', res.data.access)
-      localStorage.setItem('refresh_token', res.data.refresh)
-      await useAuthStore.getState().fetchProfile()
-      useAuthStore.setState({ isAuthenticated: true })
+      // Единый вход + слияние гостевой корзины (Ф8).
+      await useAuthStore.getState().login(res.data)
       navigate('/')
     } catch (err) {
       setErrors({ code: err.response?.data?.error || 'Неверный код' })

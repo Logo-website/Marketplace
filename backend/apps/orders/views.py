@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from .models import Order, OrderItem
 from .serializers import OrderSerializer, OrderCreateSerializer
 from .tasks import send_order_confirmation_email, send_order_status_email
-from apps.cart.cart import get_cart, clear_cart
+from apps.cart.cart import get_cart, clear_cart, remove_keys, cart_key, parse_cart_key
 from apps.products.models import Product
 from services.kafka_service import KafkaService
 from services.clickhouse_service import ClickHouseService
@@ -23,10 +23,17 @@ def validate_cart_items(cart):
     items = []
     errors = []
 
-    for product_id, quantity in cart.items():
+    for key, quantity in cart.items():
+        # Составной ключ Ф8 (product_id|size|color). int(key) на нём бросил бы
+        # ValueError - разбираем через parse_cart_key.
+        try:
+            product_id, size, color = parse_cart_key(key)
+        except (ValueError, TypeError):
+            errors.append({'product_id': key, 'error': 'Некорректная позиция в корзине'})
+            continue
         try:
             product = Product.objects.select_for_update().get(
-                id=int(product_id), status='active'
+                id=product_id, status='active'
             )
             if product.stock < quantity:
                 errors.append({
@@ -35,9 +42,12 @@ def validate_cart_items(cart):
                 })
             else:
                 items.append({
+                    'key': key,
                     'product': product,
                     'quantity': quantity,
                     'price': product.price,
+                    'size': size,
+                    'color': color,
                 })
         except Product.DoesNotExist:
             errors.append({
@@ -105,6 +115,23 @@ class OrderFromCartView(APIView):
         if not delivery_address:
             return Response({'error': 'Укажите адрес доставки'}, status=400)
 
+        # Честный выбор позиций (Ф8 этап 5): если переданы выбранные позиции -
+        # оформляем только их, остальное остаётся в корзине. Без items - вся
+        # корзина (обратная совместимость со старым контрактом).
+        selected = request.data.get('items')
+        if selected:
+            wanted = set()
+            for it in selected:
+                try:
+                    wanted.add(cart_key(
+                        it.get('product_id'), it.get('size', '') or '', it.get('color', '') or ''
+                    ))
+                except (TypeError, ValueError):
+                    continue
+            cart = {k: v for k, v in cart.items() if k in wanted}
+            if not cart:
+                return Response({'error': 'Выберите товары для оформления'}, status=400)
+
         with transaction.atomic():
             items, errors = validate_cart_items(cart)
 
@@ -125,6 +152,8 @@ class OrderFromCartView(APIView):
                     order=order,
                     product=i['product'],
                     product_name=i['product'].name,
+                    size=i['size'],
+                    color=i['color'],
                     quantity=i['quantity'],
                     price_at_purchase=i['price'],
                 )
@@ -133,7 +162,9 @@ class OrderFromCartView(APIView):
                     stock=i['product'].stock - i['quantity']
                 )
 
-        clear_cart(request.user.id)
+        # Чистим только оформленные позиции, не всю корзину - невыбранное
+        # остаётся (Ф8 этап 5, граничный случай плана).
+        remove_keys(request.user.id, [i['key'] for i in items])
         on_order_created(order)
 
         return Response(OrderSerializer(order).data, status=201)

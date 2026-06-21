@@ -50,9 +50,23 @@ class ProductListView(generics.ListAPIView):
     ordering_fields = ['price', 'created_at']
     search_fields = ['name', 'description']
 
+    def paginate_queryset(self, queryset):
+        # Ветка ?ids= (гостевая корзина Ф8) отдаёт все запрошенные товары без
+        # пагинации - иначе хвост корзины «исчезнет» при отрисовке.
+        if self.request.query_params.get('ids'):
+            return None
+        return super().paginate_queryset(queryset)
+
     def get_queryset(self):
         queryset = Product.objects.filter(status='active').select_related('category', 'seller').prefetch_related(
             'images')
+
+        # Batch по списку id (гостевая корзина Ф8): товары по id одним запросом.
+        # Только active - снятый/протухший товар не вернётся, фронт его почистит.
+        ids = self.request.query_params.get('ids')
+        if ids:
+            id_list = [int(x) for x in ids.split(',') if x.strip().isdigit()]
+            return queryset.filter(id__in=id_list)
 
         category_id = self.request.query_params.get('category')
         if category_id:

@@ -60,7 +60,7 @@ export default function ProductPage() {
   const recommendations = recsData || []
 
   const handleAddToCart = async () => {
-    if (!isAuthenticated) { navigate('/login'); return }
+    // Гостю не редиректим на логин - корзина собирается без входа (Ф8).
     // При наличии размеров выбор обязателен (план Ф4, решение 2).
     if (hasSizes && !selectedSize) {
       setSizeHint(true)
@@ -69,7 +69,7 @@ export default function ProductPage() {
     }
     setAdding(true)
     try {
-      await addToCart(product.id, quantity, selectedSize)
+      await addToCart(product.id, quantity, selectedSize, selectedColor?.label || '')
       setAdded(true)
       setTimeout(() => setAdded(false), 2000)
     } catch {
