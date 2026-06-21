@@ -1,11 +1,16 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework.routers import SimpleRouter
 from .views import (
     RegisterRequestView, RegisterVerifyView,
     LoginRequestView, LoginVerifyView,
     ProfileView, LogoutView,
-    PasswordResetRequestView, PasswordResetVerifyView
+    PasswordResetRequestView, PasswordResetVerifyView,
+    PasswordChangeView, AddressViewSet,
 )
+
+router = SimpleRouter()
+router.register('addresses', AddressViewSet, basename='address')
 
 urlpatterns = [
     path('register/', RegisterRequestView.as_view(), name='register'),
@@ -17,4 +22,5 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     path('password-reset/', PasswordResetRequestView.as_view(), name='password-reset'),
     path('password-reset/verify/', PasswordResetVerifyView.as_view(), name='password-reset-verify'),
-]
+    path('password-change/', PasswordChangeView.as_view(), name='password-change'),
+] + router.urls

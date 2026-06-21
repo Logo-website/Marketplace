@@ -125,12 +125,16 @@
 | Auth | POST | `/api/auth/logout/` | Авторизованный |
 | Auth | POST | `/api/auth/password-reset/` | Публичный |
 | Auth | POST | `/api/auth/password-reset/verify/` | Публичный |
+| Auth | POST | `/api/auth/password-change/` | Авторизованный (старый → новый, без OTP) |
+| Auth | GET/POST | `/api/auth/addresses/` | Авторизованный (свои адреса доставки) |
+| Auth | GET/PUT/PATCH/DELETE | `/api/auth/addresses/{id}/` | Авторизованный (свои; один по умолчанию) |
 | Товары | GET | `/api/products/` | Публичный (пагинация, фильтры; `?ids=1,2` batch по id, без пагинации — гостевая корзина) |
 | Товары | GET | `/api/products/search/?q=` | Публичный (фасеты, фильтры, сортировка, did-you-mean) |
 | Товары | GET | `/api/products/autocomplete/?q=` | Публичный (лёгкие подсказки) |
 | Товары | GET | `/api/products/categories/` | Публичный |
 | Товары | GET | `/api/products/{id}/` | Публичный |
 | Товары | GET/POST | `/api/products/{id}/reviews/` | GET публичный, POST после покупки |
+| Товары | GET | `/api/products/reviews/my/` | Авторизованный (свои отзывы, с данными товара) |
 | Товары | GET | `/api/products/{id}/size-chart/` | Публичный (таблица размеров по категории; `{group:null}`, если сетки нет) |
 | Товары | GET/POST | `/api/products/{id}/questions/` | GET публичный, POST авторизованный (покупка не требуется) |
 | Товары | POST | `/api/products/{id}/questions/{qid}/answers/` | Авторизованный |
@@ -170,7 +174,7 @@ SPA в `frontend/`. Dev-сервер проксирует `/api` на `http://lo
 | `/forgot-password` | Сброс пароля по OTP | Публичный |
 | `/cart` | Корзина (гостевая поддерживается) | Публичный |
 | `/checkout` | Оформление (`POST /orders/from-cart/`) | Только авторизованные |
-| `/profile` | Профиль и история заказов | Только авторизованные |
+| `/profile` | Кабинет (вкладки: обзор, заказы, мои данные, адреса, мои отзывы, уведомления; `?tab=`) | Только авторизованные |
 | `/seller` | Товары и аналитика продавца | Только авторизованные |
 | `/wishlist` | Избранное (только localStorage) | Только авторизованные |
 
@@ -178,6 +182,7 @@ SPA в `frontend/`. Dev-сервер проксирует `/api` на `http://lo
 - `authStore` — JWT в `localStorage`, профиль, logout с blacklist.
 - `cartStore` — синхронизация с `/api/cart/` у авторизованных, с `localStorage` (`guest_cart`) у гостей; слияние в серверную при входе.
 - `wishlistStore` — **только на клиенте** (`localStorage`), без API.
+- `addressStore` — синхронизация адресов доставки с `/api/auth/addresses/` (только сервер, без гостевого режима).
 
 ### HTTP-клиент
 `src/api/index.js` — Axios с Bearer и автообновлением access при 401.

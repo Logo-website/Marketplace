@@ -14,6 +14,13 @@ class User(AbstractUser):
     # Публичное имя магазина/бренда продавца. Отдаётся в каталоге вместо email
     # (S17: email - персданные, не должен утекать анонимам). Non-PII.
     shop_name = models.CharField(max_length=120, blank=True)
+    # Параметры фигуры (Ф10): рост/обхваты/размеры. JSON, а не колонки - набор
+    # fashion-полей будет дополняться (потребитель - подбор размера Ф5), валидация
+    # ключей/диапазонов в UserSerializer. Non-PII по сути, но личное.
+    body_params = models.JSONField(default=dict, blank=True)
+    # Настройки рассылок (Ф10): тумблеры по типам уведомлений. Хранение здесь,
+    # реальная отправка - Ф25. Валидация ключей в UserSerializer.
+    notification_prefs = models.JSONField(default=dict, blank=True)
 
     ROLE_BUYER = 'buyer'
     ROLE_SELLER = 'seller'
@@ -39,6 +46,33 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+class Address(models.Model):
+    """Адрес доставки покупателя (Ф10, узел 1.13).
+
+    Несколько адресов на пользователя, ровно один is_default. queryset во вьюхе
+    строго по владельцу (S: персданные - чужой адрес не виден). Будущий
+    потребитель - чекаут (Ф9): выбор адреса вместо ручного delivery_address.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
+    full_name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=20)
+    city = models.CharField(max_length=120)
+    street = models.CharField(max_length=200)
+    house = models.CharField(max_length=30)
+    apartment = models.CharField(max_length=30, blank=True, default='')
+    postal_code = models.CharField(max_length=20, blank=True, default='')
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        # Дефолтный адрес - первым, дальше новые сверху.
+        ordering = ['-is_default', '-created_at']
+
+    def __str__(self):
+        return f'{self.city}, {self.street} {self.house} ({self.user.email})'
+
 
 class OTPCode(models.Model):
     email = models.EmailField()

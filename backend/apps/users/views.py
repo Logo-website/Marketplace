@@ -1,16 +1,20 @@
 import resend
 import logging
-from rest_framework import generics, permissions, serializers
+from rest_framework import generics, permissions, serializers, viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from django.db import transaction
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from django.conf import settings
-from .serializers import RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer
-from .models import User, OTPCode, MAX_OTP_ATTEMPTS
+from .serializers import (
+    RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer,
+    AddressSerializer, PasswordChangeSerializer,
+)
+from .models import User, OTPCode, MAX_OTP_ATTEMPTS, Address
 from .validators import validate_password_strength
 from .throttling import (
     LoginRateThrottle, RegisterRateThrottle,
@@ -219,6 +223,60 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         return User.objects.filter(pk=self.request.user.pk)
+
+
+class PasswordChangeView(APIView):
+    """Смена пароля залогиненным пользователем (Ф10)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = PasswordChangeSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'detail': 'Пароль успешно изменён'})
+
+
+class AddressViewSet(viewsets.ModelViewSet):
+    """CRUD адресов доставки (Ф10). Только адреса владельца (S: персданные)."""
+    serializer_class = AddressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Address.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            address = serializer.save(user=self.request.user)
+            self._sync_default(address)
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            address = serializer.save()
+            self._sync_default(address)
+
+    def _sync_default(self, address):
+        """Ровно один is_default на пользователя: при установке снимаем флаг с
+        прочих; если у пользователя нет ни одного дефолта - делаем дефолтным
+        первый (этот) адрес, чтобы выбор по умолчанию всегда существовал."""
+        qs = Address.objects.filter(user=address.user)
+        if address.is_default:
+            qs.exclude(pk=address.pk).filter(is_default=True).update(is_default=False)
+        elif not qs.filter(is_default=True).exists():
+            Address.objects.filter(pk=address.pk).update(is_default=True)
+            # Синхронизируем in-memory объект - иначе ответ POST/PUT отдаст
+            # is_default=False, хотя в БД уже True.
+            address.is_default = True
+
+    def perform_destroy(self, instance):
+        was_default = instance.is_default
+        user = instance.user
+        instance.delete()
+        # Удалили дефолтный - назначаем дефолтом самый свежий из оставшихся,
+        # чтобы пользователь не остался без адреса по умолчанию.
+        if was_default:
+            fallback = Address.objects.filter(user=user).first()
+            if fallback:
+                Address.objects.filter(pk=fallback.pk).update(is_default=True)
 
 
 class LogoutView(APIView):

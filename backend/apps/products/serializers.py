@@ -79,6 +79,25 @@ class ReviewSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'username', 'created_at']
 
 
+class MyReviewSerializer(serializers.ModelSerializer):
+    """Отзыв в кабинете покупателя (Ф10): минимум данных товара для ссылки на
+    карточку. product - on_delete=CASCADE, значит при отзыве он всегда есть."""
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Review
+        fields = ['id', 'rating', 'text', 'created_at',
+                  'product_id', 'product_name', 'product_image']
+
+    def get_product_image(self, obj):
+        img = obj.product.images.first()
+        if not img:
+            return None
+        return img.image_url or (img.image.url if img.image else None)
+
+
 class ReviewCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review

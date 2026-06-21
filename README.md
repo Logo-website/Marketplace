@@ -125,12 +125,16 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Auth | POST | `/api/auth/logout/` | Authenticated |
 | Auth | POST | `/api/auth/password-reset/` | Public |
 | Auth | POST | `/api/auth/password-reset/verify/` | Public |
+| Auth | POST | `/api/auth/password-change/` | Authenticated (old → new, no OTP) |
+| Auth | GET/POST | `/api/auth/addresses/` | Authenticated (own delivery addresses) |
+| Auth | GET/PUT/PATCH/DELETE | `/api/auth/addresses/{id}/` | Authenticated (own; one default) |
 | Products | GET | `/api/products/` | Public (paginated, filters; `?ids=1,2` batch by id, unpaginated — guest cart) |
 | Products | GET | `/api/products/search/?q=` | Public (facets, filters, sort, did-you-mean) |
 | Products | GET | `/api/products/autocomplete/?q=` | Public (lightweight suggestions) |
 | Products | GET | `/api/products/categories/` | Public |
 | Products | GET | `/api/products/{id}/` | Public |
 | Products | GET/POST | `/api/products/{id}/reviews/` | GET public, POST authenticated + purchased |
+| Products | GET | `/api/products/reviews/my/` | Authenticated (own reviews, with product info) |
 | Products | GET | `/api/products/{id}/size-chart/` | Public (size table by category; `{group:null}` if none) |
 | Products | GET/POST | `/api/products/{id}/questions/` | GET public, POST authenticated (no purchase required) |
 | Products | POST | `/api/products/{id}/questions/{qid}/answers/` | Authenticated |
@@ -170,7 +174,7 @@ SPA in `frontend/`. Dev server proxies `/api` to `http://localhost:8001` (see `v
 | `/forgot-password` | Password reset OTP | Public |
 | `/cart` | Cart management (guest cart supported) | Public |
 | `/checkout` | Checkout (`POST /orders/from-cart/`) | Private |
-| `/profile` | Profile and order history | Private |
+| `/profile` | Account hub (tabs: overview, orders, my data, addresses, my reviews, notifications; `?tab=`) | Private |
 | `/seller` | Seller products and analytics | Private |
 | `/wishlist` | Wishlist (localStorage only) | Private |
 
@@ -178,6 +182,7 @@ SPA in `frontend/`. Dev server proxies `/api` to `http://localhost:8001` (see `v
 - `authStore` — JWT in `localStorage`, profile fetch, logout with blacklist.
 - `cartStore` — syncs with `/api/cart/` when authenticated, with `localStorage` (`guest_cart`) for guests; merges into the server cart on login.
 - `wishlistStore` — **client-only** (`localStorage`), no backend API.
+- `addressStore` — syncs delivery addresses with `/api/auth/addresses/` (server-only, no guest mode).
 
 ### API client
 `src/api/index.js` — Axios instance with Bearer token and automatic refresh on 401.

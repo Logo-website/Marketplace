@@ -11,6 +11,7 @@ from .views import (
     SellerProductListView,
     SellerProductUpdateView,
     RecommendationsView,
+    MyReviewsView,
 )
 from .analytics import SellerAnalyticsView
 from .views import (
@@ -27,6 +28,8 @@ urlpatterns = [
     path('search/', ProductSearchView.as_view(), name='product-search'),
     path('autocomplete/', AutocompleteView.as_view(), name='product-autocomplete'),
     path('recommendations/', RecommendationsView.as_view(), name='recommendations'),
+    # Литерал reviews/my/ - до <int:pk>/ (Ф10, мои отзывы).
+    path('reviews/my/', MyReviewsView.as_view(), name='my-reviews'),
     path('<int:pk>/', ProductDetailView.as_view(), name='product-detail'),
     path('create/', ProductCreateView.as_view(), name='product-create'),
     path('my/', SellerProductListView.as_view(), name='seller-products'),

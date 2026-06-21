@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from .models import Answer, AnswerVote, Category, Product, Question, Review
 from .serializers import (
     CategorySerializer, ProductSerializer, ProductCreateSerializer,
-    ReviewSerializer, ReviewCreateSerializer,
+    ReviewSerializer, ReviewCreateSerializer, MyReviewSerializer,
     QuestionSerializer, QuestionCreateSerializer, AnswerCreateSerializer,
 )
 from .search import search_products, autocomplete, index_product, delete_product, PRICE_RANGES
@@ -503,6 +503,19 @@ REVIEW_SORTS = {
     'rating_desc': '-rating',
     'rating_asc': 'rating',
 }
+
+
+class MyReviewsView(generics.ListAPIView):
+    """Отзывы текущего пользователя (Ф10, кабинет). Только свои (S: персданные)."""
+    serializer_class = MyReviewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Review.objects.filter(user=self.request.user)
+            .select_related('product')
+            .prefetch_related('product__images')
+        )
 
 
 class ReviewListCreateView(generics.ListCreateAPIView):
