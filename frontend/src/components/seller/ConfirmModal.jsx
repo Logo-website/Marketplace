@@ -9,6 +9,7 @@ import { motion } from 'framer-motion'
 //   title       - заголовок (обязателен)
 //   message     - текст-предупреждение (опц.)
 //   confirmLabel - подпись кнопки действия (по умолчанию «Удалить»)
+//   loadingLabel - подпись кнопки во время запроса (по умолчанию «Удаление…»)
 //   onConfirm   - колбэк подтверждения
 //   onCancel    - колбэк отмены/закрытия
 //   loading     - блокирует кнопки на время запроса
@@ -16,6 +17,7 @@ export default function ConfirmModal({
   title,
   message,
   confirmLabel = 'Удалить',
+  loadingLabel = 'Удаление…',
   onConfirm,
   onCancel,
   loading = false,
@@ -62,7 +64,7 @@ export default function ConfirmModal({
             disabled={loading}
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition disabled:opacity-50"
           >
-            {loading ? 'Удаление…' : confirmLabel}
+            {loading ? loadingLabel : confirmLabel}
           </button>
         </div>
       </motion.div>

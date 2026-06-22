@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import transaction
 from rest_framework import serializers
 from .models import Order, OrderItem
@@ -78,3 +79,61 @@ class OrderSerializer(serializers.ModelSerializer):
             'delivery_method', 'payment_method',
             'comment', 'items', 'created_at',
         ]
+
+
+class SellerOrderItemSerializer(serializers.ModelSerializer):
+    # Имя берём из модельного снапшота product_name, а НЕ source='product.name'
+    # (как в OrderItemSerializer): при удалённом товаре (product=NULL, SET_NULL)
+    # source вернул бы null, а снапшот сохраняет читаемое имя позиции (план 4.1, §6).
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'product', 'product_name', 'size', 'color', 'quantity', 'price_at_purchase']
+
+
+class SellerOrderSerializer(serializers.ModelSerializer):
+    """
+    Заказ глазами продавца (Ф14): только нужное для исполнения, без чужого.
+
+    Отдаёт имя получателя, адрес, комментарий, СВОИ позиции и их сумму. E-mail и
+    телефон покупателя НЕ отдаются (PII-минимизация, план 4.4, зеркало S17).
+    В смешанном заказе чужие позиции и полный total_price скрыты (план 4.2).
+
+    Требует `seller` в context (продавец, от чьего лица смотрим).
+    """
+    items = serializers.SerializerMethodField()
+    seller_total = serializers.SerializerMethodField()
+    buyer_name = serializers.SerializerMethodField()
+    can_update_status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = [
+            'id', 'status', 'created_at', 'delivery_address', 'comment',
+            'buyer_name', 'items', 'seller_total', 'can_update_status',
+        ]
+
+    def _own_items(self, order):
+        seller = self.context['seller']
+        return [it for it in order.items.all()
+                if it.product_id and it.product and it.product.seller_id == seller.id]
+
+    def get_items(self, order):
+        return SellerOrderItemSerializer(self._own_items(order), many=True).data
+
+    def get_seller_total(self, order):
+        # Сумма ТОЛЬКО своих позиций. Строкой - как DecimalField total_price у
+        # OrderSerializer (фронт уже делает Number() над этим форматом).
+        total = sum((it.price_at_purchase * it.quantity for it in self._own_items(order)), Decimal('0'))
+        return str(total)
+
+    def get_buyer_name(self, order):
+        # Имя получателя из снимка чекаута; фолбэк - username покупателя.
+        return order.recipient_name or order.buyer.username
+
+    def get_can_update_status(self, order):
+        # True только если ВСЕ позиции - этого продавца. Совпадает с queryset
+        # смены-статуса (OrderStatusUpdateView): чужая или удалённая (product=NULL)
+        # позиция -> False, заказ для продавца read-only (план 4.2).
+        seller = self.context['seller']
+        return all(it.product_id and it.product and it.product.seller_id == seller.id
+                   for it in order.items.all())

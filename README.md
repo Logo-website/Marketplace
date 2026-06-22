@@ -102,6 +102,7 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 - Checkout from cart: `POST /api/orders/from-cart/` (optional `items` subset orders only the selected lines, the rest stay in the cart; accepts recipient fields and `delivery_method`/`payment_method`, validated against their choices — payment is a stub, no real acquiring).
 - Buyer cancel: `POST /api/orders/{id}/cancel/` (`created` or `paid` only); restores stock via `Order.cancel()`.
 - Seller/admin status updates with allowed transitions; cancellation restores stock. A seller may change status only for orders where **every** item is theirs; mixed-seller orders are admin-only (prevents one seller from cancelling another's items).
+- Seller order desk (`/api/orders/seller/`): read-only list/detail of orders containing the seller's items, showing only own items, own-items total and recipient name/address (buyer email/phone withheld). Mixed orders are read-only (`can_update_status=false`); status changes reuse the existing `PATCH /api/orders/{id}/status/`.
 - Side effects (`on_order_created`): Celery email, Kafka event, ClickHouse purchase log.
 
 ### Cart
@@ -151,6 +152,8 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Orders | GET | `/api/orders/{id}/` | Authenticated (own orders) |
 | Orders | PATCH | `/api/orders/{id}/status/` | Seller / admin |
 | Orders | POST | `/api/orders/{id}/cancel/` | Authenticated (buyer, own order) |
+| Orders | GET | `/api/orders/seller/` | Seller / admin (orders with own items, `?status=` filter) |
+| Orders | GET | `/api/orders/seller/{id}/` | Seller / admin (own items only, 404 otherwise) |
 | Cart | GET/POST/PUT/DELETE | `/api/cart/` | Authenticated (guests use a local cart) |
 | Cart | POST | `/api/cart/merge/` | Authenticated (merge guest cart on login) |
 | Docs | GET | `/api/docs/` | Authenticated by default |
@@ -365,7 +368,7 @@ cd backend && pytest
 | `apps/users/tests/test_auth.py` | Auth: two-step OTP register/login, password hashing, attempt lockout, single-use code |
 | `apps/users/tests/test_seller_onboarding.py` | Seller onboarding: full set activates and flips role, incomplete saves draft, invalid INN → 400, role flip only from buyer, INN by status, requisites not exposed, idempotency, settings PATCH (active-only, can't blank required) |
 | `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge) |
-| `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization, selected-subset checkout, variant snapshot |
+| `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization, selected-subset checkout, variant snapshot, seller order list/detail (ownership, status filter, mixed-order read-only, buyer PII not leaked) |
 | `apps/cart/tests.py` | Cart add/get/set-quantity/remove/clear with stock checks, inactive product, auth, variant lines, guest-cart merge (clamp/sum/skip), batch by ids |
 
 Frontend: **Vitest** - `cd frontend && npm test`. Unit test of the pure size-matching function `src/utils/sizeMatch.test.js` (Ф5).

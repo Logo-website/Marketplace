@@ -5,8 +5,9 @@ from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Order, OrderItem
-from .serializers import OrderSerializer, OrderCreateSerializer
+from .serializers import OrderSerializer, OrderCreateSerializer, SellerOrderSerializer
 from .tasks import send_order_confirmation_email, send_order_status_email
+from apps.permissions import IsSellerOrAdmin
 from apps.cart.cart import get_cart, clear_cart, remove_keys, cart_key, parse_cart_key
 from apps.products.models import Product
 from services.kafka_service import KafkaService
@@ -192,6 +193,46 @@ class OrderDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return Order.objects.filter(buyer=self.request.user)
+
+
+class _SellerOrderBase:
+    """
+    Общая база seller-эндпоинтов (Ф14): сериализатор, доступ, queryset и контекст.
+
+    Queryset - заказы, содержащие ХОТЯ БЫ ОДНУ позицию продавца (включая
+    смешанные: ему нужно собрать свою часть). Доступ - только seller/admin;
+    чужой заказ не в queryset -> detail отдаёт 404 (план 4.1, часть 9).
+    """
+    serializer_class = SellerOrderSerializer
+    permission_classes = [IsSellerOrAdmin]
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx['seller'] = self.request.user
+        return ctx
+
+    def get_queryset(self):
+        return (
+            Order.objects
+            .filter(items__product__seller=self.request.user)
+            .distinct()
+            .prefetch_related('items__product')
+        )
+
+
+class SellerOrderListView(_SellerOrderBase, generics.ListAPIView):
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Фильтр по статусу заказа (план 4.1). Несуществующий статус -> пустой
+        # список, не 500 (filter не валидирует значение - граничный случай §6).
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
+        return qs
+
+
+class SellerOrderDetailView(_SellerOrderBase, generics.RetrieveAPIView):
+    pass
 
 
 class OrderStatusUpdateView(generics.UpdateAPIView):

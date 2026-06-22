@@ -1,4 +1,5 @@
 import pytest
+from decimal import Decimal
 from apps.products.models import Category, Product
 from apps.orders.models import Order, OrderItem
 from apps.users.models import User
@@ -380,3 +381,99 @@ def test_order_from_cart_null_recipient_not_crash(auth_client, user, product, _c
     }, format='json')
     assert r.status_code == 201
     assert r.data['recipient_name'] == ''
+
+
+# --- Ф14: заказы продавца (list/detail, авторизация, смешанный заказ) ---
+
+@pytest.mark.django_db
+def test_seller_order_list_only_own(seller_client, user, product, other_seller_product):
+    # В списке - только заказы с позицией продавца; чисто чужой заказ не виден.
+    own = _make_order(user, product)
+    foreign = _make_order(user, other_seller_product)
+    r = seller_client.get('/api/orders/seller/')
+    assert r.status_code == 200
+    ids = [o['id'] for o in r.data['results']]
+    assert own.id in ids
+    assert foreign.id not in ids
+
+
+@pytest.mark.django_db
+def test_seller_order_detail_foreign_404(seller_client, user, other_seller_product):
+    # Прямой запрос чужого заказа по id -> 404 (queryset фильтрует по владению).
+    foreign = _make_order(user, other_seller_product)
+    r = seller_client.get(f'/api/orders/seller/{foreign.id}/')
+    assert r.status_code == 404
+
+
+@pytest.mark.django_db
+def test_seller_order_list_buyer_forbidden(auth_client):
+    # Покупатель на seller-эндпоинт -> 403 (IsSellerOrAdmin).
+    r = auth_client.get('/api/orders/seller/')
+    assert r.status_code == 403
+
+
+@pytest.mark.django_db
+def test_seller_order_list_guest_unauthorized(api_client):
+    # Гость -> 401.
+    r = api_client.get('/api/orders/seller/')
+    assert r.status_code == 401
+
+
+@pytest.mark.django_db
+def test_seller_order_list_status_filter(seller_client, user, product):
+    _make_order(user, product)  # created
+    paid = _make_order(user, product)
+    paid.status = 'paid'
+    paid.save(update_fields=['status'])
+    r = seller_client.get('/api/orders/seller/?status=paid')
+    assert r.status_code == 200
+    assert [o['id'] for o in r.data['results']] == [paid.id]
+
+
+@pytest.mark.django_db
+def test_seller_order_list_unknown_status_empty(seller_client, user, product):
+    # Несуществующий статус -> пустой список, не 500.
+    _make_order(user, product)
+    r = seller_client.get('/api/orders/seller/?status=teleport')
+    assert r.status_code == 200
+    assert r.data['results'] == []
+
+
+@pytest.mark.django_db
+def test_seller_own_order_can_update_and_total(seller_client, user, product):
+    # Заказ целиком из своих товаров: can_update_status=true, сумма своих позиций.
+    own = _make_order(user, product)
+    r = seller_client.get(f'/api/orders/seller/{own.id}/')
+    assert r.status_code == 200
+    assert r.data['can_update_status'] is True
+    assert Decimal(r.data['seller_total']) == Decimal('1000')
+
+
+@pytest.mark.django_db
+def test_seller_mixed_order_visible_but_readonly(seller_client, user, product, other_seller_product):
+    # Смешанный заказ виден, но read-only; чужие позиции и полный total_price
+    # не утекают, сумма - только своих позиций (план 4.2, часть 9).
+    mixed = _make_order(user, product, other_seller_product)
+    listing = seller_client.get('/api/orders/seller/')
+    assert mixed.id in [o['id'] for o in listing.data['results']]
+
+    d = seller_client.get(f'/api/orders/seller/{mixed.id}/')
+    assert d.status_code == 200
+    assert d.data['can_update_status'] is False
+    names = [it['product_name'] for it in d.data['items']]
+    assert product.name in names
+    assert other_seller_product.name not in names
+    assert 'total_price' not in d.data
+    # Только своя позиция (1000), не сумма всего заказа (1000 + 500).
+    assert Decimal(d.data['seller_total']) == Decimal('1000')
+
+
+@pytest.mark.django_db
+def test_seller_order_no_buyer_contact_leak(seller_client, user, product):
+    # PII-минимизация: e-mail/телефон покупателя не отдаются продавцу (план 4.4).
+    own = _make_order(user, product)
+    d = seller_client.get(f'/api/orders/seller/{own.id}/')
+    body = str(d.data)
+    assert 'recipient_email' not in d.data
+    assert 'recipient_phone' not in d.data
+    assert user.email not in body
