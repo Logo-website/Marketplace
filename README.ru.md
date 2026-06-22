@@ -149,6 +149,7 @@
 | Товары | GET | `/api/products/my/questions/` | Продавец (вопросы по своим товарам, фильтр `?answered=`) |
 | Товары | GET/PATCH/DELETE | `/api/products/my/{id}/` | Продавец |
 | Товары | GET | `/api/products/analytics/` | Продавец |
+| Товары | GET | `/api/products/dashboard/?period=` | Продавец (выручка/заказы/средний чек/штуки + график продаж + панель действий; `period=today\|7d\|30d\|all`) |
 | Товары | GET | `/api/products/recommendations/?product_id=` | Публичный (ко-покупки через C++; `product_id` опционален, иначе популярное) |
 | Заказы | GET/POST | `/api/orders/` | Авторизованный |
 | Заказы | POST | `/api/orders/from-cart/` | Авторизованный |

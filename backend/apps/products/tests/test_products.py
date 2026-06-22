@@ -1414,3 +1414,166 @@ def test_f15_seller_questions_answered_filter(seller_client, product, seller):
 def test_f15_seller_questions_requires_seller_role(auth_client):
     """Покупатель -> 403 на seller-эндпоинте вопросов."""
     assert auth_client.get('/api/products/my/questions/').status_code == 403
+
+
+# ============================================================================
+# Ф16 - Дашборд продавца (узел 2.1): денежная сводка + график + панель действий
+# ============================================================================
+
+from datetime import timedelta
+from django.utils import timezone
+
+
+def _mk_order(buyer, status='paid', created_days_ago=0, items=None):
+    """Заказ с позициями. created_at - auto_now_add, поэтому при необходимости
+    сдвигаем дату отдельным update (иначе не выставить прошлое)."""
+    from apps.orders.models import Order, OrderItem
+    order = Order.objects.create(buyer=buyer, total_price=0, delivery_address='адрес', status=status)
+    for product, qty, price in (items or []):
+        OrderItem.objects.create(
+            order=order, product=product, product_name=product.name,
+            quantity=qty, price_at_purchase=price,
+        )
+    if created_days_ago:
+        new_dt = timezone.now() - timedelta(days=created_days_ago)
+        Order.objects.filter(pk=order.pk).update(created_at=new_dt)
+    return order
+
+
+@pytest.fixture
+def f16_buyer(db):
+    return User.objects.create_user(username='f16buyer', email='f16b@t.com',
+                                    password='testpass123', role='buyer')
+
+
+@pytest.fixture
+def f16_product(db, seller, category):
+    return Product.objects.create(seller=seller, category=category, name='Худи',
+                                  slug='f16-hoodie', price=1000, stock=10, status='active')
+
+
+@pytest.mark.django_db
+def test_f16_requires_seller_role(auth_client):
+    """Покупатель/гость не имеют доступа к дашборду."""
+    assert auth_client.get('/api/products/dashboard/').status_code == 403
+
+
+@pytest.mark.django_db
+def test_f16_summary_counts_seller_revenue(seller_client, f16_product, f16_buyer):
+    """Выручка/заказы/средний чек/штуки считаются по позициям продавца."""
+    _mk_order(f16_buyer, status='paid', items=[(f16_product, 2, 1000)])
+    res = seller_client.get('/api/products/dashboard/?period=30d')
+    assert res.status_code == 200
+    s = res.data['summary']
+    assert s['revenue'] == '2000.00'
+    assert s['orders'] == 1
+    assert s['avg_check'] == '2000.00'
+    assert s['units'] == 2
+    # И график в том же ответе считает ту же выручку (свежее выражение на запрос).
+    assert sum(float(c['revenue']) for c in res.data['chart']) == 2000.0
+
+
+@pytest.mark.django_db
+def test_f16_cancelled_order_excluded(seller_client, f16_product, f16_buyer):
+    """Отменённый заказ не входит в выручку (легко завысить - тест обязателен)."""
+    _mk_order(f16_buyer, status='cancelled', items=[(f16_product, 5, 1000)])
+    res = seller_client.get('/api/products/dashboard/?period=30d')
+    assert res.data['summary']['revenue'] == '0.00'
+    assert res.data['summary']['orders'] == 0
+
+
+@pytest.mark.django_db
+def test_f16_foreign_seller_isolation(seller_client, f16_product, f16_buyer, category):
+    """Заказ на товар другого продавца не попадает в сводку (изоляция, часть 9)."""
+    other = User.objects.create_user(username='other_s', email='os@t.com',
+                                     password='x', role='seller')
+    other_product = Product.objects.create(seller=other, category=category, name='Чужое',
+                                           slug='f16-foreign', price=500, stock=5, status='active')
+    _mk_order(f16_buyer, status='paid', items=[(other_product, 3, 500)])
+    res = seller_client.get('/api/products/dashboard/?period=30d')
+    assert res.data['summary']['revenue'] == '0.00'
+
+
+@pytest.mark.django_db
+def test_f16_mixed_order_only_seller_items(seller_client, f16_product, f16_buyer, category):
+    """Смешанный заказ: считаем только позиции продавца, не Order.total_price (утечка)."""
+    other = User.objects.create_user(username='other_s2', email='os2@t.com',
+                                     password='x', role='seller')
+    other_product = Product.objects.create(seller=other, category=category, name='Чужое2',
+                                           slug='f16-foreign2', price=9999, stock=5, status='active')
+    order = _mk_order(f16_buyer, status='paid',
+                      items=[(f16_product, 1, 1000), (other_product, 1, 9999)])
+    # total_price заказа большой, но продавцу засчитываются только его 1000.
+    order.total_price = 10999
+    order.save(update_fields=['total_price'])
+    res = seller_client.get('/api/products/dashboard/?period=30d')
+    assert res.data['summary']['revenue'] == '1000.00'
+    assert res.data['summary']['units'] == 1
+
+
+@pytest.mark.django_db
+def test_f16_avg_check_zero_orders(seller_client, f16_product):
+    """orders==0 -> avg_check '0.00' (без деления на ноль)."""
+    res = seller_client.get('/api/products/dashboard/?period=30d')
+    assert res.data['summary']['avg_check'] == '0.00'
+    assert res.data['summary']['orders'] == 0
+
+
+@pytest.mark.django_db
+def test_f16_period_slices_by_date(seller_client, f16_product, f16_buyer):
+    """Старый заказ (40 дней назад) виден в 'all', но не в '30d'."""
+    _mk_order(f16_buyer, status='paid', created_days_ago=40, items=[(f16_product, 1, 1000)])
+    res_30 = seller_client.get('/api/products/dashboard/?period=30d')
+    res_all = seller_client.get('/api/products/dashboard/?period=all')
+    assert res_30.data['summary']['revenue'] == '0.00'
+    assert res_all.data['summary']['revenue'] == '1000.00'
+
+
+@pytest.mark.django_db
+def test_f16_garbage_period_falls_back(seller_client, f16_product):
+    """Мусорный period -> фолбэк на 30d, не 500."""
+    res = seller_client.get('/api/products/dashboard/?period=zzz')
+    assert res.status_code == 200
+    assert res.data['period'] == '30d'
+
+
+@pytest.mark.django_db
+def test_f16_chart_fills_zero_days(seller_client, f16_product):
+    """Ряд за 7d содержит ровно 7 точек, даже если продаж не было (дни-нули, 4.3)."""
+    res = seller_client.get('/api/products/dashboard/?period=7d')
+    chart = res.data['chart']
+    assert len(chart) == 7
+    assert all(c['revenue'] == '0.00' and c['orders'] == 0 for c in chart)
+
+
+@pytest.mark.django_db
+def test_f16_action_items_low_stock_and_orders(seller_client, f16_product, f16_buyer, category):
+    """low_stock ловит товар с малым остатком; new_orders считает created/paid."""
+    Product.objects.create(seller=f16_product.seller, category=category, name='Кончается',
+                           slug='f16-low', price=100, stock=2, status='active')
+    _mk_order(f16_buyer, status='created', items=[(f16_product, 1, 1000)])
+    res = seller_client.get('/api/products/dashboard/?period=30d')
+    ai = res.data['action_items']
+    assert ai['new_orders'] == 1
+    low_names = [p['name'] for p in ai['low_stock']]
+    assert 'Кончается' in low_names
+    # out_of_stock=0 для stock=2 (заканчивается, но не закончился).
+    assert all(p['out_of_stock'] is False for p in ai['low_stock'] if p['name'] == 'Кончается')
+
+
+@pytest.mark.django_db
+def test_f16_recent_review_counted(seller_client, f16_product, f16_buyer):
+    """Свежий отзыв на товар продавца попадает в recent_reviews."""
+    Review.objects.create(product=f16_product, user=f16_buyer, rating=5, text='Отлично')
+    res = seller_client.get('/api/products/dashboard/?period=30d')
+    assert res.data['action_items']['recent_reviews'] == 1
+
+
+@pytest.mark.django_db
+def test_f16_graceful_without_clickhouse(seller_client, f16_product, f16_buyer):
+    """Деньги считаются из Postgres даже если ClickHouse пуст/недоступен."""
+    _mk_order(f16_buyer, status='paid', items=[(f16_product, 1, 1000)])
+    res = seller_client.get('/api/products/dashboard/?period=30d')
+    assert res.data['summary']['revenue'] == '1000.00'
+    assert 'engagement' in res.data
+    assert res.data['engagement']['views'] >= 0

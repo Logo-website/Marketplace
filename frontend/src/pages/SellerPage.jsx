@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import { toast } from '../store/toastStore'
+import Dashboard from '../components/seller/Dashboard'
 import ProductForm from '../components/seller/ProductForm'
 import ProductTable from '../components/seller/ProductTable'
 import SellerOrders from '../components/seller/SellerOrders'
@@ -32,7 +33,7 @@ export default function SellerPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null) // null - создание, id - правка
   const [categories, setCategories] = useState([])
-  const [activeTab, setActiveTab] = useState('products')
+  const [activeTab, setActiveTab] = useState('dashboard')
   const [busyId, setBusyId] = useState(null)       // id товара под запросом видимости
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -115,10 +116,21 @@ export default function SellerPage() {
     }
   }
 
+  // Только нейтральная вовлечённость (просмотры). Карточка «Продаж» (события
+  // ClickHouse) убрана: честные продажи/деньги живут в табе «Дашборд» (Ф16,
+  // решение 4.5) - иначе на экране были бы две разные «продажи».
   const totalViews = analytics.reduce((sum, a) => sum + (a.views || 0), 0)
-  const totalSales = analytics.reduce((sum, a) => sum + (a.purchases || 0), 0)
 
   const TABS = [
+    {
+      id: 'dashboard',
+      label: 'Дашборд',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      ),
+    },
     {
       id: 'products',
       label: 'Товары',
@@ -175,15 +187,6 @@ export default function SellerPage() {
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-        </svg>
-      ),
-    },
-    {
-      label: 'Продаж',
-      value: totalSales.toLocaleString(),
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
         </svg>
       ),
     },
@@ -249,8 +252,8 @@ export default function SellerPage() {
           </div>
         </motion.div>
 
-        {/* Статистика */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        {/* Статистика (вовлечённость): продажи/деньги - в табе «Дашборд» (4.5) */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
           {STATS.map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -312,6 +315,9 @@ export default function SellerPage() {
 
         {/* Контент */}
         <AnimatePresence mode="wait">
+
+          {/* Дашборд (Ф16): первый экран кабинета - сводка/график/действия */}
+          {activeTab === 'dashboard' && <Dashboard key="dashboard" onNavigate={setActiveTab} />}
 
           {/* Товары */}
           {activeTab === 'products' && (

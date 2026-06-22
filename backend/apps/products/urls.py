@@ -15,6 +15,7 @@ from .views import (
     MyReviewsView,
 )
 from .analytics import SellerAnalyticsView
+from .dashboard import SellerDashboardView
 from .images import ProductImagesView, ProductImageDetailView
 from .views import (
     ReviewListCreateView,
@@ -50,6 +51,8 @@ urlpatterns = [
     path('my/<int:pk>/visibility/', SellerProductVisibilityView.as_view(), name='seller-product-visibility'),
     path('my/<int:pk>/', SellerProductUpdateView.as_view(), name='seller-product-detail'),
     path('analytics/', SellerAnalyticsView.as_view(), name='seller-analytics'),
+    # Дашборд продавца (Ф16, узел 2.1): денежная сводка + график + панель действий.
+    path('dashboard/', SellerDashboardView.as_view(), name='seller-dashboard'),
     path('<int:pk>/reviews/', ReviewListCreateView.as_view(), name='product-reviews'),
     path('<int:pk>/size-chart/', SizeChartView.as_view(), name='product-size-chart'),
     # Q&A (Ф6). literal-префикс answers/ не конфликтует с <int:pk>/.

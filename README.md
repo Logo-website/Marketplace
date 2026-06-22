@@ -149,6 +149,7 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Products | GET | `/api/products/my/questions/` | Seller (questions on own products, `?answered=` filter) |
 | Products | GET/PATCH/DELETE | `/api/products/my/{id}/` | Seller |
 | Products | GET | `/api/products/analytics/` | Seller |
+| Products | GET | `/api/products/dashboard/?period=` | Seller (revenue/orders/avg check/units + sales chart + action items; `period=today\|7d\|30d\|all`) |
 | Products | GET | `/api/products/recommendations/?product_id=` | Public (co-purchase via C++; `product_id` optional, falls back to popular) |
 | Orders | GET/POST | `/api/orders/` | Authenticated |
 | Orders | POST | `/api/orders/from-cart/` | Authenticated |
