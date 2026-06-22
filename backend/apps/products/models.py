@@ -44,6 +44,16 @@ class Product(models.Model):
         ('rejected', 'Отклонён'),
         ('draft', 'Черновик'),
     ], default='moderation', db_index=True)
+    # Модерация товара (Ф17, узел 3.2). rejection_reason - причина отклонения,
+    # которую видит продавец в реестре Ф13/форме Ф12; чистится при одобрении и
+    # при переотправке на модерацию (причина не залипает). moderated_at/by - след
+    # привилегированного действия над контентом третьих лиц (опасная тройка,
+    # аудит решений модерации); SET_NULL - удаление админа не теряет историю.
+    rejection_reason = models.TextField(blank=True, default='')
+    moderated_at = models.DateTimeField(null=True, blank=True)
+    moderated_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
     # Денормализация рейтинга (P6a): пересчитывается из Review сигналами,
     # индексируется для сортировки по рейтингу без .extra()+CAST по JSON.
     rating = models.FloatField(default=0, db_index=True)

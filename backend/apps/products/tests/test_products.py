@@ -1577,3 +1577,254 @@ def test_f16_graceful_without_clickhouse(seller_client, f16_product, f16_buyer):
     assert res.data['summary']['revenue'] == '1000.00'
     assert 'engagement' in res.data
     assert res.data['engagement']['views'] >= 0
+
+
+# --- Ф17: модерация товаров (очередь, одобрить/отклонить с причиной, права) ---
+
+@pytest.fixture
+def pending_product(db, seller, category):
+    """Товар на модерации - элемент очереди Ф17."""
+    return Product.objects.create(
+        seller=seller, category=category, name='Куртка на модерации',
+        slug='f17-pending', price=5000, stock=5, status='moderation',
+        attributes={'brand': 'LocalBrand', 'sizes': [{'label': 'M', 'stock': 5, 'available': True}]},
+    )
+
+
+@pytest.fixture(autouse=True)
+def _mute_es_in_moderation(monkeypatch):
+    """По умолчанию глушим реальный ES в сервисе модерации: переход не должен
+    зависеть от ES в большинстве тестов. Тесты, проверяющие вызов ES, ставят
+    свой recorder поверх этого."""
+    monkeypatch.setattr('apps.products.moderation.index_product', lambda p: None)
+    monkeypatch.setattr('apps.products.moderation.delete_product', lambda pid: None)
+
+
+@pytest.mark.django_db
+def test_f17_queue_lists_moderation_only(admin_client, pending_product, product):
+    """Очередь отдаёт только товары moderation; active (product) в неё не попадает."""
+    res = admin_client.get('/api/products/moderation/')
+    assert res.status_code == 200
+    ids = [p['id'] for p in res.data['results']]
+    assert pending_product.id in ids
+    assert product.id not in ids
+
+
+@pytest.mark.django_db
+def test_f17_queue_no_email_leak(admin_client, pending_product, seller):
+    """S17: строка очереди отдаёт seller_name (имя/магазин), не email продавца."""
+    res = admin_client.get('/api/products/moderation/')
+    row = res.data['results'][0]
+    assert row['seller_name'] != seller.email
+    assert '@' not in row['seller_name']
+
+
+def _client_as(user=None):
+    """Свежий APIClient под конкретной ролью. Нужен, когда в одном тесте
+    участвует несколько ролей: фикстуры *_client делят один экземпляр api_client,
+    и их аутентификация затирает друг друга (см. test_qa_liked_by_me_per_user)."""
+    from rest_framework.test import APIClient
+    c = APIClient()
+    if user is not None:
+        c.force_authenticate(user=user)
+    return c
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('endpoint', ['approve', 'reject'])
+def test_f17_actions_require_admin(seller, user, pending_product, endpoint):
+    """Продавец/покупатель -> 403, аноним -> 401. Барьер модерации (§9)."""
+    url = f'/api/products/moderation/{pending_product.id}/{endpoint}/'
+    body = {'reason': 'нельзя'} if endpoint == 'reject' else {}
+    assert _client_as(seller).post(url, body, format='json').status_code == 403
+    assert _client_as(user).post(url, body, format='json').status_code == 403
+    assert _client_as().post(url, body, format='json').status_code == 401
+
+
+@pytest.mark.django_db
+def test_f17_queue_requires_admin(seller, user):
+    """Очередь модерации видна только админу."""
+    assert _client_as(seller).get('/api/products/moderation/').status_code == 403
+    assert _client_as(user).get('/api/products/moderation/').status_code == 403
+    assert _client_as().get('/api/products/moderation/').status_code == 401
+
+
+@pytest.mark.django_db
+def test_f17_approve_publishes_to_catalog(admin_client, api_client, pending_product, admin, monkeypatch):
+    """approve: moderation -> active, товар появляется в каталоге, индексируется в ES,
+    проставлен аудит, причина пуста."""
+    indexed = []
+    monkeypatch.setattr('apps.products.moderation.index_product', lambda p: indexed.append(p.id))
+
+    res = admin_client.post(f'/api/products/moderation/{pending_product.id}/approve/')
+    assert res.status_code == 200
+    assert res.data['status'] == 'active'
+
+    pending_product.refresh_from_db()
+    assert pending_product.status == 'active'
+    assert pending_product.rejection_reason == ''
+    assert pending_product.moderated_by_id == admin.id
+    assert pending_product.moderated_at is not None
+    assert indexed == [pending_product.id]  # переиндексация в ES вызвана
+
+    # Появился в каталоге (фильтр status='active').
+    catalog = api_client.get('/api/products/')
+    assert pending_product.id in [p['id'] for p in catalog.data['results']]
+
+
+@pytest.mark.django_db
+def test_f17_reject_with_reason(admin_client, api_client, pending_product, admin, monkeypatch):
+    """reject: moderation -> rejected, причина записана, товар убран из ES и каталога."""
+    deleted = []
+    monkeypatch.setattr('apps.products.moderation.delete_product', lambda pid: deleted.append(pid))
+
+    res = admin_client.post(f'/api/products/moderation/{pending_product.id}/reject/',
+                            {'reason': 'Плохие фото, переснимите'}, format='json')
+    assert res.status_code == 200
+    assert res.data['status'] == 'rejected'
+
+    pending_product.refresh_from_db()
+    assert pending_product.status == 'rejected'
+    assert pending_product.rejection_reason == 'Плохие фото, переснимите'
+    assert pending_product.moderated_by_id == admin.id
+    assert deleted == [pending_product.id]  # удалён из ES-поиска
+
+    # Не в каталоге.
+    catalog = api_client.get('/api/products/')
+    assert pending_product.id not in [p['id'] for p in catalog.data['results']]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('reason', ['', '   ', None])
+def test_f17_reject_without_reason_400(admin_client, pending_product, reason):
+    """Отклонение без непустой причины -> 400 (причина обязательна, узел 3.2)."""
+    body = {} if reason is None else {'reason': reason}
+    res = admin_client.post(f'/api/products/moderation/{pending_product.id}/reject/',
+                            body, format='json')
+    assert res.status_code == 400
+    pending_product.refresh_from_db()
+    assert pending_product.status == 'moderation'  # статус не изменился
+
+
+@pytest.mark.django_db
+def test_f17_reject_too_long_reason_400(admin_client, pending_product):
+    """Слишком длинная причина -> 400, не запись портянки."""
+    res = admin_client.post(f'/api/products/moderation/{pending_product.id}/reject/',
+                            {'reason': 'я' * 1001}, format='json')
+    assert res.status_code == 400
+
+
+@pytest.mark.django_db
+def test_f17_double_approve_409(admin_client, pending_product):
+    """Повторное действие над уже промодерированным товаром -> 409 (гонка/двойной клик)."""
+    r1 = admin_client.post(f'/api/products/moderation/{pending_product.id}/approve/')
+    assert r1.status_code == 200
+    r2 = admin_client.post(f'/api/products/moderation/{pending_product.id}/approve/')
+    assert r2.status_code == 409
+
+
+@pytest.mark.django_db
+def test_f17_reject_after_approve_409(admin_client, pending_product):
+    """Отклонить уже одобренный -> 409, причина не перезаписывается."""
+    admin_client.post(f'/api/products/moderation/{pending_product.id}/approve/')
+    r = admin_client.post(f'/api/products/moderation/{pending_product.id}/reject/',
+                          {'reason': 'поздно'}, format='json')
+    assert r.status_code == 409
+    pending_product.refresh_from_db()
+    assert pending_product.status == 'active'
+    assert pending_product.rejection_reason == ''
+
+
+@pytest.mark.django_db
+def test_f17_action_missing_id_404(admin_client):
+    """Действие над несуществующим id -> 404, не 500."""
+    assert admin_client.post('/api/products/moderation/999999/approve/').status_code == 404
+    assert admin_client.post('/api/products/moderation/999999/reject/',
+                             {'reason': 'x'}, format='json').status_code == 404
+
+
+@pytest.mark.django_db
+def test_f17_approve_invalidates_card_cache(admin_client, api_client, pending_product):
+    """Кэш карточки сбрасывается при переходе (сигнал product_changed на .save())."""
+    # Прогреть кэш карточки нельзя (товар не active), поэтому проверяем инвалидацию
+    # после одобрения: ставим маркер, approve -> .save() -> сигнал чистит ключ.
+    cache_key = f'product_detail:{pending_product.id}'
+    cache.set(cache_key, {'stale': True}, 300)
+    admin_client.post(f'/api/products/moderation/{pending_product.id}/approve/')
+    assert cache.get(cache_key) is None
+
+
+@pytest.mark.django_db
+def test_f17_resubmit_clears_rejection_reason(seller_client, seller, category):
+    """Переотправка отклонённого товара на модерацию очищает прошлую причину (§6)."""
+    rejected = Product.objects.create(
+        seller=seller, category=category, name='Отклонённый', slug='f17-rej',
+        price=1000, stock=3, status='rejected', rejection_reason='Старая причина',
+    )
+    res = seller_client.patch(f'/api/products/my/{rejected.id}/',
+                              {'status': 'moderation'}, format='json')
+    assert res.status_code == 200
+    rejected.refresh_from_db()
+    assert rejected.status == 'moderation'
+    assert rejected.rejection_reason == ''  # причина не залипла
+
+
+@pytest.mark.django_db
+def test_f17_rejection_reason_visible_to_seller(admin, seller, pending_product):
+    """Продавец видит причину отклонения в своём реестре (Ф13), как требует узел 3.2."""
+    _client_as(admin).post(f'/api/products/moderation/{pending_product.id}/reject/',
+                           {'reason': 'Нет состава ткани'}, format='json')
+    res = _client_as(seller).get('/api/products/my/?status=rejected')
+    row = [p for p in res.data['results'] if p['id'] == pending_product.id][0]
+    assert row['rejection_reason'] == 'Нет состава ткани'
+
+
+# --- Ф17: admin-actions Django (Вариант B, фоллбэк через тот же сервис) ---
+
+def _admin_request(admin, post_data=None):
+    """Запрос с messages-storage для вызова admin-action напрямую."""
+    from django.test import RequestFactory
+    from django.contrib.messages.storage.fallback import FallbackStorage
+    rf = RequestFactory()
+    req = rf.post('/admin/', post_data or {})
+    req.user = admin
+    setattr(req, 'session', {})
+    setattr(req, '_messages', FallbackStorage(req))
+    return req
+
+
+@pytest.mark.django_db
+def test_f17_admin_action_approve(admin, pending_product):
+    """Bulk-action «Одобрить» зовёт сервис: товар становится active с аудитом."""
+    from django.contrib.admin.sites import AdminSite
+    from apps.products.admin import ProductAdmin, approve_moderation
+    ma = ProductAdmin(Product, AdminSite())
+    approve_moderation(ma, _admin_request(admin), Product.objects.filter(id=pending_product.id))
+    pending_product.refresh_from_db()
+    assert pending_product.status == 'active'
+    assert pending_product.moderated_by_id == admin.id
+
+
+@pytest.mark.django_db
+def test_f17_admin_action_reject_with_reason(admin, pending_product):
+    """Action «Отклонить с причиной» (фаза apply) пишет причину через сервис."""
+    from django.contrib.admin.sites import AdminSite
+    from apps.products.admin import ProductAdmin, reject_moderation
+    ma = ProductAdmin(Product, AdminSite())
+    req = _admin_request(admin, {'apply': '1', 'reason': 'Запрещённый бренд'})
+    reject_moderation(ma, req, Product.objects.filter(id=pending_product.id))
+    pending_product.refresh_from_db()
+    assert pending_product.status == 'rejected'
+    assert pending_product.rejection_reason == 'Запрещённый бренд'
+
+
+@pytest.mark.django_db
+def test_f17_admin_action_reject_empty_reason_keeps_status(admin, pending_product):
+    """Пустая причина в admin-action не отклоняет товар (причина обязательна)."""
+    from django.contrib.admin.sites import AdminSite
+    from apps.products.admin import ProductAdmin, reject_moderation
+    ma = ProductAdmin(Product, AdminSite())
+    req = _admin_request(admin, {'apply': '1', 'reason': '   '})
+    reject_moderation(ma, req, Product.objects.filter(id=pending_product.id))
+    pending_product.refresh_from_db()
+    assert pending_product.status == 'moderation'

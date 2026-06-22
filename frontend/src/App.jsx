@@ -24,6 +24,8 @@ import WishlistPage from './pages/WishlistPage'
 import CheckoutPage from './pages/CheckoutPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import NotFoundPage from './pages/NotFoundPage'
+import AdminRoute from './components/admin/AdminRoute'
+import ModerationPage from './pages/admin/ModerationPage'
 
 
 function PrivateRoute({ children }) {
@@ -119,6 +121,8 @@ export default function App() {
               <Route path="/seller/settings" element={<SellerRoute><SellerSettingsPage /></SellerRoute>} />
               <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
               <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
+              {/* Админ-зона (Ф17): очередь модерации товаров под роль-гейт admin. */}
+              <Route path="/admin/moderation" element={<AdminRoute><ModerationPage /></AdminRoute>} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>

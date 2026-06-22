@@ -50,9 +50,13 @@ class ProductSerializer(serializers.ModelSerializer):
             'id', 'name', 'slug', 'description', 'price', 'old_price',
             'stock', 'attributes', 'status', 'category',
             'category_name', 'seller_name', 'size_group', 'images', 'created_at',
-            'rating', 'reviews_count'
+            'rating', 'reviews_count', 'rejection_reason'
         ]
-        read_only_fields = ['seller', 'created_at', 'rating', 'reviews_count']
+        # rejection_reason - read-only (пишет только модерация Ф17 через сервис).
+        # Непустой только у rejected-товаров, которых нет в публичном каталоге -
+        # утечки нет, а продавец видит причину в Ф13/форме через тот же сериализатор.
+        read_only_fields = ['seller', 'created_at', 'rating', 'reviews_count',
+                            'rejection_reason']
 
 
 # Лимиты структуры attributes (граничные случаи плана Ф12, часть 6): очень
@@ -207,7 +211,32 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         # slug при правке name НЕ перегенерируем - стабильность внешних ссылок (4.5).
         validated_data.pop('slug', None)
         self._apply_stock_aggregate(validated_data)
+        # Переотправка отклонённого товара (Ф17, §6): продавец правит rejected и
+        # снова шлёт на модерацию - причина прошлого отклонения не должна залипать.
+        if validated_data.get('status') == 'moderation':
+            validated_data['rejection_reason'] = ''
         return super().update(instance, validated_data)
+
+# Лимит длины причины отклонения (Ф17, §6): причина обязательна по узлу 3.2
+# («отклонить с причиной»), показывается продавцу как ТЕКСТ (XSS, §9), очень
+# длинную/пустую отклоняем 400, а не пишем мусор.
+REJECTION_REASON_MAX = 1000
+
+
+class RejectionSerializer(serializers.Serializer):
+    """Причина отклонения товара (Ф17). Только текст - статус/аудит ставит сервис."""
+    reason = serializers.CharField()
+
+    def validate_reason(self, value):
+        v = (value or '').strip()
+        if not v:
+            raise serializers.ValidationError('Укажите причину отклонения')
+        if len(v) > REJECTION_REASON_MAX:
+            raise serializers.ValidationError(
+                f'Слишком длинная причина (макс. {REJECTION_REASON_MAX} символов)'
+            )
+        return v
+
 
 # Лимит длины ответа продавца (граничный случай плана Ф15, часть 6): чтобы
 # официальный ответ не стал каналом для «портянки». Пустое/пробельное -> 400.

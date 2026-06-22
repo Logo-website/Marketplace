@@ -322,6 +322,19 @@ export default function Header() {
                 </Link>
               ) : null}
 
+              {/* Модерация - вход в админ-очередь (Ф17), только роль admin */}
+              {isAdmin && (
+                <Link to="/admin/moderation" className="hidden md:block">
+                  <motion.div
+                    className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-medium"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Модерация
+                  </motion.div>
+                </Link>
+              )}
+
               {/* Профиль / Войти (десктоп) */}
               {isAuthenticated ? (
                 <>

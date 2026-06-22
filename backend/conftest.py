@@ -38,3 +38,19 @@ def auth_client(api_client, user):
 def seller_client(api_client, seller):
     api_client.force_authenticate(user=seller)
     return api_client
+
+
+@pytest.fixture
+def admin(db):
+    return User.objects.create_user(
+        username='testadmin',
+        email='admin@test.com',
+        password='testpass123',
+        role='admin'
+    )
+
+
+@pytest.fixture
+def admin_client(api_client, admin):
+    api_client.force_authenticate(user=admin)
+    return api_client

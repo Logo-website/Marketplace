@@ -12,12 +12,14 @@ from .serializers import (
     ReviewSerializer, ReviewCreateSerializer, MyReviewSerializer,
     QuestionSerializer, QuestionCreateSerializer, AnswerCreateSerializer,
     SellerReviewSerializer, ReviewReplySerializer, SellerQuestionSerializer,
+    RejectionSerializer,
 )
 from .search import search_products, autocomplete, index_product, delete_product, PRICE_RANGES
 from .size_charts import get_size_chart
 from .caching import cache_get, cache_set
+from .moderation import approve as approve_product, reject as reject_product, ModerationError
 from services.clickhouse_service import ClickHouseService
-from apps.permissions import IsSeller, IsSellerOrAdmin
+from apps.permissions import IsSeller, IsSellerOrAdmin, IsAdmin
 import logging
 
 logger = logging.getLogger(__name__)
@@ -829,3 +831,55 @@ class SellerQuestionListView(generics.ListAPIView):
             )
             .order_by('_seller_answers', '-created_at')
         )
+
+
+# === Ф17. Модерация товаров (узел 3.2, только админ) ===
+
+class ModerationQueueView(generics.ListAPIView):
+    """Очередь модерации (Ф17): товары status='moderation', новые сверху.
+    Только админ (IsAdmin) - барьер качества каталога. Отдаёт ProductSerializer:
+    в нём seller_name = публичное имя магазина (НЕ email, S17), фото, attributes,
+    цена - всё, по чему админ решает, без утечки PII продавца/покупателей."""
+    serializer_class = ProductSerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        return (
+            Product.objects.filter(status='moderation')
+            .select_related('category', 'seller').prefetch_related('images')
+            .order_by('-created_at')
+        )
+
+
+class ModerationApproveView(APIView):
+    """Одобрить товar: moderation -> active (Ф17). Несуществующий id -> 404,
+    повторное/конкурентное действие -> 409 (товар уже промодерирован)."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        product = get_object_or_404(Product, pk=pk)
+        try:
+            approve_product(product, request.user)
+        except ModerationError as e:
+            return Response({'error': str(e)}, status=409)
+        # TODO Ф25/Ф16: уведомить продавца «товар прошёл модерацию» (forward).
+        return Response({'status': product.status})
+
+
+class ModerationRejectView(APIView):
+    """Отклонить товар с причиной: moderation -> rejected (Ф17). Причина
+    обязательна (RejectionSerializer -> 400 на пустой). id не найден -> 404,
+    повторное действие -> 409."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        product = get_object_or_404(Product, pk=pk)
+        serializer = RejectionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            reject_product(product, serializer.validated_data['reason'], request.user)
+        except ModerationError as e:
+            return Response({'error': str(e)}, status=409)
+        # TODO Ф25/Ф16: уведомить продавца «товар отклонён с причиной» (forward).
+        return Response({'status': product.status,
+                         'rejection_reason': product.rejection_reason})

@@ -25,6 +25,9 @@ from .views import (
     SellerReviewListView,
     ReviewReplyView,
     SellerQuestionListView,
+    ModerationQueueView,
+    ModerationApproveView,
+    ModerationRejectView,
 )
 
 urlpatterns = [
@@ -41,6 +44,11 @@ urlpatterns = [
     path('my/reviews/', SellerReviewListView.as_view(), name='seller-reviews'),
     path('my/questions/', SellerQuestionListView.as_view(), name='seller-questions'),
     path('reviews/<int:pk>/reply/', ReviewReplyView.as_view(), name='review-reply'),
+    # Ф17 (узел 3.2): очередь модерации и действия (только админ). Литерал
+    # moderation/ до <int:pk>/ - не конфликтует (moderation не int).
+    path('moderation/', ModerationQueueView.as_view(), name='moderation-queue'),
+    path('moderation/<int:pk>/approve/', ModerationApproveView.as_view(), name='moderation-approve'),
+    path('moderation/<int:pk>/reject/', ModerationRejectView.as_view(), name='moderation-reject'),
     path('<int:pk>/', ProductDetailView.as_view(), name='product-detail'),
     path('create/', ProductCreateView.as_view(), name='product-create'),
     path('my/', SellerProductListView.as_view(), name='seller-products'),
