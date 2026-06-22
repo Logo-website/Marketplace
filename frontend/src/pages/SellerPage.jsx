@@ -4,37 +4,58 @@ import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import { toast } from '../store/toastStore'
 import ProductForm from '../components/seller/ProductForm'
+import ProductTable from '../components/seller/ProductTable'
+import StatusTabs from '../components/seller/StatusTabs'
+import ConfirmModal from '../components/seller/ConfirmModal'
+import ErrorState from '../components/states/ErrorState'
 
-// Бейдж статуса товара (Ф12, узел 2.3 / этап 6). Статус «отклонён» появится с
-// модерацией (Ф17) - здесь его нет, в каталог пускает только active.
-const STATUS_BADGE = {
-  active: { label: 'Активен', cls: 'bg-emerald-50 text-emerald-600' },
-  moderation: { label: 'На модерации', cls: 'bg-amber-50 text-amber-600' },
-  draft: { label: 'Черновик', cls: 'bg-gray-100 text-gray-500' },
-  hidden: { label: 'Скрыт', cls: 'bg-gray-100 text-gray-400' },
+// Пустое состояние для каждой вкладки-фильтра (план 5.4): не общее «товаров
+// нет», а конкретное «нет активных / на модерации / ...».
+const EMPTY_BY_STATUS = {
+  all: 'Товаров пока нет',
+  active: 'Нет активных товаров',
+  moderation: 'Нет товаров на модерации',
+  hidden: 'Нет скрытых товаров',
+  rejected: 'Нет отклонённых товаров',
+  draft: 'Нет черновиков',
 }
 
 export default function SellerPage() {
   const [products, setProducts] = useState([])
+  const [counts, setCounts] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('all')
   const [analytics, setAnalytics] = useState([])
   const [loading, setLoading] = useState(true)
+  const [listError, setListError] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null) // null - создание, id - правка
   const [categories, setCategories] = useState([])
   const [activeTab, setActiveTab] = useState('products')
+  const [busyId, setBusyId] = useState(null)       // id товара под запросом видимости
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+
+  // Перезапрос списка при смене вкладки-фильтра (серверный фильтр, план 5.4).
+  useEffect(() => {
+    fetchProducts(statusFilter)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter])
 
   useEffect(() => {
-    fetchProducts()
     fetchAnalytics()
     fetchCategories()
   }, [])
 
-  async function fetchProducts() {
+  async function fetchProducts(status = statusFilter) {
+    setLoading(true)
+    setListError(false)
     try {
-      const res = await api.get('/products/my/')
+      const params = status && status !== 'all' ? { status } : {}
+      const res = await api.get('/products/my/', { params })
       setProducts(res.data.results)
+      setCounts(res.data.counts)
     } catch {
-      setProducts([])
+      setListError(true)
     } finally {
       setLoading(false)
     }
@@ -63,13 +84,32 @@ export default function SellerPage() {
   const closeForm = () => { setShowForm(false); setEditingId(null) }
   const handleFormDone = () => { closeForm(); fetchProducts() }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Удалить товар?')) return
+  // Скрыть/показать: только active<->hidden (бэкенд валидирует, план 5.2).
+  const handleToggleVisibility = async (product) => {
+    setBusyId(product.id)
     try {
-      await api.delete(`/products/my/${id}/`)
-      fetchProducts()
+      await api.post(`/products/my/${product.id}/visibility/`)
+      toast.success(product.status === 'active' ? 'Товар скрыт с витрины' : 'Товар снова на витрине')
+      await fetchProducts()
+    } catch {
+      toast.error('Не удалось изменить видимость')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await api.delete(`/products/my/${deleteTarget.id}/`)
+      toast.success('Товар удалён')
+      setDeleteTarget(null)
+      await fetchProducts()
     } catch {
       toast.error('Ошибка при удалении')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -100,7 +140,8 @@ export default function SellerPage() {
   const STATS = [
     {
       label: 'Товаров',
-      value: products.length,
+      // Всего товаров (всех статусов) - из counts, не из отфильтрованного списка.
+      value: counts?.all ?? 0,
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
@@ -255,12 +296,19 @@ export default function SellerPage() {
           {/* Товары */}
           {activeTab === 'products' && (
             <motion.div key="products" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <StatusTabs active={statusFilter} counts={counts} onChange={setStatusFilter} />
+
               {loading ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {[...Array(8)].map((_, i) => (
-                    <div key={i} className="bg-white rounded-2xl h-48 skeleton" />
+                <div className="flex flex-col gap-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl h-16 skeleton" />
                   ))}
                 </div>
+              ) : listError ? (
+                <ErrorState
+                  title="Не удалось загрузить товары"
+                  onRetry={() => fetchProducts()}
+                />
               ) : products.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
                   <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -268,64 +316,21 @@ export default function SellerPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
                     </svg>
                   </div>
-                  <p className="text-gray-400">Товаров пока нет</p>
-                  <button onClick={openCreate} className="mt-3 text-sm text-indigo-600 hover:underline font-medium">
-                    Добавить первый товар
-                  </button>
+                  <p className="text-gray-400">{EMPTY_BY_STATUS[statusFilter] || 'Товаров нет'}</p>
+                  {statusFilter === 'all' && (
+                    <button onClick={openCreate} className="mt-3 text-sm text-indigo-600 hover:underline font-medium">
+                      Добавить первый товар
+                    </button>
+                  )}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {products.map((product, i) => (
-                    <motion.div
-                      key={product.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }}
-                      className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all group"
-                    >
-                      <div className="h-36 bg-gray-50 flex items-center justify-center relative">
-                        {product.images?.[0] ? (
-                          <img
-                            src={product.images[0].image_url || product.images[0].image}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <svg className="w-10 h-10 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
-                          </svg>
-                        )}
-                        {STATUS_BADGE[product.status] && (
-                          <span className={`absolute top-2 left-2 text-[11px] font-semibold px-2 py-0.5 rounded-lg ${STATUS_BADGE[product.status].cls}`}>
-                            {STATUS_BADGE[product.status].label}
-                          </span>
-                        )}
-                      </div>
-                      <div className="p-4">
-                        <p className="font-semibold text-gray-800 text-sm line-clamp-2 mb-2 leading-snug">{product.name}</p>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-black text-gray-900 text-sm">{Number(product.price).toLocaleString()} ₽</span>
-                          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-lg">{product.stock} шт.</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => openEdit(product.id)}
-                            className="flex-1 py-1.5 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100 transition border border-gray-200"
-                          >
-                            Изменить
-                          </button>
-                          <motion.button
-                            onClick={() => handleDelete(product.id)}
-                            className="flex-1 py-1.5 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-50 hover:text-red-600 transition border border-transparent hover:border-red-100"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            Удалить
-                          </motion.button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                <ProductTable
+                  products={products}
+                  onEdit={openEdit}
+                  onToggleVisibility={handleToggleVisibility}
+                  onDelete={setDeleteTarget}
+                  busyId={busyId}
+                />
               )}
             </motion.div>
           )}
@@ -388,6 +393,20 @@ export default function SellerPage() {
 
         </AnimatePresence>
       </div>
+
+      {/* Подтверждение удаления (Ф13): модалка вместо confirm() */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <ConfirmModal
+            title="Удалить товар?"
+            message={`«${deleteTarget.name}» будет удалён без возможности восстановления.`}
+            confirmLabel="Удалить"
+            loading={deleting}
+            onConfirm={confirmDelete}
+            onCancel={() => !deleting && setDeleteTarget(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

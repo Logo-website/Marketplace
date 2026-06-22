@@ -409,12 +409,47 @@ class ProductCreateView(generics.CreateAPIView):
         _reindex_product(product)
 
 
+# Статусы реестра продавца (Ф13, узел 2.2): порядок вкладок-фильтра.
+SELLER_STATUSES = ('active', 'hidden', 'moderation', 'rejected', 'draft')
+
+
 class SellerProductListView(generics.ListAPIView):
+    """Реестр товаров продавца (Ф13, узел 2.2). Фильтр ?status=<статус> отдаёт
+    товары этого статуса; без параметра / ?status=all - все. В каждом ответе -
+    counts по статусам (одним агрегатом), чтобы числа на вкладках не застывали
+    после скрытия/удаления на отфильтрованной вкладке (план 5.1)."""
     serializer_class = ProductSerializer
     permission_classes = [IsSeller]
 
     def get_queryset(self):
-        return Product.objects.filter(seller=self.request.user)
+        qs = (Product.objects.filter(seller=self.request.user)
+              .select_related('category', 'seller').prefetch_related('images'))
+        status = self.request.query_params.get('status')
+        if status and status != 'all':
+            # Неизвестный статус -> пустая выборка (а не вся), но только своих.
+            qs = qs.filter(status=status)
+        return qs
+
+    def _status_counts(self):
+        rows = list(
+            Product.objects.filter(seller=self.request.user)
+            .values('status').annotate(c=Count('id'))
+        )
+        counts = {s: 0 for s in SELLER_STATUSES}
+        for r in rows:
+            counts[r['status']] = r['c']  # незнакомый статус тоже попадёт в dict
+        counts['all'] = sum(r['c'] for r in rows)
+        return counts
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        counts = self._status_counts()
+        # super().list даёт пагинированный {count, next, previous, results}.
+        if isinstance(response.data, dict):
+            response.data['counts'] = counts
+        else:
+            response.data = {'results': response.data, 'counts': counts}
+        return response
 
 
 class SellerProductUpdateView(generics.RetrieveUpdateDestroyAPIView):
@@ -437,6 +472,32 @@ class SellerProductUpdateView(generics.RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         delete_product(instance.id)
         instance.delete()
+
+
+class SellerProductVisibilityView(APIView):
+    """Скрыть / показать товар продавца (Ф13, узел 2.2).
+
+    Узкий безопасный переход active <-> hidden. Любой другой исходный статус
+    (moderation/rejected/draft) -> 400: иначе через «показать» продавец вывел бы
+    в active товар, не прошедший модерацию (обход модерации, план 5.2). Владение -
+    queryset по seller; чужой товар -> 404. После смены - переиндексация ES
+    (скрытый уходит из каталога/поиска, показанный возвращается)."""
+    permission_classes = [IsSeller]
+
+    TRANSITIONS = {'active': 'hidden', 'hidden': 'active'}
+
+    def post(self, request, pk):
+        product = get_object_or_404(Product, pk=pk, seller=request.user)
+        new_status = self.TRANSITIONS.get(product.status)
+        if new_status is None:
+            return Response(
+                {'error': 'Скрыть или показать можно только товар, прошедший модерацию'},
+                status=400,
+            )
+        product.status = new_status
+        product.save(update_fields=['status', 'updated_at'])
+        _reindex_product(product)
+        return Response({'status': new_status})
 
 
 class RecommendationsView(APIView):

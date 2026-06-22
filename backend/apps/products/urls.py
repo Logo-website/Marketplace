@@ -10,6 +10,7 @@ from .views import (
     CatalogFacetsView,
     SellerProductListView,
     SellerProductUpdateView,
+    SellerProductVisibilityView,
     RecommendationsView,
     MyReviewsView,
 )
@@ -37,6 +38,8 @@ urlpatterns = [
     # Фото товара (Ф12): литералы images/ до <int:pk>/ детали - не конфликтуют.
     path('my/<int:pk>/images/', ProductImagesView.as_view(), name='product-images'),
     path('my/<int:pk>/images/<int:image_id>/', ProductImageDetailView.as_view(), name='product-image-detail'),
+    # Литерал visibility/ до <int:pk>/ детали - не конфликтует (Ф13, скрыть/показать).
+    path('my/<int:pk>/visibility/', SellerProductVisibilityView.as_view(), name='seller-product-visibility'),
     path('my/<int:pk>/', SellerProductUpdateView.as_view(), name='seller-product-detail'),
     path('analytics/', SellerAnalyticsView.as_view(), name='seller-analytics'),
     path('<int:pk>/reviews/', ReviewListCreateView.as_view(), name='product-reviews'),

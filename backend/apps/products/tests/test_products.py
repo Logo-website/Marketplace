@@ -1095,3 +1095,130 @@ def test_f12_delete_own_image(seller_client, seller, product, settings, tmp_path
 def test_qa_helpful_missing_answer_404(auth_client):
     response = auth_client.post('/api/products/answers/999999/helpful/')
     assert response.status_code == 404
+
+
+# --- Ф13: реестр товаров продавца (фильтр по статусу, counts, видимость) ---
+
+@pytest.fixture
+def seller_products(db, seller, category):
+    """По одному товару в каждом из четырёх статусов одного продавца."""
+    def mk(name, slug, status):
+        return Product.objects.create(
+            seller=seller, category=category, name=name, slug=slug,
+            price=1000, stock=5, status=status,
+        )
+    return {
+        'active': mk('Активный', 'f13-active', 'active'),
+        'hidden': mk('Скрытый', 'f13-hidden', 'hidden'),
+        'moderation': mk('На модерации', 'f13-moderation', 'moderation'),
+        'draft': mk('Черновик', 'f13-draft', 'draft'),
+    }
+
+
+@pytest.mark.django_db
+def test_f13_list_filter_by_status(seller_client, seller_products):
+    """?status=active отдаёт только активные товары продавца."""
+    r = seller_client.get('/api/products/my/?status=active')
+    assert r.status_code == 200
+    names = [p['name'] for p in r.data['results']]
+    assert names == ['Активный']
+
+
+@pytest.mark.django_db
+def test_f13_list_all_without_status(seller_client, seller_products):
+    """Без параметра status - все статусы продавца."""
+    r = seller_client.get('/api/products/my/')
+    statuses = {p['status'] for p in r.data['results']}
+    assert statuses == {'active', 'hidden', 'moderation', 'draft'}
+
+
+@pytest.mark.django_db
+def test_f13_list_counts_in_every_response(seller_client, seller_products):
+    """counts по статусам присутствуют и при фильтре (не застывают)."""
+    r = seller_client.get('/api/products/my/?status=active')
+    counts = r.data['counts']
+    assert counts['all'] == 4
+    assert counts['active'] == 1
+    assert counts['hidden'] == 1
+    assert counts['moderation'] == 1
+    assert counts['draft'] == 1
+    assert counts['rejected'] == 0  # статус заведён, товаров нет (пуст до Ф17)
+
+
+@pytest.mark.django_db
+def test_f13_list_and_counts_only_own(seller_client, seller_products, category):
+    """Чужие товары не видны в списке и не считаются в counts (владение)."""
+    other = User.objects.create_user(username='s_other', email='so@t.com',
+                                     password='testpass123', role='seller')
+    Product.objects.create(seller=other, category=category, name='Чужой',
+                           slug='f13-foreign', price=100, stock=1, status='active')
+    r = seller_client.get('/api/products/my/')
+    assert r.data['counts']['all'] == 4
+    assert 'Чужой' not in [p['name'] for p in r.data['results']]
+
+
+@pytest.mark.django_db
+def test_f13_visibility_hide_active(seller_client, seller_products):
+    """active -> hidden через visibility-эндпоинт."""
+    p = seller_products['active']
+    r = seller_client.post(f'/api/products/my/{p.id}/visibility/')
+    assert r.status_code == 200
+    assert r.data['status'] == 'hidden'
+    p.refresh_from_db()
+    assert p.status == 'hidden'
+
+
+@pytest.mark.django_db
+def test_f13_visibility_show_hidden(seller_client, seller_products):
+    """hidden -> active через visibility-эндпоинт."""
+    p = seller_products['hidden']
+    r = seller_client.post(f'/api/products/my/{p.id}/visibility/')
+    assert r.status_code == 200
+    assert r.data['status'] == 'active'
+    p.refresh_from_db()
+    assert p.status == 'active'
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('status', ['moderation', 'rejected', 'draft'])
+def test_f13_visibility_forbidden_from_non_vitrine(seller_client, seller, category, status):
+    """Скрыть/показать товар вне витрины (moderation/rejected/draft) -> 400,
+    статус не меняется (нельзя обойти модерацию, план 5.2/10)."""
+    p = Product.objects.create(seller=seller, category=category, name='X',
+                               slug=f'f13-vis-{status}', price=100, stock=1, status=status)
+    r = seller_client.post(f'/api/products/my/{p.id}/visibility/')
+    assert r.status_code == 400
+    p.refresh_from_db()
+    assert p.status == status
+
+
+@pytest.mark.django_db
+def test_f13_visibility_foreign_product_404(seller_client, category):
+    """Видимость чужого товара -> 404 (владение по queryset)."""
+    other = User.objects.create_user(username='s_other2', email='so2@t.com',
+                                     password='testpass123', role='seller')
+    p = Product.objects.create(seller=other, category=category, name='Чужой',
+                               slug='f13-foreign-vis', price=100, stock=1, status='active')
+    r = seller_client.post(f'/api/products/my/{p.id}/visibility/')
+    assert r.status_code == 404
+    p.refresh_from_db()
+    assert p.status == 'active'
+
+
+@pytest.mark.django_db
+def test_f13_visibility_requires_seller_role(auth_client, seller, category):
+    """Покупатель (роль buyer) не имеет доступа к seller-эндпоинту -> 403."""
+    p = Product.objects.create(seller=seller, category=category, name='X',
+                               slug='f13-vis-buyer', price=100, stock=1, status='active')
+    r = auth_client.post(f'/api/products/my/{p.id}/visibility/')
+    assert r.status_code == 403
+
+
+@pytest.mark.django_db
+def test_f13_delete_own_product(seller_client, seller_products, monkeypatch):
+    """Удаление своего товара работает (ES-чистка замокана - не зависим от ES)."""
+    monkeypatch.setattr('apps.products.views.delete_product', lambda pid: None)
+    p = seller_products['active']
+    r = seller_client.delete(f'/api/products/my/{p.id}/')
+    assert r.status_code == 204
+    assert not Product.objects.filter(id=p.id).exists()

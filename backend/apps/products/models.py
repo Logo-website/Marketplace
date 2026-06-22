@@ -35,10 +35,13 @@ class Product(models.Model):
     #   size_chart: null          - привязка размерной сетки, заглушка до Ф5
     #   marking:    str           - «Честный знак», учебная заглушка без интеграции
     attributes = models.JSONField(default=dict, blank=True)
+    # rejected заводит Ф13 (значение для вкладки/бейджа «отклонён» узла 2.2);
+    # само действие «отклонить с причиной» ставит Ф17 - до неё вкладка пуста.
     status = models.CharField(max_length=20, choices=[
         ('active', 'Активен'),
         ('hidden', 'Скрыт'),
         ('moderation', 'На модерации'),
+        ('rejected', 'Отклонён'),
         ('draft', 'Черновик'),
     ], default='moderation', db_index=True)
     # Денормализация рейтинга (P6a): пересчитывается из Review сигналами,
