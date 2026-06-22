@@ -76,6 +76,12 @@ class Review(models.Model):
     # serializer.save() её не передаёт). Ранее было default=None - отзыв из
     # API получал created_at=None, что ломало ordering и new Date() на фронте.
     created_at = models.DateTimeField(auto_now_add=True)
+    # Ответ продавца на отзыв (Ф15, узел 2.8). 1:1 на Review, не отдельная модель:
+    # официальный ответ ровно один - от продавца товара (проверяется в эндпоинте,
+    # автора не храним - это review.product.seller). seller_reply_at=None отличает
+    # «нет ответа» от «пустой ответ»; ставится при сохранении ответа.
+    seller_reply = models.TextField(blank=True, default='')
+    seller_reply_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

@@ -377,6 +377,7 @@ export default function ProductPage() {
             productId={id}
             productRating={product.rating}
             reviewsCount={product.reviews_count}
+            sellerName={product.seller_name}
             isAuthenticated={isAuthenticated}
             onLoginRequired={() => navigate('/login')}
           />

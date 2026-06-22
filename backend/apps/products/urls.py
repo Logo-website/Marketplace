@@ -21,6 +21,9 @@ from .views import (
     QuestionListCreateView,
     AnswerCreateView,
     AnswerHelpfulToggleView,
+    SellerReviewListView,
+    ReviewReplyView,
+    SellerQuestionListView,
 )
 
 urlpatterns = [
@@ -32,6 +35,11 @@ urlpatterns = [
     path('recommendations/', RecommendationsView.as_view(), name='recommendations'),
     # Литерал reviews/my/ - до <int:pk>/ (Ф10, мои отзывы).
     path('reviews/my/', MyReviewsView.as_view(), name='my-reviews'),
+    # Ф15 (узел 2.8): кабинет продавца - агрегация отзывов/вопросов и ответ на
+    # отзыв. Префикс my/ (как seller-эндпоинты этого app); int-pk не ловит литералы.
+    path('my/reviews/', SellerReviewListView.as_view(), name='seller-reviews'),
+    path('my/questions/', SellerQuestionListView.as_view(), name='seller-questions'),
+    path('reviews/<int:pk>/reply/', ReviewReplyView.as_view(), name='review-reply'),
     path('<int:pk>/', ProductDetailView.as_view(), name='product-detail'),
     path('create/', ProductCreateView.as_view(), name='product-create'),
     path('my/', SellerProductListView.as_view(), name='seller-products'),

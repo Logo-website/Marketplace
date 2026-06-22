@@ -27,7 +27,7 @@ function Stars({ value }) {
   )
 }
 
-export default function ReviewsSection({ productId, productRating = 0, reviewsCount = 0, isAuthenticated, onLoginRequired }) {
+export default function ReviewsSection({ productId, productRating = 0, reviewsCount = 0, sellerName = '', isAuthenticated, onLoginRequired }) {
   const [sort, setSort] = useState('new')
   const [ratingFilter, setRatingFilter] = useState(null)
 
@@ -234,6 +234,24 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
               </div>
               <div className="ml-10 mb-2"><Stars value={review.rating} /></div>
               <p className="text-sm text-gray-600 leading-relaxed ml-10">{review.text}</p>
+
+              {/* Ответ продавца (Ф15, узел 2.8): официальный ответ магазина под
+                  отзывом. Имя - sellerName (shop_name, S17), не email. Текст как
+                  текст (React экранирует) - без dangerouslySetInnerHTML (XSS). */}
+              {review.seller_reply && (
+                <div className="ml-10 mt-3 bg-gray-50 border-l-2 border-[#111] rounded-r-xl p-3.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-gray-800">{sellerName || 'Ответ продавца'}</span>
+                    <span className="bg-[#111] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">Продавец</span>
+                    {review.seller_reply_at && (
+                      <span className="text-xs text-gray-400">
+                        {new Date(review.seller_reply_at).toLocaleDateString('ru-RU')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{review.seller_reply}</p>
+                </div>
+              )}
             </motion.div>
           ))}
         </div>

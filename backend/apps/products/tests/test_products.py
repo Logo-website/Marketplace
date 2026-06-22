@@ -1222,3 +1222,195 @@ def test_f13_delete_own_product(seller_client, seller_products, monkeypatch):
     r = seller_client.delete(f'/api/products/my/{p.id}/')
     assert r.status_code == 204
     assert not Product.objects.filter(id=p.id).exists()
+
+
+# === Ф15. Ответы продавца на отзывы и вопросы (узел 2.8) ===
+
+@pytest.fixture
+def review(db, product):
+    """Отзыв покупателя на товар продавца (для ответов Ф15)."""
+    buyer = User.objects.create_user(username='f15buyer', email='f15b@t.com',
+                                     password='testpass123', role='buyer')
+    return Review.objects.create(product=product, user=buyer, rating=4, text='норм')
+
+
+@pytest.mark.django_db
+def test_f15_public_review_exposes_reply_fields(api_client, product, review):
+    """Публичный эндпоинт отзывов отдаёт seller_reply/at (для блока на карточке)."""
+    review.seller_reply = 'Спасибо за отзыв!'
+    from django.utils import timezone
+    review.seller_reply_at = timezone.now()
+    review.save()
+    r = api_client.get(f'/api/products/{product.id}/reviews/')
+    assert r.status_code == 200
+    row = r.data['results'][0]
+    assert row['seller_reply'] == 'Спасибо за отзыв!'
+    assert row['seller_reply_at'] is not None
+
+
+@pytest.mark.django_db
+def test_f15_owner_can_reply(seller_client, review):
+    """Владелец товара отвечает на отзыв -> 200, ответ и дата сохранены."""
+    r = seller_client.post(f'/api/products/reviews/{review.id}/reply/', {'text': 'Рады!'})
+    assert r.status_code == 200
+    review.refresh_from_db()
+    assert review.seller_reply == 'Рады!'
+    assert review.seller_reply_at is not None
+
+
+@pytest.mark.django_db
+def test_f15_reply_overwrites_no_dup(seller_client, review):
+    """Повторный POST перезаписывает ответ (1:1 поле, не плодит дубль)."""
+    seller_client.post(f'/api/products/reviews/{review.id}/reply/', {'text': 'Первый'})
+    seller_client.post(f'/api/products/reviews/{review.id}/reply/', {'text': 'Второй'})
+    review.refresh_from_db()
+    assert review.seller_reply == 'Второй'
+
+
+@pytest.mark.django_db
+def test_f15_foreign_seller_reply_forbidden(api_client, review, category):
+    """Чужой продавец (не владелец товара) -> 403, ответ не сохранён (анти-подмена)."""
+    other = User.objects.create_user(username='f15other', email='f15o@t.com',
+                                     password='testpass123', role='seller')
+    api_client.force_authenticate(user=other)
+    r = api_client.post(f'/api/products/reviews/{review.id}/reply/', {'text': 'чужой'})
+    assert r.status_code == 403
+    review.refresh_from_db()
+    assert review.seller_reply == ''
+
+
+@pytest.mark.django_db
+def test_f15_buyer_reply_forbidden(auth_client, review):
+    """Покупатель не может ответить от лица магазина -> 403."""
+    r = auth_client.post(f'/api/products/reviews/{review.id}/reply/', {'text': 'я покупатель'})
+    assert r.status_code == 403
+
+
+@pytest.mark.django_db
+def test_f15_anon_reply_unauthorized(api_client, review):
+    """Аноним -> 401."""
+    r = api_client.post(f'/api/products/reviews/{review.id}/reply/', {'text': 'аноним'})
+    assert r.status_code == 401
+
+
+@pytest.mark.django_db
+def test_f15_reply_missing_review_404(seller_client):
+    """Несуществующий отзыв -> 404."""
+    r = seller_client.post('/api/products/reviews/999999/reply/', {'text': 'нет'})
+    assert r.status_code == 404
+
+
+@pytest.mark.django_db
+def test_f15_reply_empty_text_400(seller_client, review):
+    """Пустой/пробельный текст -> 400, ответ не публикуется."""
+    r = seller_client.post(f'/api/products/reviews/{review.id}/reply/', {'text': '   '})
+    assert r.status_code == 400
+    review.refresh_from_db()
+    assert review.seller_reply == ''
+
+
+@pytest.mark.django_db
+def test_f15_reply_too_long_400(seller_client, review):
+    """Ответ длиннее лимита 2000 символов -> 400."""
+    r = seller_client.post(f'/api/products/reviews/{review.id}/reply/', {'text': 'я' * 2001})
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_f15_seller_reviews_list_own_only(seller_client, product, review, category):
+    """GET /my/reviews/ отдаёт отзывы по своим товарам с product-контекстом и
+    не показывает отзывы на чужие товары (изоляция продавцов, часть 9)."""
+    other = User.objects.create_user(username='f15s2', email='f15s2@t.com',
+                                     password='testpass123', role='seller')
+    other_product = Product.objects.create(seller=other, category=category, name='Чужой',
+                                           slug='f15-foreign', price=100, stock=1, status='active')
+    foreign_buyer = User.objects.create_user(username='f15fb', email='f15fb@t.com',
+                                             password='testpass123', role='buyer')
+    Review.objects.create(product=other_product, user=foreign_buyer, rating=1, text='чужой отзыв')
+
+    r = seller_client.get('/api/products/my/reviews/')
+    assert r.status_code == 200
+    rows = r.data['results']
+    assert len(rows) == 1
+    assert rows[0]['id'] == review.id
+    assert rows[0]['product_id'] == product.id
+    assert rows[0]['product_name'] == product.name
+
+
+@pytest.mark.django_db
+def test_f15_seller_reviews_answered_filter_and_sort(seller_client, product, category):
+    """?answered=false оставляет отзывы без ответа; без фильтра неотвеченные сверху."""
+    b1 = User.objects.create_user(username='f15a', email='f15a@t.com', password='testpass123', role='buyer')
+    b2 = User.objects.create_user(username='f15b2', email='f15b2@t.com', password='testpass123', role='buyer')
+    answered = Review.objects.create(product=product, user=b1, rating=5, text='отвечен',
+                                     seller_reply='спасибо')
+    unanswered = Review.objects.create(product=product, user=b2, rating=2, text='без ответа')
+
+    r = seller_client.get('/api/products/my/reviews/?answered=false')
+    ids = [x['id'] for x in r.data['results']]
+    assert ids == [unanswered.id]
+
+    r2 = seller_client.get('/api/products/my/reviews/?answered=true')
+    ids2 = [x['id'] for x in r2.data['results']]
+    assert ids2 == [answered.id]
+
+    r3 = seller_client.get('/api/products/my/reviews/')
+    ids3 = [x['id'] for x in r3.data['results']]
+    assert ids3[0] == unanswered.id  # без ответа сверху
+
+
+@pytest.mark.django_db
+def test_f15_seller_reviews_requires_seller_role(auth_client):
+    """Покупатель -> 403 на seller-эндпоинте отзывов."""
+    assert auth_client.get('/api/products/my/reviews/').status_code == 403
+
+
+@pytest.mark.django_db
+def test_f15_seller_reviews_anon_unauthorized(api_client):
+    """Аноним -> 401."""
+    assert api_client.get('/api/products/my/reviews/').status_code == 401
+
+
+@pytest.mark.django_db
+def test_f15_seller_questions_list_own_only_with_badge(seller_client, product, seller, category):
+    """GET /my/questions/ отдаёт вопросы по своим товарам с ответами и бейджем
+    is_seller_answer; чужие вопросы не видны."""
+    from apps.products.models import Question, Answer
+    asker = User.objects.create_user(username='f15q', email='f15q@t.com', password='testpass123', role='buyer')
+    q = Question.objects.create(product=product, user=asker, text='есть размер L?')
+    Answer.objects.create(question=q, user=seller, text='да, есть')  # ответ продавца
+
+    # Чужой товар с вопросом - не должен попасть.
+    other = User.objects.create_user(username='f15qs', email='f15qs@t.com', password='testpass123', role='seller')
+    op = Product.objects.create(seller=other, category=category, name='Чужой Q',
+                                slug='f15-foreign-q', price=100, stock=1, status='active')
+    Question.objects.create(product=op, user=asker, text='чужой вопрос')
+
+    r = seller_client.get('/api/products/my/questions/')
+    assert r.status_code == 200
+    rows = r.data['results']
+    assert len(rows) == 1
+    assert rows[0]['product_id'] == product.id
+    assert rows[0]['answers'][0]['is_seller_answer'] is True
+
+
+@pytest.mark.django_db
+def test_f15_seller_questions_answered_filter(seller_client, product, seller):
+    """?answered=false оставляет только вопросы без ответа продавца."""
+    from apps.products.models import Question, Answer
+    asker = User.objects.create_user(username='f15q2', email='f15q2@t.com', password='testpass123', role='buyer')
+    answered = Question.objects.create(product=product, user=asker, text='с ответом продавца')
+    Answer.objects.create(question=answered, user=seller, text='ответ продавца')
+    unanswered = Question.objects.create(product=product, user=asker, text='без ответа продавца')
+    # Ответ НЕ продавца (другого покупателя) не считается ответом продавца.
+    Answer.objects.create(question=unanswered, user=asker, text='ответ покупателя')
+
+    r = seller_client.get('/api/products/my/questions/?answered=false')
+    ids = [x['id'] for x in r.data['results']]
+    assert ids == [unanswered.id]
+
+
+@pytest.mark.django_db
+def test_f15_seller_questions_requires_seller_role(auth_client):
+    """Покупатель -> 403 на seller-эндпоинте вопросов."""
+    assert auth_client.get('/api/products/my/questions/').status_code == 403

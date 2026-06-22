@@ -138,12 +138,15 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Products | GET | `/api/products/{id}/` | Public |
 | Products | GET/POST | `/api/products/{id}/reviews/` | GET public, POST authenticated + purchased |
 | Products | GET | `/api/products/reviews/my/` | Authenticated (own reviews, with product info) |
+| Products | POST | `/api/products/reviews/{id}/reply/` | Seller (owner of product) / admin (seller reply, shown on card) |
 | Products | GET | `/api/products/{id}/size-chart/` | Public (size table by category; `{group:null}` if none) |
 | Products | GET/POST | `/api/products/{id}/questions/` | GET public, POST authenticated (no purchase required) |
 | Products | POST | `/api/products/{id}/questions/{qid}/answers/` | Authenticated |
 | Products | POST | `/api/products/answers/{aid}/helpful/` | Authenticated (toggle helpful vote) |
 | Products | POST | `/api/products/create/` | Seller |
 | Products | GET | `/api/products/my/` | Seller |
+| Products | GET | `/api/products/my/reviews/` | Seller (reviews on own products, `?answered=` filter) |
+| Products | GET | `/api/products/my/questions/` | Seller (questions on own products, `?answered=` filter) |
 | Products | GET/PATCH/DELETE | `/api/products/my/{id}/` | Seller |
 | Products | GET | `/api/products/analytics/` | Seller |
 | Products | GET | `/api/products/recommendations/?product_id=` | Public (co-purchase via C++; `product_id` optional, falls back to popular) |
@@ -367,7 +370,7 @@ cd backend && pytest
 |---|---|
 | `apps/users/tests/test_auth.py` | Auth: two-step OTP register/login, password hashing, attempt lockout, single-use code |
 | `apps/users/tests/test_seller_onboarding.py` | Seller onboarding: full set activates and flips role, incomplete saves draft, invalid INN → 400, role flip only from buyer, INN by status, requisites not exposed, idempotency, settings PATCH (active-only, can't blank required) |
-| `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge) |
+| `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge), seller reply to reviews and feedback aggregation (ownership 403, role gate, answered filter/sort, reply shown on card) |
 | `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization, selected-subset checkout, variant snapshot, seller order list/detail (ownership, status filter, mixed-order read-only, buyer PII not leaked) |
 | `apps/cart/tests.py` | Cart add/get/set-quantity/remove/clear with stock checks, inactive product, auth, variant lines, guest-cart merge (clamp/sum/skip), batch by ids |
 

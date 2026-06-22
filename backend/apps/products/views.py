@@ -1,6 +1,7 @@
 import requests
 from django.conf import settings
-from django.db.models import Count, Prefetch
+from django.db.models import Case, Count, IntegerField, Prefetch, Q, Value, When
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, filters
 from rest_framework.views import APIView
@@ -10,12 +11,13 @@ from .serializers import (
     CategorySerializer, ProductSerializer, ProductWriteSerializer,
     ReviewSerializer, ReviewCreateSerializer, MyReviewSerializer,
     QuestionSerializer, QuestionCreateSerializer, AnswerCreateSerializer,
+    SellerReviewSerializer, ReviewReplySerializer, SellerQuestionSerializer,
 )
 from .search import search_products, autocomplete, index_product, delete_product, PRICE_RANGES
 from .size_charts import get_size_chart
 from .caching import cache_get, cache_set
 from services.clickhouse_service import ClickHouseService
-from apps.permissions import IsSeller
+from apps.permissions import IsSeller, IsSellerOrAdmin
 import logging
 
 logger = logging.getLogger(__name__)
@@ -737,3 +739,93 @@ class AnswerHelpfulToggleView(APIView):
         # Сигнал уже пересчитал helpful_count - читаем свежее значение.
         answer.refresh_from_db(fields=['helpful_count'])
         return Response({'helpful_count': answer.helpful_count, 'liked_by_me': created})
+
+
+# === Ф15. Рабочее место продавца с обратной связью (узел 2.8) ===
+
+def _answered_filter(qs, answered, empty_lookup):
+    """Фильтр ?answered=true|false для кабинетных списков (Ф15). Мусорное
+    значение -> «все» (не 500, граничный случай плана). empty_lookup - условие
+    «без ответа продавца» (для отзывов и вопросов оно разное)."""
+    if answered == 'true':
+        return qs.exclude(**empty_lookup)
+    if answered == 'false':
+        return qs.filter(**empty_lookup)
+    return qs
+
+
+class SellerReviewListView(generics.ListAPIView):
+    """Все отзывы на товары продавца в одном месте (Ф15, узел 2.8). Фильтр
+    ?answered=true|false (есть/нет ответа), сортировка - без ответа сверху, внутри
+    -created_at, чтобы необработанное было первым. Строго filter(product__seller),
+    чужие отзывы не отдаются (часть 9)."""
+    serializer_class = SellerReviewSerializer
+    permission_classes = [IsSellerOrAdmin]
+
+    def get_queryset(self):
+        qs = (Review.objects.filter(product__seller=self.request.user)
+              .select_related('user', 'product'))
+        qs = _answered_filter(qs, self.request.query_params.get('answered'),
+                              {'seller_reply': ''})
+        # _answered=0 (нет ответа) сверху, внутри - свежие первыми.
+        return qs.annotate(
+            _answered=Case(When(seller_reply='', then=Value(0)),
+                           default=Value(1), output_field=IntegerField())
+        ).order_by('_answered', '-created_at')
+
+
+class ReviewReplyView(APIView):
+    """Создать/изменить ответ продавца на отзыв (Ф15, узел 2.8). Владение:
+    только продавец товара (review.product.seller) или админ - иначе 403
+    (анти-подмена магазина, зеркало S4). Отзыв не найден -> 404. Ответ 1:1:
+    повторный POST перезаписывает, дубля нет (поле на Review, решение 4.1)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        review = get_object_or_404(Review.objects.select_related('product'), pk=pk)
+        is_owner = review.product.seller_id == request.user.id
+        is_admin = getattr(request.user, 'role', None) == 'admin'
+        if not (is_owner or is_admin):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Отвечать можно только на отзывы о своих товарах')
+        serializer = ReviewReplySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        review.seller_reply = serializer.validated_data['text']
+        review.seller_reply_at = timezone.now()
+        review.save(update_fields=['seller_reply', 'seller_reply_at'])
+        # Точка расширения Ф25 (часть 4.5): уведомление покупателю «вам ответили» -
+        # отдельная фаза; здесь рассылку не делаем.
+        return Response(ReviewSerializer(review).data)
+
+
+class SellerQuestionListView(generics.ListAPIView):
+    """Все вопросы по товарам продавца (Ф15, узел 2.8; надстройка над Q&A Ф6).
+    Ответ продавец шлёт в существующий answer-эндпоинт Ф6 (своего write нет, 4.2).
+    Сортировка - без ответа продавца сверху; фильтр ?answered=true|false. Строго
+    filter(product__seller), чужие вопросы не отдаются (часть 9)."""
+    serializer_class = SellerQuestionSerializer
+    permission_classes = [IsSellerOrAdmin]
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        # Все вопросы - по своим товарам, значит «ответ продавца» = ответ текущего
+        # пользователя (бейдж «Продавец» через AnswerSerializer.is_seller_answer).
+        ctx['seller_id'] = self.request.user.id
+        return ctx
+
+    def get_queryset(self):
+        user = self.request.user
+        # Ответы продавца = ответы автора-продавца на свой товар (user == seller).
+        qs = Question.objects.filter(product__seller=user).annotate(
+            _seller_answers=Count('answers', filter=Q(answers__user=user))
+        )
+        qs = _answered_filter(qs, self.request.query_params.get('answered'),
+                              {'_seller_answers': 0})
+        return (
+            qs.select_related('user', 'product')
+            .prefetch_related(
+                Prefetch('answers', queryset=Answer.objects.select_related('user')),
+                Prefetch('answers__votes', queryset=AnswerVote.objects.filter(user=user)),
+            )
+            .order_by('_seller_answers', '-created_at')
+        )

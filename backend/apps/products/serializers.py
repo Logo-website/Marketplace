@@ -209,13 +209,54 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         self._apply_stock_aggregate(validated_data)
         return super().update(instance, validated_data)
 
+# Лимит длины ответа продавца (граничный случай плана Ф15, часть 6): чтобы
+# официальный ответ не стал каналом для «портянки». Пустое/пробельное -> 400.
+SELLER_REPLY_MAX = 2000
+
+
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
 
     class Meta:
         model = Review
-        fields = ['id', 'username', 'rating', 'text', 'created_at']
-        read_only_fields = ['id', 'username', 'created_at']
+        # seller_reply/at read-only: видны публично через GET /<pk>/reviews/,
+        # пишутся только через ReviewReplyView (Ф15). Пустой seller_reply -
+        # «ответа нет», блок на карточке не рисуется.
+        fields = ['id', 'username', 'rating', 'text', 'created_at',
+                  'seller_reply', 'seller_reply_at']
+        read_only_fields = ['id', 'username', 'created_at',
+                            'seller_reply', 'seller_reply_at']
+
+
+class ReviewReplySerializer(serializers.Serializer):
+    """Запись ответа продавца на отзыв (Ф15, узел 2.8). Только текст - автора и
+    дату ставит вьюха (автор = product.seller, проверка владения там же)."""
+    text = serializers.CharField()
+
+    def validate_text(self, value):
+        v = (value or '').strip()
+        if not v:
+            raise serializers.ValidationError('Введите текст ответа')
+        if len(v) > SELLER_REPLY_MAX:
+            raise serializers.ValidationError(
+                f'Слишком длинный ответ (макс. {SELLER_REPLY_MAX} символов)'
+            )
+        return v
+
+
+class SellerReviewSerializer(serializers.ModelSerializer):
+    """Отзыв в кабинете продавца (Ф15): отзыв + product-контекст для перехода и
+    ответ продавца. PII покупателя - только username (как публично), без email/id
+    (часть 9, минимизация). product - CASCADE, значит при отзыве он всегда есть."""
+    username = serializers.CharField(source='user.username', read_only=True)
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+
+    class Meta:
+        model = Review
+        fields = ['id', 'username', 'rating', 'text', 'created_at',
+                  'seller_reply', 'seller_reply_at',
+                  'product_id', 'product_name']
 
 
 class MyReviewSerializer(serializers.ModelSerializer):
@@ -293,6 +334,17 @@ class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = ['id', 'username', 'text', 'created_at', 'answers']
+
+
+class SellerQuestionSerializer(QuestionSerializer):
+    """Вопрос в кабинете продавца (Ф15): тот же вопрос с вложенными ответами
+    (бейдж «Продавец» через AnswerSerializer.is_seller_answer), плюс product-
+    контекст для перехода. Ответ продавец шлёт в существующий answer-эндпоинт Ф6."""
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+
+    class Meta(QuestionSerializer.Meta):
+        fields = QuestionSerializer.Meta.fields + ['product_id', 'product_name']
 
 
 class QuestionCreateSerializer(serializers.ModelSerializer):
