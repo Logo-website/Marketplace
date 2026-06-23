@@ -165,7 +165,7 @@ export default function OrdersTab() {
                           )}
                           {order.status === 'delivered' && (
                             <button
-                              onClick={() => toast.info('Оформление возврата появится в фазе Ф23')}
+                              onClick={() => navigate(`/profile?tab=returns&order=${order.id}`)}
                               className="text-xs font-semibold text-gray-500 border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 transition"
                             >
                               Оформить возврат

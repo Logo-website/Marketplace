@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db import transaction
 from rest_framework import serializers
-from .models import Order, OrderItem
+from .models import Order, OrderItem, ReturnRequest, ReturnItem
 from apps.products.models import Product
 
 
@@ -137,3 +137,60 @@ class SellerOrderSerializer(serializers.ModelSerializer):
         seller = self.context['seller']
         return all(it.product_id and it.product and it.product.seller_id == seller.id
                    for it in order.items.all())
+
+
+# ------------------- Возвраты (Ф23) -------------------
+
+class ReturnItemSerializer(serializers.ModelSerializer):
+    """Позиция возврата для чтения. Имя/размер/цвет/цена - из снапшота OrderItem,
+    читаемы даже после удаления товара (как SellerOrderItemSerializer)."""
+    order_item = serializers.IntegerField(source='order_item.id', read_only=True)
+    product_name = serializers.CharField(source='order_item.product_name', read_only=True)
+    size = serializers.CharField(source='order_item.size', read_only=True)
+    color = serializers.CharField(source='order_item.color', read_only=True)
+    price_at_purchase = serializers.DecimalField(
+        source='order_item.price_at_purchase', max_digits=10, decimal_places=2, read_only=True
+    )
+
+    class Meta:
+        model = ReturnItem
+        fields = ['id', 'order_item', 'product_name', 'size', 'color', 'quantity', 'price_at_purchase']
+
+
+class ReturnRequestSerializer(serializers.ModelSerializer):
+    """Заявка глазами покупателя (1.14): свои статусы и позиции. БЕЗ PII продавца
+    (ни email/phone) - покупатель видит только статус и комментарий решения (§8)."""
+    items = ReturnItemSerializer(many=True, read_only=True)
+    reason_display = serializers.CharField(source='get_reason_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    order_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ReturnRequest
+        fields = [
+            'id', 'order_id', 'status', 'status_display', 'reason', 'reason_display',
+            'reason_text', 'method', 'photo', 'refund_amount', 'resolution_comment',
+            'arbitrated', 'created_at', 'items',
+        ]
+
+
+class SellerReturnSerializer(serializers.ModelSerializer):
+    """Заявка глазами продавца (2.7): нужное для решения, без PII покупателя.
+    Имя покупателя - только username/имя получателя, НЕ email/phone (зеркало S17)."""
+    items = ReturnItemSerializer(many=True, read_only=True)
+    reason_display = serializers.CharField(source='get_reason_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    order_id = serializers.IntegerField(read_only=True)
+    buyer_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReturnRequest
+        fields = [
+            'id', 'order_id', 'status', 'status_display', 'reason', 'reason_display',
+            'reason_text', 'method', 'photo', 'refund_amount', 'resolution_comment',
+            'arbitrated', 'created_at', 'buyer_name', 'items',
+        ]
+
+    def get_buyer_name(self, obj):
+        # Имя получателя из снимка чекаута; фолбэк - username. Без email/phone.
+        return obj.order.recipient_name or obj.buyer.username

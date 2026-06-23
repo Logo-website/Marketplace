@@ -178,6 +178,11 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Orders | POST | `/api/orders/{id}/cancel/` | Authenticated (buyer, own order) |
 | Orders | GET | `/api/orders/seller/` | Seller / admin (orders with own items, `?status=` filter) |
 | Orders | GET | `/api/orders/seller/{id}/` | Seller / admin (own items only, 404 otherwise) |
+| Returns | GET/POST | `/api/orders/returns/` | Authenticated (buyer; create only on own delivered order within return period) |
+| Returns | GET | `/api/orders/returns/{id}/` | Authenticated (buyer-owner / seller-owner / admin, no counterparty PII) |
+| Returns | POST | `/api/orders/returns/{id}/dispute/` | Authenticated (buyer; only `rejected` → `disputed`) |
+| Returns | GET | `/api/orders/seller/returns/` | Seller / admin (returns on own items, `?status=` filter) |
+| Returns | PATCH | `/api/orders/seller/returns/{id}/` | Seller / admin (status machine: approve/reject/receive/refund, own items only) |
 | Cart | GET/POST/PUT/DELETE | `/api/cart/` | Authenticated (guests use a local cart) |
 | Cart | POST | `/api/cart/merge/` | Authenticated (merge guest cart on login) |
 | Notifications | GET | `/api/notifications/` | Authenticated (own feed, paginated) |
@@ -404,6 +409,7 @@ cd backend && pytest
 | `apps/users/tests/test_seller_onboarding.py` | Seller onboarding: full set activates and flips role, incomplete saves draft, invalid INN → 400, role flip only from buyer, INN by status, requisites not exposed, idempotency, settings PATCH (active-only, can't blank required) |
 | `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge), seller reply to reviews and feedback aggregation (ownership 403, role gate, answered filter/sort, reply shown on card), moderation (admin-only queue, approve→catalog, reject with reason, 409 on repeat, audit fields, reason cleared on resubmit, admin-actions), complaints and UGC moderation (report create with dedup/404/400, admin-only queue with PII-minimized target preview, resolve hides review and drops it from rating, dismiss, proactive hide/unhide, Q&A hide removes from public, active product take-down with ES de-index, moderation product delegates to reject, seller report not blocked) |
 | `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization, selected-subset checkout, variant snapshot, seller order list/detail (ownership, status filter, mixed-order read-only, buyer PII not leaked) |
+| `apps/orders/tests/test_returns.py` | Returns end-to-end: create only on own delivered order within period (foreign/not-delivered/expired/duplicate/over-quantity/deleted-product rejected), multi-vendor split, no seller PII, dispute only `rejected`→`disputed` (blocked after arbitration), seller S4 isolation, status machine, idempotent stock restore on receive, full flow to refunded, photo upload |
 | `apps/cart/tests.py` | Cart add/get/set-quantity/remove/clear with stock checks, inactive product, auth, variant lines, guest-cart merge (clamp/sum/skip), batch by ids |
 | `apps/notifications/tests/test_notifications.py` | Notifications: `notify()` feed row, template render and UGC escaping, unknown-event safe default, transactional email always vs marketing opt-out, signed unsubscribe token (valid/forged), feed isolation (no foreign read/mark → 404), unread-count and mark-all, order create end-to-end through the center (one email, no dup), broadcast opt-out and segment filter |
 

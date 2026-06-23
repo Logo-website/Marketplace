@@ -7,6 +7,7 @@ import Dashboard from '../components/seller/Dashboard'
 import ProductForm from '../components/seller/ProductForm'
 import ProductTable from '../components/seller/ProductTable'
 import SellerOrders from '../components/seller/SellerOrders'
+import SellerReturns from '../components/seller/SellerReturns'
 import SellerFeedback from '../components/seller/SellerFeedback'
 import StatusTabs from '../components/seller/StatusTabs'
 import ConfirmModal from '../components/seller/ConfirmModal'
@@ -146,6 +147,15 @@ export default function SellerPage() {
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      ),
+    },
+    {
+      id: 'returns',
+      label: 'Возвраты',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
         </svg>
       ),
     },
@@ -363,6 +373,9 @@ export default function SellerPage() {
 
           {/* Заказы (Ф14): рабочее место обработки заказов на товары продавца */}
           {activeTab === 'orders' && <SellerOrders key="orders" />}
+
+          {/* Возвраты (Ф23): заявки на товары продавца, проведение по статусам */}
+          {activeTab === 'returns' && <SellerReturns key="returns" />}
 
           {/* Отзывы и вопросы (Ф15): агрегация UGC по своим товарам + ответы */}
           {activeTab === 'feedback' && <SellerFeedback key="feedback" />}

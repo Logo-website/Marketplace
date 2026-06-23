@@ -27,6 +27,16 @@ _STATUS_LABELS = {
 }
 
 ORDERS_LINK = '/profile?tab=orders'
+RETURNS_LINK = '/profile?tab=returns'
+
+# Человекочитаемые статусы возврата (Ф23) - совпадают с ReturnRequest.STATUS_CHOICES.
+# Уведомляем покупателя только о решениях продавца/админа, не о собственном споре.
+_RETURN_LABELS = {
+    'approved': 'одобрен',
+    'rejected': 'отклонён',
+    'received': 'товар получен продавцом',
+    'refunded': 'деньги возвращены',
+}
 
 
 class NotificationContent:
@@ -75,6 +85,24 @@ def _render_order(event_type, ctx):
         title=title,
         body=body,
         link=ORDERS_LINK,
+        email_subject=title + ' - Marketplace',
+        email_html=_email_html(title, body),
+    )
+
+
+def _render_return(event_type, ctx):
+    # Статус возврата (Ф23). Транзакционное: покупатель обязан узнать решение по
+    # заявке, e-mail уходит всегда. Текст без UGC - подставляются только id (числа).
+    status = event_type.split('.', 1)[1]
+    label = _RETURN_LABELS.get(status, status)
+    order_id = ctx.get('order_id', '')
+    title = f'Возврат по заказу #{order_id}: {label}'
+    body = f'Статус вашей заявки на возврат изменён на «{label}».'
+    return NotificationContent(
+        category=Notification.CATEGORY_ORDER,
+        title=title,
+        body=body,
+        link=RETURNS_LINK,
         email_subject=title + ' - Marketplace',
         email_html=_email_html(title, body),
     )
@@ -140,6 +168,8 @@ def render(event_type, ctx):
     ctx = ctx or {}
     if event_type.startswith('order.'):
         return _render_order(event_type, ctx)
+    if event_type.startswith('return.'):
+        return _render_return(event_type, ctx)
     if event_type == 'broadcast':
         return _render_broadcast(event_type, ctx)
     if event_type in _FORWARD:

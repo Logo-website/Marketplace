@@ -7,6 +7,7 @@ import MyDataTab from '../components/profile/MyDataTab'
 import AddressesTab from '../components/profile/AddressesTab'
 import MyReviewsTab from '../components/profile/MyReviewsTab'
 import NotificationsTab from '../components/profile/NotificationsTab'
+import ReturnsTab from '../components/profile/ReturnsTab'
 import ForwardTab from '../components/profile/ForwardTab'
 
 // Оболочка-кабинет (Ф10, узел 1.13). ProfilePage держит только роутинг вкладок
@@ -32,7 +33,6 @@ const CONTENT_IDS = TABS.filter((t) => !t.link).map((t) => t.id)
 
 // Форвард-заглушки: вкладка видна, ведёт в свою фазу, без битых ссылок.
 const FORWARD = {
-  returns:   { icon: '↩️', title: 'Возвраты', phase: 'Ф23', description: 'Здесь можно будет оформить возврат товара и отследить его статус.' },
   questions: { icon: '❓', title: 'Мои вопросы', phase: 'Ф6', description: 'Ваши вопросы о товарах и ответы на них появятся здесь.' },
   brands:    { icon: '🏷️', title: 'Избранные бренды', phase: 'Ф20', description: 'Подписки на бренды и магазины появятся здесь.' },
   points:    { icon: '🎁', title: 'Баллы и бонусы', phase: 'Ф27', description: 'Баллы лояльности, промокоды и акции появятся здесь.' },
@@ -60,6 +60,7 @@ export default function ProfilePage() {
       case 'addresses': return <AddressesTab />
       case 'reviews': return <MyReviewsTab />
       case 'notifications': return <NotificationsTab />
+      case 'returns': return <ReturnsTab />
       default: return <ForwardTab {...FORWARD[activeTab]} />
     }
   }

@@ -1,11 +1,18 @@
+import json
 import logging
+from datetime import timedelta
+from django.conf import settings
 from django.db import transaction
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Q
+from django.utils import timezone
 from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Order, OrderItem
-from .serializers import OrderSerializer, OrderCreateSerializer, SellerOrderSerializer
+from .models import Order, OrderItem, ReturnRequest, ReturnItem
+from .serializers import (
+    OrderSerializer, OrderCreateSerializer, SellerOrderSerializer,
+    ReturnRequestSerializer, SellerReturnSerializer,
+)
 from apps.permissions import IsSellerOrAdmin
 from apps.cart.cart import get_cart, clear_cart, remove_keys, cart_key, parse_cart_key
 from apps.products.models import Product
@@ -281,6 +288,11 @@ class OrderStatusUpdateView(generics.UpdateAPIView):
 
         if new_status == 'cancelled':
             order.cancel()
+        elif new_status == 'delivered':
+            # Фиксируем момент доставки - от него Ф23 отсчитывает срок возврата.
+            order.status = new_status
+            order.delivered_at = timezone.now()
+            order.save(update_fields=['status', 'delivered_at', 'updated_at'])
         else:
             order.status = new_status
             order.save(update_fields=['status', 'updated_at'])
@@ -318,3 +330,229 @@ class OrderCancelView(APIView):
         notify(order.buyer, 'order.cancelled', {'order_id': order.id}, category='order')
 
         return Response(OrderSerializer(order).data)
+
+
+# ------------------- Возвраты (Ф23) -------------------
+
+def notify_return_status(return_request, status):
+    """Уведомление покупателю о смене статуса возврата через центр (Ф25).
+
+    Возврат - транзакционная категория (человек обязан узнать решение по заявке),
+    e-mail/лента/колокольчик собирает notify() сам через on_commit (S8). Богатые
+    каналы - уже в Ф25, тут просто переиспользуем центр, не свою Celery-задачу.
+    """
+    notify(
+        return_request.buyer, f'return.{status}',
+        {'return_id': return_request.id, 'order_id': return_request.order_id},
+        category='order',
+    )
+
+
+class ReturnListCreateView(APIView):
+    """Покупатель: создать заявку на возврат и посмотреть свои возвраты (1.14).
+
+    Создание сделано в APIView вручную (как OrderFromCartView), а не nested-
+    сериализатором: позиции приходят списком, фото - файлом (multipart), валидаций
+    много (свой+delivered+срок+один продавец+кол-во+не повтор) - явный код читаемее.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        qs = (
+            ReturnRequest.objects
+            .filter(buyer=request.user)
+            .prefetch_related('items__order_item')
+        )
+        return Response(ReturnRequestSerializer(qs, many=True).data)
+
+    def post(self, request):
+        # 1. Заказ - свой и доставленный (паттерн «если купил» + развязка с Ф9).
+        try:
+            order = Order.objects.get(pk=request.data.get('order'), buyer=request.user)
+        except (Order.DoesNotExist, ValueError, TypeError):
+            return Response({'error': 'Заказ не найден'}, status=404)
+        if order.status != Order.STATUS_DELIVERED:
+            return Response(
+                {'error': 'Возврат доступен только для доставленных заказов'}, status=400
+            )
+
+        # 2. Срок возврата (settings.RETURN_PERIOD_DAYS дней с даты доставки).
+        within_period = (
+            order.delivered_at is not None
+            and timezone.now() - order.delivered_at <= timedelta(days=settings.RETURN_PERIOD_DAYS)
+        )
+        if not within_period:
+            return Response(
+                {'error': f'Срок возврата ({settings.RETURN_PERIOD_DAYS} дней) истёк'}, status=400
+            )
+
+        # 3. Причина/способ - из набора choices (мусор с фронта не пропускаем).
+        reason = request.data.get('reason')
+        if reason not in dict(ReturnRequest.REASON_CHOICES):
+            return Response({'error': 'Укажите причину возврата'}, status=400)
+        method = request.data.get('method', ReturnRequest.METHOD_PICKUP)
+        if method not in dict(ReturnRequest.METHOD_CHOICES):
+            return Response({'error': 'Недопустимый способ возврата'}, status=400)
+        # UGC: ограничиваем длину, чтобы не положить хранилище; показ как текст (§8).
+        reason_text = (request.data.get('reason_text') or '').strip()[:2000]
+
+        # 4. Позиции: список или JSON-строка (multipart c фото).
+        raw_items = request.data.get('items')
+        if isinstance(raw_items, str):
+            try:
+                raw_items = json.loads(raw_items)
+            except ValueError:
+                raw_items = None
+        if not raw_items or not isinstance(raw_items, list):
+            return Response({'error': 'Выберите позиции для возврата'}, status=400)
+
+        order_items = {oi.id: oi for oi in order.items.select_related('product')}
+        seller_ids = set()
+        validated = []
+        for it in raw_items:
+            try:
+                oi_id = int(it.get('order_item'))
+                qty = int(it.get('quantity', 1))
+            except (TypeError, ValueError, AttributeError):
+                return Response({'error': 'Некорректная позиция возврата'}, status=400)
+            oi = order_items.get(oi_id)
+            if oi is None:
+                return Response({'error': 'Позиция не из этого заказа'}, status=400)
+            if qty < 1 or qty > oi.quantity:
+                return Response(
+                    {'error': f'Количество к возврату должно быть от 1 до {oi.quantity}'}, status=400
+                )
+            # Удалённый товар: продавца не определить (нет product), заявку не заводим.
+            if oi.product is None:
+                return Response(
+                    {'error': 'Товар снят с продажи, оформить возврат нельзя'}, status=400
+                )
+            seller_ids.add(oi.product.seller_id)
+            validated.append((oi, qty))
+
+        # 5. Мультивендор (S4): одна заявка - один продавец.
+        if len(seller_ids) != 1:
+            return Response(
+                {'error': 'Возврат оформляется по товарам одного продавца - разделите на отдельные заявки'},
+                status=400,
+            )
+
+        # 6. Нельзя дважды вернуть один товар (есть активная заявка по позиции).
+        oi_ids = [oi.id for oi, _ in validated]
+        has_active = ReturnItem.objects.filter(
+            order_item_id__in=oi_ids,
+            return_request__status__in=ReturnRequest.ACTIVE_STATUSES,
+        ).exists()
+        if has_active:
+            return Response(
+                {'error': 'По одной из позиций уже есть активная заявка на возврат'}, status=409
+            )
+
+        with transaction.atomic():
+            req = ReturnRequest.objects.create(
+                order=order, buyer=request.user, seller_id=seller_ids.pop(),
+                reason=reason, reason_text=reason_text, method=method,
+                photo=request.FILES.get('photo'),
+            )
+            for oi, qty in validated:
+                ReturnItem.objects.create(return_request=req, order_item=oi, quantity=qty)
+            # refund_amount - сумма snapshot-цен позиций (эмуляция; реальные деньги Ф30).
+            req.refund_amount = req.compute_refund_amount()
+            req.save(update_fields=['refund_amount'])
+
+        return Response(ReturnRequestSerializer(req).data, status=201)
+
+
+class ReturnDetailView(generics.RetrieveAPIView):
+    """Деталь возврата: владелец-покупатель / владелец-продавец / админ.
+    Сериализатор без PII любой стороны - чужой email/phone не утекает (§8)."""
+    serializer_class = ReturnRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = ReturnRequest.objects.prefetch_related('items__order_item')
+        if user.role == 'admin':
+            return qs
+        return qs.filter(Q(buyer=user) | Q(seller=user))
+
+
+class ReturnDisputeView(APIView):
+    """Покупатель оспаривает ОТКАЗ продавца (rejected -> disputed, §4.2)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            req = ReturnRequest.objects.get(pk=pk, buyer=request.user)
+        except ReturnRequest.DoesNotExist:
+            return Response({'error': 'Заявка не найдена'}, status=404)
+        # Спор - только из состоявшегося отказа (из requested спорить нечего).
+        if req.status != ReturnRequest.STATUS_REJECTED:
+            return Response({'error': 'Оспорить можно только отклонённую заявку'}, status=400)
+        # Решение арбитра финально - повторный спор запрещён (§4.2).
+        if req.arbitrated:
+            return Response({'error': 'Решение по спору окончательное'}, status=409)
+        req.status = ReturnRequest.STATUS_DISPUTED
+        req.save(update_fields=['status', 'updated_at'])
+        return Response(ReturnRequestSerializer(req).data)
+
+
+class SellerReturnListView(generics.ListAPIView):
+    """Продавец: заявки на ЕГО товары (S4 - по денорм. seller). Чужие не видны."""
+    serializer_class = SellerReturnSerializer
+    permission_classes = [IsSellerOrAdmin]
+
+    def get_queryset(self):
+        qs = (
+            ReturnRequest.objects
+            .filter(seller=self.request.user)
+            .select_related('order', 'buyer')
+            .prefetch_related('items__order_item')
+        )
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
+        return qs
+
+
+class SellerReturnUpdateView(APIView):
+    """Продавец ведёт заявку по машине статусов (§4.2): принять/отклонить, приёмка
+    (восстановление стока), refund (эмуляция возврата денег). Только свои (S4)."""
+    permission_classes = [IsSellerOrAdmin]
+
+    # Переходы, доступные продавцу. Спор (rejected->disputed) - покупатель;
+    # арбитраж (disputed->...) - админ. Их продавцу нельзя.
+    SELLER_TRANSITIONS = {
+        ReturnRequest.STATUS_REQUESTED: [ReturnRequest.STATUS_APPROVED, ReturnRequest.STATUS_REJECTED],
+        ReturnRequest.STATUS_APPROVED: [ReturnRequest.STATUS_RECEIVED],
+        ReturnRequest.STATUS_RECEIVED: [ReturnRequest.STATUS_REFUNDED],
+    }
+
+    def patch(self, request, pk):
+        try:
+            req = ReturnRequest.objects.get(pk=pk, seller=request.user)
+        except ReturnRequest.DoesNotExist:
+            return Response({'error': 'Заявка не найдена'}, status=404)
+
+        new_status = request.data.get('status')
+        if new_status not in self.SELLER_TRANSITIONS.get(req.status, []):
+            return Response(
+                {'error': f'Нельзя перевести возврат из "{req.status}" в "{new_status}"'},
+                status=400,
+            )
+
+        if new_status == ReturnRequest.STATUS_RECEIVED:
+            # Приёмка восстанавливает сток атомарно и идемпотентно (двойной клик
+            # не удвоит сток - guard по статусу внутри receive()).
+            if not req.receive():
+                return Response({'error': 'Возврат уже принят'}, status=400)
+        else:
+            if new_status == ReturnRequest.STATUS_REJECTED:
+                comment = (request.data.get('resolution_comment') or '').strip()[:2000]
+                if comment:
+                    req.resolution_comment = comment
+            req.status = new_status
+            req.save()
+
+        notify_return_status(req, new_status)
+        return Response(SellerReturnSerializer(req).data)
