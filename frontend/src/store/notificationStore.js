@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import api from '../api'
 
 // WS-адрес через env (Vite), не хардкод. По умолчанию - локальный node-сервис.
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000'
@@ -7,29 +8,14 @@ const RECONNECT_DELAY_MS = 3000
 let socket = null
 let reconnectTimer = null
 let intentionalClose = false
-let idCounter = 0
+let toastCounter = 0
 
-// Человекочитаемый текст уведомления из события заказа.
-function describe(type, data) {
-  if (type === 'order.created') {
-    return `Заказ #${data.order_id} оформлен`
-  }
-  if (type === 'order.status_changed') {
-    const labels = {
-      pending: 'ожидает',
-      paid: 'оплачен',
-      shipped: 'отправлен',
-      delivered: 'доставлен',
-      cancelled: 'отменён',
-    }
-    const status = labels[data.status] || data.status
-    return `Заказ #${data.order_id}: ${status}`
-  }
-  return 'Новое уведомление'
-}
-
+// Ф25: бэкенд шлёт уже готовое уведомление (title/body/link) через топик
+// user.notification - человекочитаемый текст собирать на клиенте больше не нужно.
 const useNotificationStore = create((set, get) => ({
-  notifications: [],
+  notifications: [], // эфемерные тосты (живой пуш)
+  feed: [],          // персистентная лента колокольчика
+  unread: 0,         // счётчик непрочитанных
   connected: false,
 
   connect: () => {
@@ -57,13 +43,22 @@ const useNotificationStore = create((set, get) => ({
       }
       if (msg.type === 'auth_ok') {
         set({ connected: true })
+        // На свежем соединении подтянуть актуальный счётчик непрочитанных.
+        get().fetchUnread()
         return
       }
-      if (msg.type === 'order.created' || msg.type === 'order.status_changed') {
-        const note = { id: ++idCounter, text: describe(msg.type, msg.data) }
-        set((state) => ({ notifications: [...state.notifications, note] }))
-        // Авто-скрытие через 6 секунд.
-        setTimeout(() => get().dismiss(note.id), 6000)
+      if (msg.type === 'user.notification') {
+        const n = msg.data
+        if (!n || n.id == null) return
+        const toast = { id: ++toastCounter, text: n.title, link: n.link }
+        set((state) => ({
+          // В ленту - сверху, без дубля по id (на случай повторной доставки).
+          feed: [n, ...state.feed.filter((f) => f.id !== n.id)],
+          unread: state.unread + (n.is_read ? 0 : 1),
+          notifications: [...state.notifications, toast],
+        }))
+        // Авто-скрытие тоста через 6 секунд.
+        setTimeout(() => get().dismiss(toast.id), 6000)
       }
     }
 
@@ -92,11 +87,55 @@ const useNotificationStore = create((set, get) => ({
       socket.close()
       socket = null
     }
-    set({ connected: false, notifications: [] })
+    set({ connected: false, notifications: [], feed: [], unread: 0 })
   },
 
   dismiss: (id) => {
     set((state) => ({ notifications: state.notifications.filter((n) => n.id !== id) }))
+  },
+
+  // Счётчик непрочитанных (бейдж колокольчика). Тихо игнорируем ошибку - бейдж
+  // не критичен, не роняем UI.
+  fetchUnread: async () => {
+    try {
+      const res = await api.get('/notifications/unread-count/')
+      set({ unread: res.data?.count ?? 0 })
+    } catch {
+      /* счётчик не критичен */
+    }
+  },
+
+  // Лента (дропдаун колокольчика). Пагинированный ответ DRF -> results.
+  fetchFeed: async () => {
+    try {
+      const res = await api.get('/notifications/')
+      const items = Array.isArray(res.data) ? res.data : res.data?.results || []
+      set({ feed: items })
+    } catch {
+      /* лента подтянется при следующем открытии */
+    }
+  },
+
+  markRead: async (id) => {
+    // Оптимистично гасим непрочитанность, затем подтверждаем на сервере.
+    set((state) => ({
+      feed: state.feed.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+      unread: Math.max(0, state.unread - (state.feed.find((n) => n.id === id && !n.is_read) ? 1 : 0)),
+    }))
+    try {
+      await api.post(`/notifications/${id}/read/`)
+    } catch {
+      /* при ошибке счётчик восстановится на следующем fetchUnread */
+    }
+  },
+
+  markAllRead: async () => {
+    set((state) => ({ feed: state.feed.map((n) => ({ ...n, is_read: true })), unread: 0 }))
+    try {
+      await api.post('/notifications/read-all/')
+    } catch {
+      /* no-op */
+    }
   },
 }))
 

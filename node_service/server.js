@@ -112,16 +112,19 @@ wss.on('connection', (ws) => {
 
 async function startConsumer() {
   await consumer.connect();
-  await consumer.subscribe({ topics: ['order.created', 'order.status_changed'] });
+  // Ф25: единый топик уведомлений. Центр notify() публикует {recipient_id, notification};
+  // роутим по recipient_id (обобщение прежнего buyer_id), id берётся из проверенного
+  // на бэке получателя - клиент чужой id подделать не может (S5).
+  await consumer.subscribe({ topics: ['user.notification'] });
 
   await consumer.run({
-    eachMessage: async ({ topic, message }) => {
+    eachMessage: async ({ message }) => {
       const data = JSON.parse(message.value.toString());
-      const userId = String(data.buyer_id || '');
+      const userId = String(data.recipient_id || '');
       const sockets = clients.get(userId);
       if (!sockets) return;
 
-      const out = JSON.stringify({ type: topic, data });
+      const out = JSON.stringify({ type: 'user.notification', data: data.notification });
       for (const ws of sockets) {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(out);

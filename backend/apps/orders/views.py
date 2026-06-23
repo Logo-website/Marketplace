@@ -6,11 +6,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Order, OrderItem
 from .serializers import OrderSerializer, OrderCreateSerializer, SellerOrderSerializer
-from .tasks import send_order_confirmation_email, send_order_status_email
 from apps.permissions import IsSellerOrAdmin
 from apps.cart.cart import get_cart, clear_cart, remove_keys, cart_key, parse_cart_key
 from apps.products.models import Product
-from services.kafka_service import KafkaService
+from apps.notifications.services import notify
 from services.clickhouse_service import ClickHouseService
 
 logger = logging.getLogger(__name__)
@@ -72,14 +71,16 @@ def on_order_created(order):
     """
     order_id = order.id
     buyer_id = order.buyer_id
-    buyer_email = order.buyer.email
     total = str(order.total_price)
     product_ids = [item.product_id for item in order.items.all() if item.product_id]
 
     def dispatch():
         try:
-            send_order_confirmation_email.delay(order_id, buyer_email, total)
-            KafkaService.order_created(order)
+            # Единое письмо + лента + живой колокольчик через центр уведомлений (Ф25).
+            # category='order' - транзакционное, доходит всегда. notify сам ставит
+            # e-mail/WS через on_commit (здесь мы уже после коммита заказа).
+            notify(order.buyer, 'order.created', {'order_id': order_id, 'total': total},
+                   category='order')
             for product_id in product_ids:
                 ClickHouseService.log_purchase(buyer_id, product_id, order_id)
         except Exception as e:
@@ -284,12 +285,9 @@ class OrderStatusUpdateView(generics.UpdateAPIView):
             order.status = new_status
             order.save(update_fields=['status', 'updated_at'])
 
-        try:
-            send_order_status_email.delay(order.id, order.buyer.email, new_status)
-        except Exception as e:
-            logger.error(f'Status email error: {e}')
-
-        KafkaService.order_status_changed(order)
+        # Лента + одно письмо + живой колокольчик через центр (Ф25).
+        notify(order.buyer, f'order.{new_status}', {'order_id': order.id},
+               category='order')
 
         return Response(OrderSerializer(order).data)
 
@@ -316,11 +314,7 @@ class OrderCancelView(APIView):
         if not cancelled:
             return Response({'error': 'Заказ уже отменён'}, status=400)
 
-        try:
-            send_order_status_email.delay(order.id, order.buyer.email, 'cancelled')
-        except Exception as e:
-            logger.error(f'Cancel email error: {e}')
-
-        KafkaService.order_status_changed(order)
+        # Лента + одно письмо + живой колокольчик через центр (Ф25).
+        notify(order.buyer, 'order.cancelled', {'order_id': order.id}, category='order')
 
         return Response(OrderSerializer(order).data)

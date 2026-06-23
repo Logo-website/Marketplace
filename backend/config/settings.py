@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'apps.products',
     'apps.orders',
     'apps.cart',
+    'apps.notifications',
     'django_celery_results',
     'drf_spectacular',
     'rest_framework_simplejwt.token_blacklist',
@@ -126,7 +127,8 @@ CELERY_RESULT_BACKEND = 'django-db'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@marketplace.com')
-# Письма идут через Resend SDK напрямую (apps/orders/tasks.py), Django-backend не используется.
+# Письма идут через Resend SDK напрямую (apps/notifications/tasks.py - центр Ф25;
+# apps/users - OTP), Django email-backend не используется.
 KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:9092')
 CLICKHOUSE_HOST = os.getenv('CLICKHOUSE_HOST', 'clickhouse')
 CLICKHOUSE_PORT = int(os.getenv('CLICKHOUSE_PORT', 9000))
@@ -179,6 +181,10 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
 }
 RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
+
+# Базовый URL для абсолютных ссылок в письмах (one-click отписка, Ф25). Дефолт -
+# локальный API; в проде задаётся через окружение.
+SITE_URL = os.getenv('SITE_URL', 'http://localhost:8001')
 
 # CORS: явный белый список origin фронтенда (S16).
 # Запрос без Origin (curl/мобайл) проходит - CORS касается только браузерных запросов.

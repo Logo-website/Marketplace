@@ -4,10 +4,11 @@ import api from '../../api'
 import useAuthStore from '../../store/authStore'
 import { toast } from '../../store/toastStore'
 
-// Группы тумблеров (Ф10). Ключи совпадают с NOTIFICATION_KEYS на бэке. Хранение
-// здесь, реальная отправка - Ф25 (в UI честно помечено).
+// Группы тумблеров (Ф10). Ключи совпадают с NOTIFICATION_KEYS на бэке; движок
+// отправки - Ф25. «Заказы» транзакционные: статус своего заказа приходит всегда
+// (отключить нельзя), поэтому тумблеров у строки нет.
 const GROUPS = [
-  { title: 'Заказы', description: 'Статусы и подтверждения заказов', email: 'orders_email', push: 'orders_push' },
+  { title: 'Заказы', description: 'Статусы и подтверждения заказов', transactional: true },
   { title: 'Акции и скидки', description: 'Новости и спецпредложения', email: 'promos_email', push: 'promos_push' },
   { title: 'Цена и наличие', description: 'Снижение цены, поступление товара', email: 'price_email', push: 'price_push' },
 ]
@@ -47,7 +48,7 @@ export default function NotificationsTab() {
   return (
     <motion.div key="notifications" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <h2 className="text-xl font-black text-gray-900 mb-1">Уведомления</h2>
-      <p className="text-sm text-gray-400 mb-5">Выберите, о чём вам сообщать. Рассылки заработают в одном из следующих обновлений.</p>
+      <p className="text-sm text-gray-400 mb-5">Выберите, о чём вам сообщать. Уведомления о заказах приходят всегда.</p>
 
       <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
         <div className="hidden sm:flex items-center px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">
@@ -61,8 +62,14 @@ export default function NotificationsTab() {
               <p className="font-semibold text-gray-800 text-sm">{g.title}</p>
               <p className="text-xs text-gray-400">{g.description}</p>
             </div>
-            <div className="w-16 flex justify-center"><Toggle checked={!!prefs[g.email]} onChange={() => toggle(g.email)} /></div>
-            <div className="w-16 flex justify-center"><Toggle checked={!!prefs[g.push]} onChange={() => toggle(g.push)} /></div>
+            {g.transactional ? (
+              <div className="w-32 text-center text-xs font-medium text-gray-400">Всегда включено</div>
+            ) : (
+              <>
+                <div className="w-16 flex justify-center"><Toggle checked={!!prefs[g.email]} onChange={() => toggle(g.email)} /></div>
+                <div className="w-16 flex justify-center"><Toggle checked={!!prefs[g.push]} onChange={() => toggle(g.push)} /></div>
+              </>
+            )}
           </div>
         ))}
       </div>

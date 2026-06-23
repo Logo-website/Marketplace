@@ -68,15 +68,15 @@ There is **no GraphQL**. Payment processing is **not implemented** (orders are c
    ClickHouse (events)          Kafka ──► node_service (WebSocket :3000)
 ```
 
-- **REST**: all business logic exposed under `/api/` (auth, products, orders, cart).
-- **WebSocket**: `node_service` subscribes to Kafka topics `order.created` and `order.status_changed` and pushes JSON to **authenticated** clients. A client sends a JWT in the first WS message (verified with the shared `DJANGO_SECRET_KEY`, HS256); the connection is bound to a user only after the token is validated, and `user_id` is taken from the token — never from the query string. The React app connects after login and shows live order toasts.
+- **REST**: all business logic exposed under `/api/` (auth, products, orders, cart, notifications).
+- **WebSocket**: `node_service` subscribes to the Kafka topic `user.notification` and pushes JSON to **authenticated** clients. A client sends a JWT in the first WS message (verified with the shared `DJANGO_SECRET_KEY`, HS256); the connection is bound to a user only after the token is validated, and the message is routed by `recipient_id` — never from the query string. The React app connects after login and shows live notification toasts and a bell feed.
 - **Data**: persistent entities in PostgreSQL; cart in Redis; search index in Elasticsearch; analytics events in ClickHouse.
 
 ---
 
 ## Backend
 
-Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, `cart`.
+Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, `cart`, `notifications`.
 
 ### Authentication
 - Email-based users (`AUTH_USER_MODEL = users.User`) with roles: `buyer`, `seller`, `admin`.
@@ -103,15 +103,21 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 - Buyer cancel: `POST /api/orders/{id}/cancel/` (`created` or `paid` only); restores stock via `Order.cancel()`.
 - Seller/admin status updates with allowed transitions; cancellation restores stock. A seller may change status only for orders where **every** item is theirs; mixed-seller orders are admin-only (prevents one seller from cancelling another's items).
 - Seller order desk (`/api/orders/seller/`): read-only list/detail of orders containing the seller's items, showing only own items, own-items total and recipient name/address (buyer email/phone withheld). Mixed orders are read-only (`can_update_status=false`); status changes reuse the existing `PATCH /api/orders/{id}/status/`.
-- Side effects (`on_order_created`): Celery email, Kafka event, ClickHouse purchase log.
+- Side effects (`on_order_created`): notification through the central engine (feed + one email + live WS), ClickHouse purchase log.
 
 ### Cart
 - Redis-backed (`apps/cart/cart.py`), 7-day TTL. Authenticated users only; guests keep the cart in the browser (`localStorage`).
 - Composite line key `product_id|size|color` (one product in two sizes = two lines); add/set-quantity/remove/clear with stock checks.
 - Merge guest cart into the server cart on login: `POST /api/cart/merge/` (sums quantities, clamps to stock, skips unavailable).
 
+### Notifications
+- Central engine `notify(user, event, context)` (`apps/notifications/`): persists an on-site feed item (the bell), pushes it live over WebSocket (Kafka `user.notification`), and emails it (Resend) according to the user's `notification_prefs`.
+- Categories split **transactional** (order status — always delivered, can't be disabled) from **marketing** (promos/price — opt-in, default off); one-click unsubscribe via a signed token (Django `signing`), email only to `user.email`, UGC escaped in HTML.
+- Segmented broadcasts (`Broadcast`): an admin sends to a segment (all / buyers / sellers) from Django Admin; Celery fans out in batches, respecting opt-out.
+- Forward hooks (registry + TODO) for events whose producers land in later phases: review/question answered, price drop/restock, brand news. SMS/push is a stub provider (no real gateway in scope).
+
 ### Background tasks
-- Celery tasks: order confirmation/status emails (`apps/orders/tasks.py`), Kafka order events, ClickHouse analytics (`track_event`), and the periodic co-purchase matrix rebuild (`build_copurchase_matrix`, hourly via beat). Order side effects are dispatched through `transaction.on_commit` for commit-safety.
+- Celery tasks: notification emails and segmented broadcast fan-out (`apps/notifications/tasks.py`), Kafka event publishing (`apps/orders/tasks.py`), ClickHouse analytics (`track_event`), and the periodic co-purchase matrix rebuild (`build_copurchase_matrix`, hourly via beat). Order side effects are dispatched through `transaction.on_commit` for commit-safety.
 
 ### Key API endpoints
 
@@ -174,6 +180,11 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Orders | GET | `/api/orders/seller/{id}/` | Seller / admin (own items only, 404 otherwise) |
 | Cart | GET/POST/PUT/DELETE | `/api/cart/` | Authenticated (guests use a local cart) |
 | Cart | POST | `/api/cart/merge/` | Authenticated (merge guest cart on login) |
+| Notifications | GET | `/api/notifications/` | Authenticated (own feed, paginated) |
+| Notifications | GET | `/api/notifications/unread-count/` | Authenticated |
+| Notifications | POST | `/api/notifications/{id}/read/` | Authenticated (own; 404 otherwise) |
+| Notifications | POST | `/api/notifications/read-all/` | Authenticated |
+| Notifications | GET | `/api/notifications/unsubscribe/{token}/` | Public (signed one-click unsubscribe) |
 | Docs | GET | `/api/docs/` | Authenticated by default |
 | Admin | — | `/admin/` | Django admin (`is_staff`) |
 
@@ -229,7 +240,8 @@ marketplace/
 │   │   ├── users/          # User, OTP, auth API
 │   │   ├── products/       # Catalog, search, reviews, analytics
 │   │   ├── orders/         # Orders, Celery tasks
-│   │   └── cart/           # Redis cart API
+│   │   ├── cart/           # Redis cart API
+│   │   └── notifications/  # Notification feed, preferences, broadcasts
 │   ├── config/             # settings, urls, celery, wsgi
 │   ├── services/           # KafkaService, ClickHouseService (lazy clients, single layer)
 │   ├── import_products.py  # CSV seed script
@@ -329,6 +341,7 @@ Copy from [`.env.example`](.env.example). Do not commit real secrets.
 | `CPP_SERVICE_TIMEOUT` | No | Recommender HTTP timeout, seconds (then fallback) | `1.5` |
 | `RECOMMENDER_MATRIX_PATH` | No | Shared co-purchase matrix file (Celery writes, C++ reads) | `/data/copurchase_matrix.txt` |
 | `VITE_WS_URL` | No | Frontend build-time WebSocket URL (`node_service`) | `ws://localhost:3000` |
+| `SITE_URL` | No | Base URL for absolute links in emails (unsubscribe) | `http://localhost:8001` |
 | `RESEND_API_KEY` | Yes* | Resend API key for OTP and order emails | `re_...` |
 | `DEFAULT_FROM_EMAIL` | No | Sender address (must be allowed in Resend) | `noreply@marketplace.com` |
 
@@ -392,6 +405,7 @@ cd backend && pytest
 | `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge), seller reply to reviews and feedback aggregation (ownership 403, role gate, answered filter/sort, reply shown on card), moderation (admin-only queue, approve→catalog, reject with reason, 409 on repeat, audit fields, reason cleared on resubmit, admin-actions), complaints and UGC moderation (report create with dedup/404/400, admin-only queue with PII-minimized target preview, resolve hides review and drops it from rating, dismiss, proactive hide/unhide, Q&A hide removes from public, active product take-down with ES de-index, moderation product delegates to reject, seller report not blocked) |
 | `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization, selected-subset checkout, variant snapshot, seller order list/detail (ownership, status filter, mixed-order read-only, buyer PII not leaked) |
 | `apps/cart/tests.py` | Cart add/get/set-quantity/remove/clear with stock checks, inactive product, auth, variant lines, guest-cart merge (clamp/sum/skip), batch by ids |
+| `apps/notifications/tests/test_notifications.py` | Notifications: `notify()` feed row, template render and UGC escaping, unknown-event safe default, transactional email always vs marketing opt-out, signed unsubscribe token (valid/forged), feed isolation (no foreign read/mark → 404), unread-count and mark-all, order create end-to-end through the center (one email, no dup), broadcast opt-out and segment filter |
 
 Frontend: **Vitest** - `cd frontend && npm test`. Unit test of the pure size-matching function `src/utils/sizeMatch.test.js` (Ф5).
 

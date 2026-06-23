@@ -81,7 +81,7 @@ function PageWrapper({ children }) {
 export default function App() {
   const { fetchProfile, isAuthenticated } = useAuthStore()
   const { fetchCart } = useCartStore()
-  const { connect, disconnect } = useNotificationStore()
+  const { connect, disconnect, fetchUnread } = useNotificationStore()
 
   useEffect(() => {
     // Корзину грузим всегда: гостю - из localStorage (счётчик в шапке), Ф8.
@@ -89,6 +89,8 @@ export default function App() {
     if (isAuthenticated) {
       fetchProfile()
       connect()
+      // Счётчик колокольчика - сразу при входе (не ждём WS, он может быть недоступен).
+      fetchUnread()
     }
     // Закрываем WS при размонтировании/смене статуса - реальный logout
     // дополнительно зовёт disconnect из authStore.

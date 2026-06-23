@@ -256,12 +256,9 @@ export default function Header() {
                 <CitySelector />
               </div>
 
-              {/* Колокольчик - только залогиненным (десктоп) */}
-              {isAuthenticated && (
-                <div className="hidden md:block">
-                  <NotificationBell />
-                </div>
-              )}
+              {/* Колокольчик - только залогиненным; виден и на мобильном
+                  (лента доступна везде, дропдаун адаптивен - max-w-[90vw]). */}
+              {isAuthenticated && <NotificationBell />}
 
               {/* Избранное */}
               <Link to="/wishlist">

@@ -50,25 +50,18 @@ def publish_event(topic, data):
 
 class KafkaService:
     """
-    Единая точка входа для вещания событий заказа из веб-процесса.
+    Единая точка входа для вещания событий из веб-процесса.
     Ставит задачу в Celery (S8); `.delay()` обёрнут в try/except, чтобы недоступный
     брокер не ронял ответ.
     """
 
     @staticmethod
-    def order_created(order):
-        KafkaService._dispatch('order.created', {
-            'order_id': order.id,
-            'buyer_id': order.buyer_id,
-            'total': str(order.total_price),
-        })
-
-    @staticmethod
-    def order_status_changed(order):
-        KafkaService._dispatch('order.status_changed', {
-            'order_id': order.id,
-            'status': order.status,
-            'buyer_id': order.buyer_id,
+    def user_notification(recipient_id, payload):
+        """Живой колокольчик (Ф25): уведомление по пользователю. node_service роутит
+        по recipient_id (обобщение buyer_id), отдаёт клиенту payload как user.notification."""
+        KafkaService._dispatch('user.notification', {
+            'recipient_id': recipient_id,
+            'notification': payload,
         })
 
     @staticmethod
