@@ -36,6 +36,7 @@ from .views import (
     BrandStorefrontView,
     BrandReviewListCreateView,
     BrandFollowView,
+    BrandListView,
 )
 
 urlpatterns = [
@@ -45,6 +46,9 @@ urlpatterns = [
     path('search/', ProductSearchView.as_view(), name='product-search'),
     path('autocomplete/', AutocompleteView.as_view(), name='product-autocomplete'),
     path('recommendations/', RecommendationsView.as_view(), name='recommendations'),
+    # Ф21 (узел 1.22): каталог брендов - индекс продавцов с активными товарами.
+    # Литерал brands/ до <int:pk>/ и до brand/<int:pk>/ - не конфликтует.
+    path('brands/', BrandListView.as_view(), name='brand-list'),
     # Ф20 (узел 1.21): витрина бренда. Литерал brand/ до <int:pk>/ - не
     # конфликтует. Профиль + отзывы о продавце + подписка (toggle/статус).
     path('brand/<int:pk>/', BrandStorefrontView.as_view(), name='brand-detail'),

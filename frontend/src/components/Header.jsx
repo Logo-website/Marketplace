@@ -101,6 +101,14 @@ export default function Header() {
               <CatalogMenu />
             </div>
 
+            {/* Бренды (Ф21, узел 1.22) - второй главный вход в товар, через марку */}
+            <Link
+              to="/brands"
+              className="hidden lg:flex items-center px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-semibold shrink-0"
+            >
+              Бренды
+            </Link>
+
             {/* Поиск */}
             <form onSubmit={handleSearch} className="flex-1 max-w-2xl relative" ref={searchRef}>
               <div className="relative">

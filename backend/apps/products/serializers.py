@@ -569,6 +569,48 @@ class BrandSerializer(serializers.ModelSerializer):
         return self.context.get('products_count', 0)
 
 
+class BrandListSerializer(serializers.ModelSerializer):
+    """Строка каталога брендов (Ф21, узел 1.22). Узкий публичный сериализатор
+    БЕЗ PII (S17, план §9): только публичное имя магазина, лого, агрегаты. id -
+    лишь ключ перехода на витрину /brand/:id (Ф20), не контакт.
+
+    rating/reviews_count = денормализованный рейтинг ПРОДАВЦА (seller_rating из
+    SellerReview), а не среднее рейтингов товаров: один источник истины с витриной
+    Ф20 (план §4.2, решение аудита). reviews_count=0 -> карточка показывает «нет
+    оценок», не «0.0». product_count - число активных товаров, считает вьюха
+    аннотацией (Count) и кладёт атрибутом на инстанс (без N+1)."""
+    name = serializers.SerializerMethodField()
+    logo = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    product_count = serializers.IntegerField(read_only=True)
+    rating = serializers.FloatField(source='seller_rating', read_only=True)
+    reviews_count = serializers.IntegerField(source='seller_reviews_count', read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'logo', 'description', 'product_count',
+                  'rating', 'reviews_count']
+
+    def get_name(self, obj):
+        # Тот же fallback, что seller_name в каталоге: пустой shop_name -> username,
+        # не пустая карточка и не email (S17).
+        return obj.shop_name or obj.username
+
+    def get_logo(self, obj):
+        # Логотип магазина (Ф11), при отсутствии - аватар (план §4.2, §11):
+        # на сид-данных без профиля карточка всё равно получает изображение.
+        p = _seller_profile(obj)
+        if p and p.shop_logo:
+            return p.shop_logo.url
+        return obj.avatar.url if obj.avatar else None
+
+    def get_description(self, obj):
+        # Краткое описание - forward-гейт на Ф11 (план §4.2): есть профиль с
+        # описанием -> отдаём, иначе пусто (текст не выдумываем).
+        p = _seller_profile(obj)
+        return p.shop_description if p else ''
+
+
 # Лимит длины отзыва о продавце (граничный случай плана §5): пустое -> 400,
 # очень длинное -> 400, как QA_TEXT_MAX/SELLER_REPLY_MAX в других сущностях.
 SELLER_REVIEW_TEXT_MAX = 2000

@@ -161,6 +161,7 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Products | POST | `/api/products/reviews/{id}/hide/`, `/unhide/` | Admin (proactively hide/restore a review) |
 | Products | POST | `/api/products/questions/{id}/hide/`, `/unhide/` | Admin (hide/restore a question) |
 | Products | POST | `/api/products/answers/{id}/hide/`, `/unhide/` | Admin (hide/restore an answer) |
+| Products | GET | `/api/products/brands/` | Public (brand index; sellers with active products, `?q=`/`?category=`/`?sort=alpha\|popular\|new`) |
 | Products | GET | `/api/products/brand/{id}/` | Public (brand storefront profile; 404 if not an active seller) |
 | Products | GET/POST | `/api/products/brand/{id}/reviews/` | GET public, POST authenticated + purchased (seller reviews) |
 | Products | GET/POST | `/api/products/brand/{id}/follow/` | GET status (public), POST authenticated (toggle subscription, not self) |
@@ -192,6 +193,7 @@ SPA in `frontend/`. Dev server proxies `/api` to `http://localhost:8001` (see `v
 | `/` | Home — product list, categories, sorting | Public |
 | `/search` | Search (Elasticsearch via API) | Public |
 | `/products/:id` | Product detail, reviews, add to cart | Public |
+| `/brands` | Brand catalog — index of marks, search, alphabet/category, "new brands" | Public |
 | `/brand/:id` | Brand storefront — header, product lane (filters/sort), seller reviews, follow | Public |
 | `/login`, `/register` | OTP-based auth flows | Public |
 | `/forgot-password` | Password reset OTP | Public |

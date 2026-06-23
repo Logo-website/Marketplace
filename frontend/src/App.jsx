@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ProductPage from './pages/ProductPage'
 import BrandPage from './pages/BrandPage'
+import BrandsPage from './pages/BrandsPage'
 import SearchPage from './pages/SearchPage'
 import CartPage from './pages/CartPage'
 import ProfilePage from './pages/ProfilePage'
@@ -112,6 +113,8 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/products/:id" element={<ProductPage />} />
+              {/* Каталог брендов (Ф21) - публичный индекс марок, открыт гостю. */}
+              <Route path="/brands" element={<BrandsPage />} />
               {/* Витрина бренда (Ф20) - публичная, открыта гостю и покупателю. */}
               <Route path="/brand/:id" element={<BrandPage />} />
               <Route path="/search" element={<SearchPage />} />

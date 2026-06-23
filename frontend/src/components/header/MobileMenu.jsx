@@ -41,6 +41,15 @@ export default function MobileMenu({ isAuthenticated, user, onLogout }) {
           >
             <CatalogMenu embedded onNavigate={close} />
 
+            {/* Бренды (Ф21, узел 1.22) - вход в каталог марок */}
+            <Link
+              to="/brands"
+              onClick={close}
+              className="px-4 py-2.5 rounded-xl bg-gray-100 text-[#111] text-sm font-semibold text-center"
+            >
+              Бренды
+            </Link>
+
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Город</span>
               {/* CitySelector тёмный по стилю - оборачиваем в тёмный чип для контраста */}

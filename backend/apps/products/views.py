@@ -1,6 +1,7 @@
 import requests
 from django.conf import settings
-from django.db.models import Case, Count, IntegerField, Prefetch, Q, Value, When
+from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Prefetch, Q, Value, When
+from django.db.models.functions import Coalesce, Lower, NullIf
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, filters
@@ -17,8 +18,8 @@ from .serializers import (
     QuestionSerializer, QuestionCreateSerializer, AnswerCreateSerializer,
     SellerReviewSerializer, ReviewReplySerializer, SellerQuestionSerializer,
     RejectionSerializer, ReportCreateSerializer, ReportSerializer,
-    BrandSerializer, BrandReviewSerializer, BrandReviewCreateSerializer,
-    RESOLUTION_NOTE_MAX,
+    BrandSerializer, BrandListSerializer, BrandReviewSerializer,
+    BrandReviewCreateSerializer, RESOLUTION_NOTE_MAX,
 )
 from .search import search_products, autocomplete, index_product, delete_product, PRICE_RANGES
 from .size_charts import get_size_chart
@@ -1115,3 +1116,64 @@ class BrandFollowView(APIView):
             follow.delete()
         # TODO Ф25: уведомление подписчику о новинках/акциях - отдельная фаза.
         return Response({'following': created})
+
+
+# === Ф21. Каталог брендов (узел 1.22) ===
+
+# Сортировки каталога брендов: ключ из ?sort= -> поле order_by. alpha по умолчанию
+# (узел 1.22 «алфавитный список»). new питает подборку «новые бренды» (по дате
+# регистрации продавца), popular - по числу товаров и рейтингу продавца.
+BRAND_SORTS = ('alpha', 'popular', 'new')
+
+
+class BrandListView(generics.ListAPIView):
+    """Индекс брендов (Ф21, узел 1.22). Бренд = User(role=seller) с хотя бы одним
+    активным товаром (пустую витрину открывать незачем, §4.1). Публичный (AllowAny),
+    как каталог. БЕЗ PII (S17, §9): BrandListSerializer не отдаёт email/phone.
+
+    product_count - аннотация Count активных товаров (один запрос, без N+1).
+    Категорийный фильтр - через Exists (подзапрос не размножает строки и не ломает
+    Count, ловушка multi-valued relations §4.2). Поиск ?q= по имени магазина/логину,
+    сортировка ?sort=alpha|popular|new, пагинация - глобальная (PAGE_SIZE=20)."""
+    serializer_class = BrandListSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        params = self.request.query_params
+        active_products = Q(products__status='active')
+        qs = (
+            User.objects.filter(role='seller', is_active=True)
+            # seller_profile (Ф11) - reverse OneToOne; логотип/описание карточки
+            # берутся из него. select_related, иначе сериализатор тянет профиль
+            # по продавцу = N+1 на список (критерий «один запрос», §4.2/§10).
+            .select_related('seller_profile')
+            .annotate(product_count=Count('products', filter=active_products, distinct=True))
+            .filter(product_count__gt=0)
+        )
+
+        # Категория: бренды, у кого есть активный товар в ней (Exists, не JOIN -
+        # product_count остаётся «всего активных товаров», §4.2). Нечисло -> игнор.
+        category_id = params.get('category')
+        if category_id and category_id.isdigit():
+            qs = qs.filter(Exists(
+                Product.objects.filter(
+                    seller=OuterRef('pk'), status='active', category_id=int(category_id)
+                )
+            ))
+
+        # Поиск по публичному имени: shop_name или username (icontains), без PII.
+        q = (params.get('q') or '').strip()
+        if q:
+            qs = qs.filter(Q(shop_name__icontains=q) | Q(username__icontains=q))
+
+        sort = params.get('sort', 'alpha')
+        if sort == 'popular':
+            return qs.order_by('-product_count', '-seller_rating', 'id')
+        if sort == 'new':
+            return qs.order_by('-date_joined', 'id')
+        # alpha (дефолт и неизвестный ключ): по имени бренда без учёта регистра.
+        # display_name = shop_name, а если пустой - username (тот же fallback, что
+        # в выдаче имени), чтобы продавцы без shop_name не «всплывали» пустыми.
+        return qs.annotate(
+            display_name=Coalesce(NullIf('shop_name', Value('')), 'username')
+        ).order_by(Lower('display_name'), 'id')
