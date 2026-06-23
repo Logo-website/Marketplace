@@ -17,6 +17,7 @@ from apps.permissions import IsSellerOrAdmin
 from apps.cart.cart import get_cart, clear_cart, remove_keys, cart_key, parse_cart_key
 from apps.products.models import Product
 from apps.notifications.services import notify
+from apps.legal.services import generate_receipt
 from services.clickhouse_service import ClickHouseService
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,16 @@ def on_order_created(order):
     total = str(order.total_price)
     product_ids = [item.product_id for item in order.items.all() if item.product_id]
 
+    # Чек 54-ФЗ (Ф26, §4.5) - СИНХРОННО, до on_commit-dispatch: чек должен попасть
+    # в ответ (экран «спасибо» показывает его сразу), а on_commit-callback отработал
+    # бы уже после сериализации ответа. Идемпотентно (get_or_create), реальной
+    # оплаты нет - чек привязан к созданию заказа (карта 4.5). Сбой генерации не
+    # должен ронять заказ - заказ важнее чека (§5).
+    try:
+        generate_receipt(order)
+    except Exception as e:
+        logger.error(f'generate_receipt error for order {order_id}: {e}')
+
     def dispatch():
         try:
             # Единое письмо + лента + живой колокольчик через центр уведомлений (Ф25).
@@ -119,6 +130,16 @@ class OrderFromCartView(APIView):
         cart = get_cart(request.user.id)
         if not cart:
             return Response({'error': 'Корзина пуста'}, status=400)
+
+        # Согласие с офертой/политикой (Ф26, §4.6) - дословный критерий карты «без
+        # них нельзя принимать оплату». Серверный guard на пути оформления (UX оплаты):
+        # без подтверждения заказ не создаётся. Сам факт согласия не храним
+        # (минимизация ПДн, §11 в.3) - проверяем флаг запроса.
+        if not request.data.get('accept_offer'):
+            return Response(
+                {'error': 'Подтвердите согласие с офертой и политикой конфиденциальности'},
+                status=400,
+            )
 
         delivery_address = request.data.get('delivery_address', '').strip()
         if not delivery_address:

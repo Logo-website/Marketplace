@@ -28,6 +28,7 @@ import WishlistPage from './pages/WishlistPage'
 import CheckoutPage from './pages/CheckoutPage'
 import ChatsPage from './pages/ChatsPage'
 import HelpPage from './pages/HelpPage'
+import LegalPage from './pages/LegalPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import NotFoundPage from './pages/NotFoundPage'
 import AdminRoute from './components/admin/AdminRoute'
@@ -142,6 +143,9 @@ export default function App() {
               <Route path="/chats/:id" element={<PrivateRoute><ChatsPage /></PrivateRoute>} />
               {/* Помощь / FAQ (Ф24) - публичный раздел. */}
               <Route path="/help" element={<HelpPage />} />
+              {/* Юр-документы (Ф26) - одна страница на все 5 документов по slug,
+                  публичные (открыты гостю). */}
+              <Route path="/legal/:slug" element={<LegalPage />} />
               {/* Админ-зона (Ф17): очередь модерации товаров под роль-гейт admin. */}
               <Route path="/admin/moderation" element={<AdminRoute><ModerationPage /></AdminRoute>} />
               {/* Админ-зона (Ф18): очередь жалоб и модерация UGC под роль-гейт admin. */}

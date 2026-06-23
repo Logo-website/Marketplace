@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../../api'
 import EmptyState from '../states/EmptyState'
 import ErrorState from '../states/ErrorState'
+import ReceiptCard from '../ReceiptCard'
 import useAsyncData from '../../hooks/useAsyncData'
 import useCartStore from '../../store/cartStore'
 import { toast } from '../../store/toastStore'
@@ -144,6 +145,13 @@ export default function OrdersTab() {
                             </div>
                           ))}
                         </div>
+
+                        {/* Чек 54-ФЗ (Ф26) - эмуляция, виден владельцу заказа */}
+                        {order.receipt && (
+                          <div className="mt-3">
+                            <ReceiptCard receipt={order.receipt} />
+                          </div>
+                        )}
 
                         {/* Действия по заказу */}
                         <div className="flex flex-wrap gap-2 mt-3">

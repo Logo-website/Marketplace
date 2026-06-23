@@ -31,9 +31,9 @@ const COLUMNS = [
   {
     title: 'О компании',
     items: [
-      { label: 'О нас' },
+      { label: 'О нас', to: '/legal/about' },
       { label: 'Вакансии' },
-      { label: 'Контакты' },
+      { label: 'Контакты', to: '/legal/contacts' },
     ],
   },
   {
@@ -42,7 +42,7 @@ const COLUMNS = [
       { label: 'Каталог', to: '/catalog' },
       { label: 'Избранное', to: '/wishlist' },
       { label: 'Помощь и FAQ' },
-      { label: 'Доставка и возврат' },
+      { label: 'Доставка и возврат', to: '/legal/delivery-returns' },
     ],
   },
   {
@@ -53,11 +53,12 @@ const COLUMNS = [
     ],
   },
   {
+    // Документы (Ф26): ссылки ведут на страницы /legal/<slug>.
     title: 'Документы',
     items: [
-      { label: 'Публичная оферта' },
-      { label: 'Политика конфиденциальности' },
-      { label: 'Правила возврата' },
+      { label: 'Публичная оферта', to: '/legal/oferta' },
+      { label: 'Политика конфиденциальности', to: '/legal/privacy' },
+      { label: 'Правила возврата', to: '/legal/delivery-returns' },
     ],
   },
 ]

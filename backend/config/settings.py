@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'apps.cart',
     'apps.notifications',
     'apps.chat',
+    'apps.legal',
     'django_celery_results',
     'drf_spectacular',
     'rest_framework_simplejwt.token_blacklist',

@@ -20,6 +20,9 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
+  // Согласие с офертой/политикой (Ф26, §4.6). UX-валидация на регистрации:
+  // без галочки код не запрашиваем. Сам факт согласия не храним (§11 в.3).
+  const [agreed, setAgreed] = useState(false)
   const navigate = useNavigate()
 
   const handleChange = (e) => {
@@ -44,6 +47,7 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     const frontErrors = validateFront()
+    if (!agreed) frontErrors.agreed = 'Подтвердите согласие с офертой и политикой'
     if (Object.keys(frontErrors).length > 0) {
       setErrors(frontErrors)
       return
@@ -252,6 +256,27 @@ export default function RegisterPage() {
                         </div>
                       )}
                       {errors.password && <p className="text-sm text-red-500 mt-1.5">{errors.password}</p>}
+                    </div>
+
+                    {/* Согласие с офертой/политикой (Ф26) - со ссылками на документы */}
+                    <div>
+                      <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox" checked={agreed}
+                          onChange={(e) => {
+                            setAgreed(e.target.checked)
+                            if (errors.agreed) setErrors({ ...errors, agreed: '' })
+                          }}
+                          className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400 shrink-0"
+                        />
+                        <span className="text-xs text-gray-500 leading-relaxed">
+                          Я принимаю{' '}
+                          <Link to="/legal/oferta" target="_blank" className="text-indigo-600 hover:underline">оферту</Link>
+                          {' '}и{' '}
+                          <Link to="/legal/privacy" target="_blank" className="text-indigo-600 hover:underline">политику конфиденциальности</Link>
+                        </span>
+                      </label>
+                      {errors.agreed && <p className="text-xs text-red-500 mt-1.5">{errors.agreed}</p>}
                     </div>
 
                     <motion.button

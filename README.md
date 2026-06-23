@@ -172,7 +172,7 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Products | GET/POST | `/api/products/brand/{id}/reviews/` | GET public, POST authenticated + purchased (seller reviews) |
 | Products | GET/POST | `/api/products/brand/{id}/follow/` | GET status (public), POST authenticated (toggle subscription, not self) |
 | Orders | GET/POST | `/api/orders/` | Authenticated |
-| Orders | POST | `/api/orders/from-cart/` | Authenticated |
+| Orders | POST | `/api/orders/from-cart/` | Authenticated (requires `accept_offer`; emits a 54-FZ receipt stub) |
 | Orders | GET | `/api/orders/{id}/` | Authenticated (own orders) |
 | Orders | PATCH | `/api/orders/{id}/status/` | Seller / admin |
 | Orders | POST | `/api/orders/{id}/cancel/` | Authenticated (buyer, own order) |
@@ -193,6 +193,8 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Chat | GET/POST | `/api/chat/conversations/` | Authenticated (own dialogs; idempotent start, `?role=buyer/seller`) |
 | Chat | GET/POST | `/api/chat/conversations/{id}/messages/` | Authenticated (participant only; POST throttled) |
 | Chat | POST | `/api/chat/conversations/{id}/read/` | Authenticated (participant only; marks incoming read) |
+| Legal | GET | `/api/legal/documents/` | Public (published documents: offer, privacy, delivery/returns, about, contacts) |
+| Legal | GET | `/api/legal/documents/{slug}/` | Public (one document by slug; draft/unknown → 404) |
 | Docs | GET | `/api/docs/` | Authenticated by default |
 | Admin | — | `/admin/` | Django admin (`is_staff`) |
 
@@ -221,6 +223,7 @@ SPA in `frontend/`. Dev server proxies `/api` to `http://localhost:8001` (see `v
 | `/profile` | Account hub (tabs: overview, orders, my data, addresses, my reviews, notifications, returns, chats; `?tab=`) | Private |
 | `/chats`, `/chats/:id` | Chat — dialog list and conversation window (buyer/seller + support) | Private |
 | `/help` | Help / FAQ (static accordion) | Public |
+| `/legal/:slug` | Legal document (offer, privacy, delivery/returns, about, contacts) | Public |
 | `/sell` | Seller onboarding (become seller; already-seller → settings) | Private |
 | `/seller` | Seller products and analytics | Seller |
 | `/seller/settings` | Store settings (legal data, requisites, storefront, tariff) | Seller |
@@ -413,11 +416,12 @@ cd backend && pytest
 | `apps/users/tests/test_auth.py` | Auth: two-step OTP register/login, password hashing, attempt lockout, single-use code |
 | `apps/users/tests/test_seller_onboarding.py` | Seller onboarding: full set activates and flips role, incomplete saves draft, invalid INN → 400, role flip only from buyer, INN by status, requisites not exposed, idempotency, settings PATCH (active-only, can't blank required) |
 | `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge), seller reply to reviews and feedback aggregation (ownership 403, role gate, answered filter/sort, reply shown on card), moderation (admin-only queue, approve→catalog, reject with reason, 409 on repeat, audit fields, reason cleared on resubmit, admin-actions), complaints and UGC moderation (report create with dedup/404/400, admin-only queue with PII-minimized target preview, resolve hides review and drops it from rating, dismiss, proactive hide/unhide, Q&A hide removes from public, active product take-down with ES de-index, moderation product delegates to reject, seller report not blocked) |
-| `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization, selected-subset checkout, variant snapshot, seller order list/detail (ownership, status filter, mixed-order read-only, buyer PII not leaked) |
+| `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization, selected-subset checkout, variant snapshot, checkout offer-consent guard (no `accept_offer` → 400), seller order list/detail (ownership, status filter, mixed-order read-only, buyer PII not leaked) |
 | `apps/orders/tests/test_returns.py` | Returns end-to-end: create only on own delivered order within period (foreign/not-delivered/expired/duplicate/over-quantity/deleted-product rejected), multi-vendor split, no seller PII, dispute only `rejected`→`disputed` (blocked after arbitration), seller S4 isolation, status machine, idempotent stock restore on receive, full flow to refunded, photo upload |
 | `apps/cart/tests.py` | Cart add/get/set-quantity/remove/clear with stock checks, inactive product, auth, variant lines, guest-cart merge (clamp/sum/skip), batch by ids |
 | `apps/notifications/tests/test_notifications.py` | Notifications: `notify()` feed row, template render and UGC escaping, unknown-event safe default, transactional email always vs marketing opt-out, signed unsubscribe token (valid/forged), feed isolation (no foreign read/mark → 404), unread-count and mark-all, order create end-to-end through the center (one email, no dup), broadcast opt-out and segment filter |
 | `apps/chat/tests/test_chat.py` | Chat: idempotent dialog start (seller pair / one support thread per buyer), can't chat with self, non-seller → 404, anti-IDOR (outsider can't read/post → 403/404), participant post+read, blank-message rejection, XSS body stored as plain text, no counterparty email in list, read marks incoming only, delivery recipient routing (seller thread / support buyer no recipient / bot reply to buyer), support bot reply (keyword/default/empty), send throttling |
+| `apps/legal/tests/test_legal.py` | Legal docs public (5 seeded), draft/unknown slug → 404, internal field hidden, body special chars as data; 54-FZ receipt stub idempotent (one per order), checkout emits receipt visible to owner only (foreign order → 404), checkout offer-consent guard |
 
 Frontend: **Vitest** - `cd frontend && npm test`. Unit test of the pure size-matching function `src/utils/sizeMatch.test.js` (Ф5).
 

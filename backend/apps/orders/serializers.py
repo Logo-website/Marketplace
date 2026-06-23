@@ -70,6 +70,11 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    # Чек 54-ФЗ (Ф26) - эмуляция, вложен в заказ: виден только владельцу, т.к.
+    # queryset заказа уже фильтрует по buyer. Отдельный эндпоинт не нужен.
+    # SerializerMethodField (а не nested-поле) - у старых заказов чек может
+    # отсутствовать, отдаём null без падения.
+    receipt = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -77,8 +82,13 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'status', 'total_price', 'delivery_address',
             'recipient_name', 'recipient_phone', 'recipient_email',
             'delivery_method', 'payment_method',
-            'comment', 'items', 'created_at',
+            'comment', 'items', 'created_at', 'receipt',
         ]
+
+    def get_receipt(self, order):
+        from apps.legal.serializers import ReceiptSerializer
+        receipt = getattr(order, 'receipt', None)
+        return ReceiptSerializer(receipt).data if receipt else None
 
 
 class SellerOrderItemSerializer(serializers.ModelSerializer):

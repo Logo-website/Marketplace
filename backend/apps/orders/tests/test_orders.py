@@ -201,7 +201,7 @@ def _clean_buyer_cart(user):
 @pytest.mark.django_db
 def test_order_from_cart(auth_client, user, product, _clean_buyer_cart):
     add_to_cart(user.id, product.id, 2)
-    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва'}, format='json')
+    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва', 'accept_offer': True}, format='json')
     assert r.status_code == 201
     product.refresh_from_db()
     assert product.stock == 8
@@ -212,14 +212,14 @@ def test_order_from_cart(auth_client, user, product, _clean_buyer_cart):
 
 @pytest.mark.django_db
 def test_order_from_empty_cart_rejected(auth_client, user, _clean_buyer_cart):
-    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва'}, format='json')
+    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва', 'accept_offer': True}, format='json')
     assert r.status_code == 400
 
 
 @pytest.mark.django_db
 def test_order_from_cart_requires_address(auth_client, user, product, _clean_buyer_cart):
     add_to_cart(user.id, product.id, 1)
-    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': '  '}, format='json')
+    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': '  ', 'accept_offer': True}, format='json')
     assert r.status_code == 400
 
 
@@ -229,7 +229,7 @@ def test_order_from_cart_inactive_product_rejected(auth_client, user, product, _
     add_to_cart(user.id, product.id, 1)
     product.status = 'hidden'
     product.save(update_fields=['status'])
-    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва'}, format='json')
+    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва', 'accept_offer': True}, format='json')
     assert r.status_code == 400
     # Сток не списан
     product.refresh_from_db()
@@ -240,7 +240,7 @@ def test_order_from_cart_inactive_product_rejected(auth_client, user, product, _
 def test_order_from_cart_exceeds_stock_rejected(auth_client, user, product, _clean_buyer_cart):
     # В корзине больше, чем на складе (stock=10) -> validate_cart_items отдаёт ошибку
     add_to_cart(user.id, product.id, 99)
-    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва'}, format='json')
+    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва', 'accept_offer': True}, format='json')
     assert r.status_code == 400
     product.refresh_from_db()
     assert product.stock == 10
@@ -304,6 +304,7 @@ def test_order_from_cart_subset_leaves_rest(auth_client, user, product, product2
     add_to_cart(user.id, cart_key(product2.id), 1)
     r = auth_client.post('/api/orders/from-cart/', {
         'delivery_address': 'Москва',
+        'accept_offer': True,
         'items': [{'product_id': product.id}],
     }, format='json')
     assert r.status_code == 201
@@ -319,6 +320,7 @@ def test_order_from_cart_empty_selection_rejected(auth_client, user, product, _c
     add_to_cart(user.id, cart_key(product.id), 1)
     r = auth_client.post('/api/orders/from-cart/', {
         'delivery_address': 'Москва',
+        'accept_offer': True,
         'items': [{'product_id': 999999}],
     }, format='json')
     assert r.status_code == 400
@@ -328,7 +330,7 @@ def test_order_from_cart_empty_selection_rejected(auth_client, user, product, _c
 def test_order_from_cart_saves_variant(auth_client, user, product, _clean_buyer_cart):
     # Размер/цвет из корзины сохраняются в OrderItem (снимок варианта).
     add_to_cart(user.id, cart_key(product.id, 'M', 'Чёрный'), 1)
-    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва'}, format='json')
+    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва', 'accept_offer': True}, format='json')
     assert r.status_code == 201
     item = Order.objects.get(buyer=user).items.first()
     assert item.size == 'M'
@@ -343,6 +345,7 @@ def test_order_from_cart_saves_checkout_snapshot(auth_client, user, product, _cl
     add_to_cart(user.id, cart_key(product.id), 1)
     r = auth_client.post('/api/orders/from-cart/', {
         'delivery_address': 'Москва',
+        'accept_offer': True,
         'recipient_name': 'Иван Иванов',
         'recipient_phone': '+79991234567',
         'recipient_email': 'ivan@test.com',
@@ -362,7 +365,7 @@ def test_order_from_cart_saves_checkout_snapshot(auth_client, user, product, _cl
 def test_order_from_cart_defaults_delivery_payment(auth_client, user, product, _clean_buyer_cart):
     # Способы не переданы -> дефолты модели (pickup/card), без ошибки.
     add_to_cart(user.id, cart_key(product.id), 1)
-    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва'}, format='json')
+    r = auth_client.post('/api/orders/from-cart/', {'delivery_address': 'Москва', 'accept_offer': True}, format='json')
     assert r.status_code == 201
     assert r.data['delivery_method'] == 'pickup'
     assert r.data['payment_method'] == 'card'
@@ -374,6 +377,7 @@ def test_order_from_cart_invalid_delivery_method_rejected(auth_client, user, pro
     add_to_cart(user.id, cart_key(product.id), 1)
     r = auth_client.post('/api/orders/from-cart/', {
         'delivery_address': 'Москва',
+        'accept_offer': True,
         'delivery_method': 'teleport',
     }, format='json')
     assert r.status_code == 400
@@ -386,6 +390,7 @@ def test_order_from_cart_invalid_payment_method_rejected(auth_client, user, prod
     add_to_cart(user.id, cart_key(product.id), 1)
     r = auth_client.post('/api/orders/from-cart/', {
         'delivery_address': 'Москва',
+        'accept_offer': True,
         'payment_method': 'bitcoin',
     }, format='json')
     assert r.status_code == 400
@@ -398,6 +403,7 @@ def test_order_from_cart_null_recipient_not_crash(auth_client, user, product, _c
     add_to_cart(user.id, cart_key(product.id), 1)
     r = auth_client.post('/api/orders/from-cart/', {
         'delivery_address': 'Москва',
+        'accept_offer': True,
         'recipient_name': None,
     }, format='json')
     assert r.status_code == 201

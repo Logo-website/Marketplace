@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import useCartStore, { itemKey } from '../store/cartStore'
 import useAuthStore from '../store/authStore'
 import api from '../api'
 import { toast } from '../store/toastStore'
+import ReceiptCard from '../components/ReceiptCard'
 
 const PICKUP_POINTS = [
   { id: 1,  address: 'ул. Ленина, 12, ТЦ Центральный',    time: 'Сегодня, 18:00',      metro: 'Площадь Ленина' },
@@ -106,9 +107,13 @@ export default function CheckoutPage() {
   // Оплата (Ф9 этап 3): заглушка, способ только сохраняется в заказ.
   const [paymentMethod, setPaymentMethod] = useState('card')
   const [loading, setLoading] = useState(false)
+  // Согласие с офертой (Ф26, §4.6). На сервере - guard на оформлении: без
+  // accept_offer заказ не создаётся (дословный критерий «без них нельзя
+  // принимать оплату»).
+  const [agreed, setAgreed] = useState(false)
   const [success, setSuccess] = useState(false)
   const [countdown, setCountdown] = useState(5)
-  const [orderSummary, setOrderSummary] = useState({ count: 0, total: '0', method: 'pickup', id: null, status: 'created' })
+  const [orderSummary, setOrderSummary] = useState({ count: 0, total: '0', method: 'pickup', id: null, status: 'created', receipt: null })
 
   // Префилл получателя из профиля - один раз, когда профиль подгрузился. Дальше
   // поля редактируемые (можно оформить на другого человека), повторно не затираем.
@@ -139,6 +144,10 @@ export default function CheckoutPage() {
       toast.error('Укажите адрес доставки')
       return
     }
+    if (!agreed) {
+      toast.error('Подтвердите согласие с офертой')
+      return
+    }
 
     setLoading(true)
     const deliveryAddress = deliveryMethod === 'pickup'
@@ -153,6 +162,7 @@ export default function CheckoutPage() {
       recipient_email: recipientEmail.trim(),
       delivery_method: deliveryMethod,
       payment_method: paymentMethod,
+      accept_offer: agreed,
     }
     if (selectedKeys) {
       payload.items = orderItems.map((i) => ({
@@ -167,6 +177,7 @@ export default function CheckoutPage() {
       setOrderSummary({
         count: orderItems.length, total: String(orderTotal), method: deliveryMethod,
         id: res.data?.id ?? null, status: res.data?.status ?? 'created',
+        receipt: res.data?.receipt ?? null,
       })
       setSuccess(true)
       let count = 5
@@ -235,6 +246,13 @@ export default function CheckoutPage() {
             </span>
           </div>
         </div>
+
+        {/* Чек 54-ФЗ (Ф26) - эмуляция, виден сразу после оформления */}
+        {orderSummary.receipt && (
+          <div className="mb-6">
+            <ReceiptCard receipt={orderSummary.receipt} />
+          </div>
+        )}
 
         {/* Что дальше */}
         <div className="flex flex-col gap-2 mb-6">
@@ -537,9 +555,23 @@ export default function CheckoutPage() {
                 Промокод и баллы — на шаге оформления, скоро
               </div>
 
+              {/* Согласие с офертой (Ф26) - со ссылками на документы */}
+              <label className="flex items-start gap-2.5 cursor-pointer select-none mb-4">
+                <input
+                  type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400 shrink-0"
+                />
+                <span className="text-xs text-gray-500 leading-relaxed">
+                  Подтверждаю согласие с{' '}
+                  <Link to="/legal/oferta" target="_blank" className="text-indigo-600 hover:underline">офертой</Link>
+                  {' '}и{' '}
+                  <Link to="/legal/privacy" target="_blank" className="text-indigo-600 hover:underline">политикой конфиденциальности</Link>
+                </span>
+              </label>
+
               <motion.button
                 onClick={handleOrder}
-                disabled={loading || orderItems.length === 0}
+                disabled={loading || orderItems.length === 0 || !agreed}
                 className="w-full bg-[#111] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition disabled:opacity-50 flex items-center justify-center gap-2 mb-4"
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
