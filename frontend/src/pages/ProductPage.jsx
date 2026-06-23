@@ -19,6 +19,7 @@ import SellerBlock from '../components/product/SellerBlock'
 import ReviewsSection from '../components/product/ReviewsSection'
 import ProductQA from '../components/product/ProductQA'
 import SizeGuideModal from '../components/product/SizeGuideModal'
+import ReportModal from '../components/ReportModal'
 
 export default function ProductPage() {
   const { id } = useParams()
@@ -31,6 +32,9 @@ export default function ProductPage() {
   const [selectedColor, setSelectedColor] = useState(null)
   const [sizeHint, setSizeHint] = useState(false)
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false)
+  // Жалоба (Ф18): одна модалка на странице, цель задаётся при открытии
+  // (товар / отзыв / вопрос / ответ). null - модалка закрыта.
+  const [report, setReport] = useState(null)
 
   const { addToCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
@@ -349,6 +353,18 @@ export default function ProductPage() {
                   Способы и сроки доставки уточняются при оформлении заказа.
                 </p>
               </div>
+
+              {/* Пожаловаться на товар (Ф18, узел 1.5). Жалоба уходит модератору
+                  в очередь, ничего сама не скрывает. */}
+              <button
+                onClick={() => setReport({ type: 'product', id: product.id, label: 'товар' })}
+                className="self-start flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 2H21l-3 6 3 6h-8.5l-1-2H5a2 2 0 00-2 2z" />
+                </svg>
+                Пожаловаться
+              </button>
             </motion.div>
           </div>
         </div>
@@ -380,6 +396,7 @@ export default function ProductPage() {
             sellerName={product.seller_name}
             isAuthenticated={isAuthenticated}
             onLoginRequired={() => navigate('/login')}
+            onReport={(reviewId) => setReport({ type: 'review', id: reviewId, label: 'отзыв' })}
           />
         </motion.div>
 
@@ -394,6 +411,7 @@ export default function ProductPage() {
             productId={id}
             isAuthenticated={isAuthenticated}
             onLoginRequired={() => navigate('/login')}
+            onReport={(target) => setReport(target)}
           />
         </motion.div>
 
@@ -421,6 +439,20 @@ export default function ProductPage() {
       <AnimatePresence>
         {sizeGuideOpen && (
           <SizeGuideModal productId={id} onClose={() => setSizeGuideOpen(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Жалоба (Ф18) - модалка поверх карточки, одна на все цели страницы */}
+      <AnimatePresence>
+        {report && (
+          <ReportModal
+            targetType={report.type}
+            targetId={report.id}
+            targetLabel={report.label}
+            isAuthenticated={isAuthenticated}
+            onClose={() => setReport(null)}
+            onLoginRequired={() => navigate('/login')}
+          />
         )}
       </AnimatePresence>
     </div>

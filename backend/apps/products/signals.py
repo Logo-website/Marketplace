@@ -19,7 +19,10 @@ def recalc_product_rating(product_id):
     """Пересчитать рейтинг и число отзывов товара из Review и инвалидировать кэш."""
     if not product_id:
         return
-    agg = Review.objects.filter(product_id=product_id).aggregate(
+    # is_hidden=False (Ф18, §4.3): скрытый модератором отзыв (фейк/накрутка) не
+    # влияет на рейтинг и reviews_count. Новый отзыв is_hidden=False - прежнее
+    # поведение сохранено; скрытие/возврат триггерят пересчёт через post_save.
+    agg = Review.objects.filter(product_id=product_id, is_hidden=False).aggregate(
         avg=Avg('rating'), cnt=Count('id')
     )
     rating = round(agg['avg'], 2) if agg['avg'] is not None else 0

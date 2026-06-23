@@ -154,6 +154,13 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Products | GET | `/api/products/moderation/` | Admin (moderation queue: products in `moderation`) |
 | Products | POST | `/api/products/moderation/{id}/approve/` | Admin (approve → `active`, enters catalog) |
 | Products | POST | `/api/products/moderation/{id}/reject/` | Admin (reject with reason → `rejected`) |
+| Products | POST | `/api/products/reports/` | Authenticated (file a complaint on product/review/seller/question/answer) |
+| Products | GET | `/api/products/reports/` | Admin (complaints queue, `?status=` filter) |
+| Products | POST | `/api/products/reports/{id}/resolve/` | Admin (hide reported content / take down product) |
+| Products | POST | `/api/products/reports/{id}/dismiss/` | Admin (dismiss complaint, target untouched) |
+| Products | POST | `/api/products/reviews/{id}/hide/`, `/unhide/` | Admin (proactively hide/restore a review) |
+| Products | POST | `/api/products/questions/{id}/hide/`, `/unhide/` | Admin (hide/restore a question) |
+| Products | POST | `/api/products/answers/{id}/hide/`, `/unhide/` | Admin (hide/restore an answer) |
 | Orders | GET/POST | `/api/orders/` | Authenticated |
 | Orders | POST | `/api/orders/from-cart/` | Authenticated |
 | Orders | GET | `/api/orders/{id}/` | Authenticated (own orders) |
@@ -192,6 +199,7 @@ SPA in `frontend/`. Dev server proxies `/api` to `http://localhost:8001` (see `v
 | `/seller/settings` | Store settings (legal data, requisites, storefront, tariff) | Seller |
 | `/wishlist` | Wishlist (localStorage only) | Private |
 | `/admin/moderation` | Product moderation queue (approve / reject with reason) | Admin |
+| `/admin/reports` | Complaints queue and UGC moderation (hide content / dismiss) | Admin |
 
 ### State
 - `authStore` — JWT in `localStorage`, profile fetch, logout with blacklist.
@@ -375,7 +383,7 @@ cd backend && pytest
 |---|---|
 | `apps/users/tests/test_auth.py` | Auth: two-step OTP register/login, password hashing, attempt lockout, single-use code |
 | `apps/users/tests/test_seller_onboarding.py` | Seller onboarding: full set activates and flips role, incomplete saves draft, invalid INN → 400, role flip only from buyer, INN by status, requisites not exposed, idempotency, settings PATCH (active-only, can't blank required) |
-| `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge), seller reply to reviews and feedback aggregation (ownership 403, role gate, answered filter/sort, reply shown on card), moderation (admin-only queue, approve→catalog, reject with reason, 409 on repeat, audit fields, reason cleared on resubmit, admin-actions) |
+| `apps/products/tests/test_products.py` | Product list/detail/create, rating denormalization, card cache, search facets and autocomplete, recommendations and fallback, seller email not exposed, size chart endpoint and category-to-group mapping, Q&A questions/answers/helpful-vote (permissions, helpful sorting, seller badge), seller reply to reviews and feedback aggregation (ownership 403, role gate, answered filter/sort, reply shown on card), moderation (admin-only queue, approve→catalog, reject with reason, 409 on repeat, audit fields, reason cleared on resubmit, admin-actions), complaints and UGC moderation (report create with dedup/404/400, admin-only queue with PII-minimized target preview, resolve hides review and drops it from rating, dismiss, proactive hide/unhide, Q&A hide removes from public, active product take-down with ES de-index, moderation product delegates to reject, seller report not blocked) |
 | `apps/orders/tests/test_orders.py` | Order create, stock decrement, validation, buyer cancel with refund, multi-vendor status authorization, selected-subset checkout, variant snapshot, seller order list/detail (ownership, status filter, mixed-order read-only, buyer PII not leaked) |
 | `apps/cart/tests.py` | Cart add/get/set-quantity/remove/clear with stock checks, inactive product, auth, variant lines, guest-cart merge (clamp/sum/skip), batch by ids |
 
@@ -389,7 +397,7 @@ Frontend: **Vitest** - `cd frontend && npm test`. Unit test of the pure size-mat
 |---|---|
 | **buyer** | Browse, cart, orders, reviews (after purchase), recommendations |
 | **seller** | Manage own products, view analytics, update order status for own products |
-| **admin** | `role=admin` syncs to `is_staff` / `is_superuser`; full order status access; product moderation (approve/reject queue at `/admin/moderation`); Django Admin |
+| **admin** | `role=admin` syncs to `is_staff` / `is_superuser`; full order status access; product moderation (approve/reject queue at `/admin/moderation`); complaints and UGC moderation (queue at `/admin/reports`); Django Admin |
 
 ---
 

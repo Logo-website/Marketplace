@@ -6,18 +6,20 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Answer, AnswerVote, Category, Product, Question, Review
+from .models import Answer, AnswerVote, Category, Product, Question, Report, Review
 from .serializers import (
     CategorySerializer, ProductSerializer, ProductWriteSerializer,
     ReviewSerializer, ReviewCreateSerializer, MyReviewSerializer,
     QuestionSerializer, QuestionCreateSerializer, AnswerCreateSerializer,
     SellerReviewSerializer, ReviewReplySerializer, SellerQuestionSerializer,
-    RejectionSerializer,
+    RejectionSerializer, ReportCreateSerializer, ReportSerializer,
+    RESOLUTION_NOTE_MAX,
 )
 from .search import search_products, autocomplete, index_product, delete_product, PRICE_RANGES
 from .size_charts import get_size_chart
 from .caching import cache_get, cache_set
 from .moderation import approve as approve_product, reject as reject_product, ModerationError
+from . import moderation_ugc
 from services.clickhouse_service import ClickHouseService
 from apps.permissions import IsSeller, IsSellerOrAdmin, IsAdmin
 import logging
@@ -615,7 +617,9 @@ class ReviewListCreateView(generics.ListCreateAPIView):
         return [permissions.AllowAny()]
 
     def get_queryset(self):
-        qs = Review.objects.filter(product_id=self.kwargs['pk']).select_related('user')
+        # is_hidden=False (Ф18): скрытый модератором отзыв не виден публично.
+        qs = (Review.objects.filter(product_id=self.kwargs['pk'], is_hidden=False)
+              .select_related('user'))
 
         # Фильтр по оценке (1..5). Кривое значение игнорируем - выдача не падает.
         rating = self.request.query_params.get('rating')
@@ -637,7 +641,7 @@ class ReviewListCreateView(generics.ListCreateAPIView):
         # Средняя оценка тут НЕ дублируется - фронт берёт её из Product.rating
         # (единственный источник правды, денормализован сигналом P6a).
         counts = dict(
-            Review.objects.filter(product_id=self.kwargs['pk'])
+            Review.objects.filter(product_id=self.kwargs['pk'], is_hidden=False)
             .values_list('rating')
             .order_by('rating')
             .annotate(c=Count('id'))
@@ -696,15 +700,21 @@ class QuestionListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         self._get_product()  # 404, если товара нет
         # Ответы сортируются Answer.Meta.ordering (-helpful_count, created_at).
-        prefetches = [Prefetch('answers', queryset=Answer.objects.select_related('user'))]
+        # is_hidden=False (Ф18): скрытый модератором ответ не виден, его лайки не
+        # «всплывают» в сортировке по полезности (Этап 4, критерий).
+        prefetches = [Prefetch(
+            'answers',
+            queryset=Answer.objects.filter(is_hidden=False).select_related('user'),
+        )]
         user = self.request.user
         if user.is_authenticated:
             # liked_by_me без N+1: голоса только текущего юзера.
             prefetches.append(
                 Prefetch('answers__votes', queryset=AnswerVote.objects.filter(user=user))
             )
+        # is_hidden=False: скрытый вопрос пропадает из публичной ветки Q&A.
         return (
-            Question.objects.filter(product_id=self.kwargs['pk'])
+            Question.objects.filter(product_id=self.kwargs['pk'], is_hidden=False)
             .select_related('user')
             .prefetch_related(*prefetches)
         )
@@ -883,3 +893,90 @@ class ModerationRejectView(APIView):
         # TODO Ф25/Ф16: уведомить продавца «товар отклонён с причиной» (forward).
         return Response({'status': product.status,
                          'rejection_reason': product.rejection_reason})
+
+
+# === Ф18. Жалобы и модерация UGC (узел 3.8 + «пожаловаться» из 1.5) ===
+
+class ReportListCreateView(generics.ListCreateAPIView):
+    """Один view на /reports/ (паттерн ReviewListCreateView): POST - создать
+    жалобу (любой авторизованный); GET - очередь жалоб (только админ). Права и
+    сериализатор переключаются по методу (план §4.4). На POST контракт: новая
+    жалоба -> 201, дубль открытой -> 200 (дедуп в сериализаторе)."""
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return ReportCreateSerializer
+        return ReportSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated()]
+        return [IsAdmin()]
+
+    def get_queryset(self):
+        # Очередь: по умолчанию open (необработанные), новые сверху; ?status= -
+        # фильтр по конкретному статусу, ?status=all - все. Неизвестный -> open.
+        status = self.request.query_params.get('status', 'open')
+        qs = Report.objects.all().order_by('-created_at')
+        if status != 'all':
+            valid = {s[0] for s in Report.STATUS_CHOICES}
+            qs = qs.filter(status=status if status in valid else 'open')
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        report = serializer.save()
+        # 201 - новая жалоба; 200 - вернули существующую открытую (дедуп, §4.4 B).
+        created = getattr(serializer, '_created', True)
+        out = ReportSerializer(report, context=self.get_serializer_context())
+        return Response(out.data, status=201 if created else 200)
+
+
+class ReportResolveView(APIView):
+    """Решить жалобу с действием над целью (скрыть UGC / снять товар) - только
+    админ. Повторная/конкурентная обработка уже закрытой жалобы -> 409 (§6)."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        report = get_object_or_404(Report, pk=pk)
+        note = (request.data.get('note') or '')[:RESOLUTION_NOTE_MAX]
+        try:
+            moderation_ugc.resolve_report(report, request.user, note)
+        except ModerationError as e:
+            return Response({'error': str(e)}, status=409)
+        # TODO Ф25: уведомить автора «контент скрыт» и жалобщика «жалоба обработана».
+        return Response({'status': report.status})
+
+
+class ReportDismissView(APIView):
+    """Отклонить жалобу (нарушения нет): цель не трогаем - только админ. Повторная
+    обработка -> 409 (§6)."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        report = get_object_or_404(Report, pk=pk)
+        note = (request.data.get('note') or '')[:RESOLUTION_NOTE_MAX]
+        try:
+            moderation_ugc.dismiss_report(report, request.user, note)
+        except ModerationError as e:
+            return Response({'error': str(e)}, status=409)
+        return Response({'status': report.status})
+
+
+class UGCModerationView(APIView):
+    """Проактивное скрытие/возврат UGC без жалобы (узел 3.8 «модерация отзывов и
+    вопросов») - только админ. Модель и направление (hide/unhide) задаются в
+    маршруте через as_view(model=..., hide=...). Идемпотентность - в сервисе (§6)."""
+    permission_classes = [IsAdmin]
+    model = None
+    hide = True
+
+    def post(self, request, pk):
+        obj = get_object_or_404(self.model, pk=pk)
+        if self.hide:
+            reason = (request.data.get('reason') or '')[:RESOLUTION_NOTE_MAX]
+            moderation_ugc.hide_ugc(obj, request.user, reason)
+        else:
+            moderation_ugc.unhide_ugc(obj, request.user)
+        return Response({'id': obj.id, 'is_hidden': obj.is_hidden})

@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 from django.shortcuts import render
-from .models import Answer, Category, Product, ProductImage, Question
+from .models import Answer, Category, Product, ProductImage, Question, Report, Review
 from .moderation import approve as approve_product, reject as reject_product, ModerationError
 from .serializers import REJECTION_REASON_MAX
 
@@ -70,14 +70,38 @@ class ProductAdmin(admin.ModelAdmin):
     actions = [approve_moderation, reject_moderation]
 
 
-# Модерация Q&A до полноценной Ф18 - через стандартную админку.
+# Q&A в админке (Ф6). is_hidden виден в списке - фоллбэк-модерация Ф18.
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'product', 'user', 'created_at']
+    list_display = ['id', 'product', 'user', 'is_hidden', 'created_at']
+    list_filter = ['is_hidden']
     search_fields = ['text']
+    readonly_fields = ['hidden_at', 'hidden_by']
 
 
 @admin.register(Answer)
 class AnswerAdmin(admin.ModelAdmin):
-    list_display = ['id', 'question', 'user', 'helpful_count', 'created_at']
+    list_display = ['id', 'question', 'user', 'helpful_count', 'is_hidden', 'created_at']
+    list_filter = ['is_hidden']
     search_fields = ['text']
+    readonly_fields = ['hidden_at', 'hidden_by']
+
+
+# Жалобы и отзывы в админке (Ф18, узел 3.8) - фоллбэк-модерация до фронт-страницы
+# очереди (тот же приём, что в Ф6/Ф15). Аудит-поля только для чтения.
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ['id', 'target_type', 'target_id', 'reason', 'status',
+                    'reporter', 'created_at']
+    list_filter = ['status', 'target_type', 'reason']
+    search_fields = ['comment', 'resolution_note']
+    readonly_fields = ['reporter', 'target_type', 'target_id', 'reason', 'comment',
+                       'created_at', 'resolved_at', 'resolved_by']
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ['id', 'product', 'user', 'rating', 'is_hidden', 'created_at']
+    list_filter = ['is_hidden', 'rating']
+    search_fields = ['text']
+    readonly_fields = ['hidden_at', 'hidden_by']

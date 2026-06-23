@@ -30,7 +30,7 @@ function Avatar({ name }) {
   )
 }
 
-export default function ProductQA({ productId, isAuthenticated, onLoginRequired }) {
+export default function ProductQA({ productId, isAuthenticated, onLoginRequired, onReport }) {
   const { data, status, retry, setData } = useAsyncData(
     (signal) =>
       api.get(`/products/${productId}/questions/`, { signal }).then((r) => r.data),
@@ -208,9 +208,18 @@ export default function ProductQA({ productId, isAuthenticated, onLoginRequired 
                 </div>
                 <span className="text-xs text-gray-400">{fmtDate(q.created_at)}</span>
               </div>
-              <p className="text-sm text-gray-800 font-medium leading-relaxed ml-10 mb-3">
+              <p className="text-sm text-gray-800 font-medium leading-relaxed ml-10 mb-1">
                 {q.text}
               </p>
+              {/* Пожаловаться на вопрос (Ф18) */}
+              {onReport && (
+                <button
+                  onClick={() => onReport({ type: 'question', id: q.id, label: 'вопрос' })}
+                  className="ml-10 mb-3 text-xs text-gray-400 hover:text-red-500 transition"
+                >
+                  Пожаловаться
+                </button>
+              )}
 
               {/* Ответы */}
               {q.answers?.length > 0 && (
@@ -229,17 +238,28 @@ export default function ProductQA({ productId, isAuthenticated, onLoginRequired 
                         <span className="text-xs text-gray-400">{fmtDate(a.created_at)}</span>
                       </div>
                       <p className="text-sm text-gray-600 leading-relaxed mb-2">{a.text}</p>
-                      <button
-                        onClick={() => toggleHelpful(q.id, a.id)}
-                        disabled={votingId === a.id}
-                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border transition disabled:opacity-50 ${
-                          a.liked_by_me
-                            ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
-                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-                        }`}
-                      >
-                        👍 Полезно{a.helpful_count > 0 ? ` (${a.helpful_count})` : ''}
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => toggleHelpful(q.id, a.id)}
+                          disabled={votingId === a.id}
+                          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border transition disabled:opacity-50 ${
+                            a.liked_by_me
+                              ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                              : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                          }`}
+                        >
+                          👍 Полезно{a.helpful_count > 0 ? ` (${a.helpful_count})` : ''}
+                        </button>
+                        {/* Пожаловаться на ответ (Ф18) */}
+                        {onReport && (
+                          <button
+                            onClick={() => onReport({ type: 'answer', id: a.id, label: 'ответ' })}
+                            className="text-xs text-gray-400 hover:text-red-500 transition"
+                          >
+                            Пожаловаться
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

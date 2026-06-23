@@ -1,6 +1,7 @@
 import pytest
 from django.core.cache import cache
-from apps.products.models import Category, Product, Review
+from rest_framework.test import APIClient
+from apps.products.models import Answer, Category, Product, Question, Report, Review
 from apps.users.models import User
 
 
@@ -1828,3 +1829,287 @@ def test_f17_admin_action_reject_empty_reason_keeps_status(admin, pending_produc
     reject_moderation(ma, req, Product.objects.filter(id=pending_product.id))
     pending_product.refresh_from_db()
     assert pending_product.status == 'moderation'
+
+
+# --- Ф18: жалобы и модерация UGC (узел 3.8 + «пожаловаться» из 1.5) ---
+
+@pytest.fixture
+def buyer_review(db, user, product):
+    """Отзыв покупателя на товар (цель жалобы/скрытия). Создание через ORM
+    триггерит сигнал recalc_product_rating - product.rating обновится."""
+    return Review.objects.create(product=product, user=user, rating=5, text='Отличный товар')
+
+
+@pytest.fixture
+def product_question(db, user, product):
+    return Question.objects.create(product=product, user=user, text='Есть размер L?')
+
+
+@pytest.fixture
+def question_answer(db, seller, product_question):
+    return Answer.objects.create(question=product_question, user=seller, text='Да, есть')
+
+
+# === Половина A: создание жалобы ===
+
+@pytest.mark.django_db
+def test_f18_create_report_requires_auth(api_client, buyer_review):
+    """Жалоба от гостя -> 401 (IsAuthenticated)."""
+    res = api_client.post('/api/products/reports/',
+                          {'target_type': 'review', 'target_id': buyer_review.id,
+                           'reason': 'spam'}, format='json')
+    assert res.status_code == 401
+
+
+@pytest.mark.django_db
+def test_f18_create_report_success_201(buyer_review, seller):
+    """Авторизованный жалуется на отзыв -> 201, запись open создана."""
+    res = _client_as(seller).post('/api/products/reports/',
+                                  {'target_type': 'review', 'target_id': buyer_review.id,
+                                   'reason': 'fake', 'comment': 'накрутка'}, format='json')
+    assert res.status_code == 201
+    assert res.data['status'] == 'open'
+    rep = Report.objects.get(id=res.data['id'])
+    assert rep.target_type == 'review' and rep.reason == 'fake'
+    assert rep.reporter_id == seller.id
+
+
+@pytest.mark.django_db
+def test_f18_create_report_dedup_200(buyer_review, seller):
+    """Повторная открытая жалоба того же юзера на ту же цель -> 200, без дубля (§6)."""
+    url = '/api/products/reports/'
+    body = {'target_type': 'review', 'target_id': buyer_review.id, 'reason': 'spam'}
+    r1 = _client_as(seller).post(url, body, format='json')
+    r2 = _client_as(seller).post(url, body, format='json')
+    assert r1.status_code == 201
+    assert r2.status_code == 200
+    assert Report.objects.filter(reporter=seller, target_type='review',
+                                 target_id=buyer_review.id, status='open').count() == 1
+
+
+@pytest.mark.django_db
+def test_f18_create_report_missing_target_404(auth_client):
+    """Несуществующая цель -> 404 (не 500)."""
+    res = auth_client.post('/api/products/reports/',
+                           {'target_type': 'review', 'target_id': 999999,
+                            'reason': 'spam'}, format='json')
+    assert res.status_code == 404
+
+
+@pytest.mark.django_db
+def test_f18_create_report_unknown_type_400(auth_client, buyer_review):
+    """Тип вне allowlist -> 400 (анти-инъекция цели, §9)."""
+    res = auth_client.post('/api/products/reports/',
+                           {'target_type': 'order', 'target_id': buyer_review.id,
+                            'reason': 'spam'}, format='json')
+    assert res.status_code == 400
+
+
+@pytest.mark.django_db
+def test_f18_create_report_unknown_reason_400(auth_client, buyer_review):
+    """Причина вне choices -> 400."""
+    res = auth_client.post('/api/products/reports/',
+                           {'target_type': 'review', 'target_id': buyer_review.id,
+                            'reason': 'whatever'}, format='json')
+    assert res.status_code == 400
+
+
+# === Половина B: очередь и права ===
+
+@pytest.mark.django_db
+def test_f18_queue_requires_admin(seller, user, buyer_review):
+    """Очередь жалоб - только админ: продавец/покупатель -> 403, гость -> 401 (§9)."""
+    Report.objects.create(target_type='review', target_id=buyer_review.id, reason='spam')
+    assert _client_as(seller).get('/api/products/reports/').status_code == 403
+    assert _client_as(user).get('/api/products/reports/').status_code == 403
+    assert _client_as().get('/api/products/reports/').status_code == 401
+
+
+@pytest.mark.django_db
+def test_f18_queue_lists_open_with_target_preview(admin_client, buyer_review, user):
+    """Очередь отдаёт open-жалобы с превью цели; PII - только username, без email (§9)."""
+    Report.objects.create(reporter=user, target_type='review',
+                          target_id=buyer_review.id, reason='abuse', comment='хамство')
+    res = admin_client.get('/api/products/reports/')
+    assert res.status_code == 200
+    row = res.data['results'][0]
+    assert row['target']['exists'] is True
+    assert row['target']['text'] == buyer_review.text
+    assert row['reporter'] == user.username
+    # PII-минимизация: email жалобщика/автора нигде не светится.
+    import json
+    assert user.email not in json.dumps(res.data)
+
+
+@pytest.mark.django_db
+def test_f18_queue_filter_and_deleted_target(admin_client, buyer_review):
+    """?status= фильтрует; «протухшая» цель (удалена) не валит очередь (§6)."""
+    rep = Report.objects.create(target_type='review', target_id=buyer_review.id, reason='spam')
+    buyer_review.delete()
+    res = admin_client.get('/api/products/reports/?status=open')
+    assert res.status_code == 200
+    row = [r for r in res.data['results'] if r['id'] == rep.id][0]
+    assert row['target']['exists'] is False
+
+
+# === Обработка: resolve / dismiss ===
+
+@pytest.mark.django_db
+def test_f18_resolve_hides_review_and_drops_rating(admin_client, product, buyer_review):
+    """resolve жалобы на отзыв: отзыв скрыт, исключён из рейтинга и публичной
+    выдачи; жалоба -> resolved (центральный эффект половины B, §4.3)."""
+    product.refresh_from_db()
+    assert product.reviews_count == 1 and product.rating == 5.0
+    rep = Report.objects.create(target_type='review', target_id=buyer_review.id, reason='fake')
+
+    res = admin_client.post(f'/api/products/reports/{rep.id}/resolve/', {}, format='json')
+    assert res.status_code == 200
+    rep.refresh_from_db(); buyer_review.refresh_from_db(); product.refresh_from_db()
+    assert rep.status == 'resolved'
+    assert buyer_review.is_hidden is True
+    # Рейтинг и счётчик пересчитаны без скрытого отзыва (анти-накрутка).
+    assert product.reviews_count == 0 and product.rating == 0
+    # Не виден в публичном эндпоинте.
+    pub = APIClient().get(f'/api/products/{product.id}/reviews/')
+    assert all(r['id'] != buyer_review.id for r in pub.data['results'])
+
+
+@pytest.mark.django_db
+def test_f18_double_resolve_409(admin_client, buyer_review):
+    """Повторная обработка уже закрытой жалобы -> 409, без второго действия (§6)."""
+    rep = Report.objects.create(target_type='review', target_id=buyer_review.id, reason='spam')
+    r1 = admin_client.post(f'/api/products/reports/{rep.id}/resolve/', {}, format='json')
+    r2 = admin_client.post(f'/api/products/reports/{rep.id}/resolve/', {}, format='json')
+    assert r1.status_code == 200 and r2.status_code == 409
+
+
+@pytest.mark.django_db
+def test_f18_dismiss_keeps_target(admin_client, buyer_review):
+    """dismiss: жалоба -> dismissed, цель не трогаем."""
+    rep = Report.objects.create(target_type='review', target_id=buyer_review.id, reason='other')
+    res = admin_client.post(f'/api/products/reports/{rep.id}/dismiss/',
+                            {'note': 'нарушения нет'}, format='json')
+    assert res.status_code == 200
+    rep.refresh_from_db(); buyer_review.refresh_from_db()
+    assert rep.status == 'dismissed'
+    assert buyer_review.is_hidden is False
+
+
+@pytest.mark.django_db
+def test_f18_resolve_action_requires_admin(seller, user, buyer_review):
+    """resolve/dismiss - только админ (§9)."""
+    rep = Report.objects.create(target_type='review', target_id=buyer_review.id, reason='spam')
+    url = f'/api/products/reports/{rep.id}/resolve/'
+    assert _client_as(seller).post(url, {}, format='json').status_code == 403
+    assert _client_as(user).post(url, {}, format='json').status_code == 403
+    assert _client_as().post(url, {}, format='json').status_code == 401
+
+
+# === Проактивная модерация (hide/unhide без жалобы) ===
+
+@pytest.mark.django_db
+def test_f18_proactive_hide_unhide_review_recalcs_rating(admin_client, product, buyer_review):
+    """hide отзыва исключает из рейтинга; unhide возвращает в выдачу и рейтинг."""
+    res = admin_client.post(f'/api/products/reviews/{buyer_review.id}/hide/', {}, format='json')
+    assert res.status_code == 200 and res.data['is_hidden'] is True
+    product.refresh_from_db()
+    assert product.reviews_count == 0 and product.rating == 0
+
+    res = admin_client.post(f'/api/products/reviews/{buyer_review.id}/unhide/', {}, format='json')
+    assert res.data['is_hidden'] is False
+    product.refresh_from_db()
+    assert product.reviews_count == 1 and product.rating == 5.0
+    pub = APIClient().get(f'/api/products/{product.id}/reviews/')
+    assert any(r['id'] == buyer_review.id for r in pub.data['results'])
+
+
+@pytest.mark.django_db
+def test_f18_hide_requires_admin(seller, user, buyer_review):
+    """Проактивное скрытие - только админ (§9)."""
+    url = f'/api/products/reviews/{buyer_review.id}/hide/'
+    assert _client_as(seller).post(url, {}, format='json').status_code == 403
+    assert _client_as().post(url, {}, format='json').status_code == 401
+
+
+@pytest.mark.django_db
+def test_f18_hide_idempotent(admin_client, product, buyer_review):
+    """Повторный hide уже скрытого не плодит эффект (§6): рейтинг стабилен."""
+    admin_client.post(f'/api/products/reviews/{buyer_review.id}/hide/', {}, format='json')
+    admin_client.post(f'/api/products/reviews/{buyer_review.id}/hide/', {}, format='json')
+    product.refresh_from_db()
+    assert product.reviews_count == 0
+
+
+# === Q&A: модерация вопросов/ответов (Этап 4, гейт Ф6 закрыт) ===
+
+@pytest.mark.django_db
+def test_f18_hide_question_removes_from_public(admin_client, product, product_question):
+    """Скрытый вопрос пропадает из публичной ветки Q&A."""
+    admin_client.post(f'/api/products/questions/{product_question.id}/hide/', {}, format='json')
+    pub = APIClient().get(f'/api/products/{product.id}/questions/')
+    assert all(q['id'] != product_question.id for q in pub.data['results'])
+
+
+@pytest.mark.django_db
+def test_f18_hide_answer_removes_from_public(admin_client, product, product_question, question_answer):
+    """Скрытый ответ не виден в публичной ветке (лайки не «всплывают»)."""
+    admin_client.post(f'/api/products/answers/{question_answer.id}/hide/', {}, format='json')
+    pub = APIClient().get(f'/api/products/{product.id}/questions/')
+    q = [q for q in pub.data['results'] if q['id'] == product_question.id][0]
+    assert all(a['id'] != question_answer.id for a in q['answers'])
+
+
+@pytest.mark.django_db
+def test_f18_report_question_and_answer_allowed(auth_client, product_question, question_answer):
+    """Жалоба на вопрос/ответ создаётся (Ф6 смержена -> типы в allowlist)."""
+    r1 = auth_client.post('/api/products/reports/',
+                          {'target_type': 'question', 'target_id': product_question.id,
+                           'reason': 'spam'}, format='json')
+    r2 = auth_client.post('/api/products/reports/',
+                          {'target_type': 'answer', 'target_id': question_answer.id,
+                           'reason': 'abuse'}, format='json')
+    assert r1.status_code == 201 and r2.status_code == 201
+
+
+# === Жалоба на товар: active -> hidden, moderation -> делегирование Ф17 ===
+
+@pytest.mark.django_db
+def test_f18_resolve_active_product_hides_and_deindexes(admin_client, product, monkeypatch):
+    """Жалоба на активный товар: resolve -> status hidden + de-index ES + ушёл из
+    каталога (собственное действие Ф18, не reject Ф17, §3)."""
+    deleted = []
+    monkeypatch.setattr('apps.products.moderation_ugc.delete_product',
+                        lambda pid: deleted.append(pid))
+    rep = Report.objects.create(target_type='product', target_id=product.id, reason='forbidden')
+    res = admin_client.post(f'/api/products/reports/{rep.id}/resolve/', {}, format='json')
+    assert res.status_code == 200
+    product.refresh_from_db()
+    assert product.status == 'hidden'
+    assert deleted == [product.id]
+    catalog = APIClient().get('/api/products/')
+    assert product.id not in [p['id'] for p in catalog.data['results']]
+
+
+@pytest.mark.django_db
+def test_f18_resolve_moderation_product_delegates_reject(admin_client, pending_product):
+    """Жалоба на товар в статусе moderation -> делегируется Ф17.reject
+    (moderation -> rejected), а не hide (§3, краевой случай)."""
+    rep = Report.objects.create(target_type='product', target_id=pending_product.id, reason='fraud')
+    res = admin_client.post(f'/api/products/reports/{rep.id}/resolve/',
+                            {'note': 'фрод'}, format='json')
+    assert res.status_code == 200
+    pending_product.refresh_from_db()
+    assert pending_product.status == 'rejected'
+
+
+@pytest.mark.django_db
+def test_f18_resolve_seller_report_no_block(admin_client, seller):
+    """Жалоба на продавца: resolve фиксирует заметкой, продавца НЕ блокирует
+    (блокировка - Ф19, граница §7)."""
+    rep = Report.objects.create(target_type='seller', target_id=seller.id, reason='fraud')
+    res = admin_client.post(f'/api/products/reports/{rep.id}/resolve/',
+                            {'note': 'передано в Ф19'}, format='json')
+    assert res.status_code == 200
+    rep.refresh_from_db(); seller.refresh_from_db()
+    assert rep.status == 'resolved'
+    assert seller.is_active is True  # не заблокирован

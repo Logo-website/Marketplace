@@ -1,6 +1,8 @@
 from django.utils.text import slugify
 from rest_framework import serializers
-from .models import Answer, Category, Product, ProductImage, Question, Review
+from rest_framework.exceptions import NotFound
+from apps.users.models import User
+from .models import Answer, Category, Product, ProductImage, Question, Report, Review
 
 class CategorySerializer(serializers.ModelSerializer):
     # Дерево категорий одним ответом: каждый узел несёт вложенных детей
@@ -283,8 +285,10 @@ class SellerReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Review
+        # is_hidden - продавцу полезно знать, что отзыв скрыт модератором (Ф18 §6);
+        # публике скрытый не отдаётся вовсе (фильтр в ReviewListCreateView).
         fields = ['id', 'username', 'rating', 'text', 'created_at',
-                  'seller_reply', 'seller_reply_at',
+                  'seller_reply', 'seller_reply_at', 'is_hidden',
                   'product_id', 'product_name']
 
 
@@ -297,7 +301,9 @@ class MyReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Review
-        fields = ['id', 'rating', 'text', 'created_at',
+        # is_hidden/hidden_reason: автор видит у себя «скрыто модератором» с
+        # причиной (Ф18 §4.2, минимум через статус; полный UX - forward Ф10).
+        fields = ['id', 'rating', 'text', 'created_at', 'is_hidden', 'hidden_reason',
                   'product_id', 'product_name', 'product_image']
 
     def get_product_image(self, obj):
@@ -392,3 +398,122 @@ class AnswerCreateSerializer(serializers.ModelSerializer):
 
     def validate_text(self, value):
         return _validate_qa_text(value)
+
+
+# === Ф18. Жалобы и модерация UGC (узел 3.8 + «пожаловаться» из 1.5) ===
+
+# Лимиты длины (план §4.1, §9): TextField в БД безлимитен, поэтому защита от
+# гигантского ввода - здесь, на сериализаторе. comment - ввод пользователя (400
+# при превышении); resolution_note - заметка модератора.
+REPORT_COMMENT_MAX = 2000
+RESOLUTION_NOTE_MAX = 2000
+
+# Резолв цели жалобы по типу: модель + фильтр существования. seller - это User
+# с ролью seller (отдельной модели Seller нет). Allowlist = реально существующие
+# в коде сущности (Ф6 смержена -> question/answer включены). Тип вне allowlist
+# отсекает ChoiceField (-> 400), несуществующий id - проверка ниже (-> 404).
+def _target_exists(target_type, target_id):
+    if target_type == 'product':
+        return Product.objects.filter(id=target_id).exists()
+    if target_type == 'review':
+        return Review.objects.filter(id=target_id).exists()
+    if target_type == 'question':
+        return Question.objects.filter(id=target_id).exists()
+    if target_type == 'answer':
+        return Answer.objects.filter(id=target_id).exists()
+    if target_type == 'seller':
+        return User.objects.filter(id=target_id, role='seller').exists()
+    return False
+
+
+class ReportCreateSerializer(serializers.Serializer):
+    """Создание жалобы (половина A, любой авторизованный). Валидирует тип по
+    allowlist (ChoiceField), причину по choices, существование цели (-> 404) и
+    лимит комментария. Дедуп открытых жалоб - в create() (get_or_create), без
+    БД-констрейнта (план §4.4 C)."""
+    target_type = serializers.ChoiceField(choices=[c[0] for c in Report.TARGET_CHOICES])
+    target_id = serializers.IntegerField(min_value=1)
+    reason = serializers.ChoiceField(choices=[c[0] for c in Report.REASON_CHOICES])
+    comment = serializers.CharField(required=False, allow_blank=True,
+                                    max_length=REPORT_COMMENT_MAX)
+
+    def validate(self, data):
+        # NotFound (не ValidationError) -> 404, как требует план §6 для
+        # несуществующей цели; неизвестный тип уже отсёкнут ChoiceField (400).
+        if not _target_exists(data['target_type'], data['target_id']):
+            raise NotFound('Объект жалобы не найден')
+        return data
+
+    def create(self, validated_data):
+        # Дедуп: повторная открытая жалоба того же пользователя на ту же цель не
+        # плодит дубль (§6) - возвращаем существующую. _created -> 201 vs 200 во вьюхе.
+        report, created = Report.objects.get_or_create(
+            reporter=self.context['request'].user,
+            target_type=validated_data['target_type'],
+            target_id=validated_data['target_id'],
+            status='open',
+            defaults={
+                'reason': validated_data['reason'],
+                'comment': validated_data.get('comment', '') or '',
+            },
+        )
+        self._created = created
+        return report
+
+
+def _report_target_preview(report):
+    """Превью цели для очереди модератора. PII-минимизация (§9): только username/
+    shop_name автора и продавца, НЕ email/телефон/id пользователя. Цель могла
+    «протухнуть» (удалена после жалобы) - тогда {exists: False}, не 500 (§6)."""
+    t, tid = report.target_type, report.target_id
+    if t == 'product':
+        p = Product.objects.filter(id=tid).select_related('seller').first()
+        if not p:
+            return {'exists': False}
+        seller = p.seller
+        return {'exists': True, 'title': p.name, 'status': p.status,
+                'seller': (seller.shop_name or seller.username) if seller else ''}
+    if t == 'review':
+        r = Review.objects.filter(id=tid).select_related('user').first()
+        if not r:
+            return {'exists': False}
+        return {'exists': True, 'text': r.text, 'rating': r.rating,
+                'author': r.user.username, 'is_hidden': r.is_hidden,
+                'product_id': r.product_id}
+    if t == 'question':
+        q = Question.objects.filter(id=tid).select_related('user').first()
+        if not q:
+            return {'exists': False}
+        return {'exists': True, 'text': q.text, 'author': q.user.username,
+                'is_hidden': q.is_hidden, 'product_id': q.product_id}
+    if t == 'answer':
+        a = Answer.objects.filter(id=tid).select_related('user').first()
+        if not a:
+            return {'exists': False}
+        return {'exists': True, 'text': a.text, 'author': a.user.username,
+                'is_hidden': a.is_hidden}
+    if t == 'seller':
+        u = User.objects.filter(id=tid).first()
+        if not u:
+            return {'exists': False}
+        return {'exists': True, 'shop': u.shop_name or u.username}
+    return {'exists': False}
+
+
+class ReportSerializer(serializers.ModelSerializer):
+    """Строка очереди жалоб (половина B, только админ). Личность жалобщика -
+    только username (анонимность для автора контента обеспечивается тем, что
+    эта выдача под IsAdmin, §9). target - превью цели без PII."""
+    reporter = serializers.CharField(source='reporter.username', read_only=True,
+                                     default='')
+    reason_display = serializers.CharField(source='get_reason_display', read_only=True)
+    target = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Report
+        fields = ['id', 'reporter', 'target_type', 'target_id', 'reason',
+                  'reason_display', 'comment', 'status', 'created_at',
+                  'resolution_note', 'target']
+
+    def get_target(self, obj):
+        return _report_target_preview(obj)

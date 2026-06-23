@@ -1,4 +1,5 @@
 from django.urls import path
+from .models import Answer, Question, Review
 from .views import (
     CategoryListView,
     ProductListView,
@@ -28,6 +29,10 @@ from .views import (
     ModerationQueueView,
     ModerationApproveView,
     ModerationRejectView,
+    ReportListCreateView,
+    ReportResolveView,
+    ReportDismissView,
+    UGCModerationView,
 )
 
 urlpatterns = [
@@ -49,6 +54,18 @@ urlpatterns = [
     path('moderation/', ModerationQueueView.as_view(), name='moderation-queue'),
     path('moderation/<int:pk>/approve/', ModerationApproveView.as_view(), name='moderation-approve'),
     path('moderation/<int:pk>/reject/', ModerationRejectView.as_view(), name='moderation-reject'),
+    # Ф18 (узел 3.8): жалобы и модерация UGC. reports/ - один view (POST создание /
+    # GET очередь админа); resolve/dismiss - обработка жалобы; hide/unhide -
+    # проактивная модерация контента. Литералы до <int:pk>/ - не конфликтуют.
+    path('reports/', ReportListCreateView.as_view(), name='reports'),
+    path('reports/<int:pk>/resolve/', ReportResolveView.as_view(), name='report-resolve'),
+    path('reports/<int:pk>/dismiss/', ReportDismissView.as_view(), name='report-dismiss'),
+    path('reviews/<int:pk>/hide/', UGCModerationView.as_view(model=Review, hide=True), name='review-hide'),
+    path('reviews/<int:pk>/unhide/', UGCModerationView.as_view(model=Review, hide=False), name='review-unhide'),
+    path('questions/<int:pk>/hide/', UGCModerationView.as_view(model=Question, hide=True), name='question-hide'),
+    path('questions/<int:pk>/unhide/', UGCModerationView.as_view(model=Question, hide=False), name='question-unhide'),
+    path('answers/<int:pk>/hide/', UGCModerationView.as_view(model=Answer, hide=True), name='answer-hide'),
+    path('answers/<int:pk>/unhide/', UGCModerationView.as_view(model=Answer, hide=False), name='answer-unhide'),
     path('<int:pk>/', ProductDetailView.as_view(), name='product-detail'),
     path('create/', ProductCreateView.as_view(), name='product-create'),
     path('my/', SellerProductListView.as_view(), name='seller-products'),

@@ -27,7 +27,7 @@ function Stars({ value }) {
   )
 }
 
-export default function ReviewsSection({ productId, productRating = 0, reviewsCount = 0, sellerName = '', isAuthenticated, onLoginRequired }) {
+export default function ReviewsSection({ productId, productRating = 0, reviewsCount = 0, sellerName = '', isAuthenticated, onLoginRequired, onReport }) {
   const [sort, setSort] = useState('new')
   const [ratingFilter, setRatingFilter] = useState(null)
 
@@ -234,6 +234,16 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
               </div>
               <div className="ml-10 mb-2"><Stars value={review.rating} /></div>
               <p className="text-sm text-gray-600 leading-relaxed ml-10">{review.text}</p>
+
+              {/* Пожаловаться на отзыв (Ф18). Уходит модератору в очередь. */}
+              {onReport && (
+                <button
+                  onClick={() => onReport(review.id)}
+                  className="ml-10 mt-2 text-xs text-gray-400 hover:text-red-500 transition"
+                >
+                  Пожаловаться
+                </button>
+              )}
 
               {/* Ответ продавца (Ф15, узел 2.8): официальный ответ магазина под
                   отзывом. Имя - sellerName (shop_name, S17), не email. Текст как

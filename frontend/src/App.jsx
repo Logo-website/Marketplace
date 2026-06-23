@@ -26,6 +26,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import NotFoundPage from './pages/NotFoundPage'
 import AdminRoute from './components/admin/AdminRoute'
 import ModerationPage from './pages/admin/ModerationPage'
+import ReportsPage from './pages/admin/ReportsPage'
 
 
 function PrivateRoute({ children }) {
@@ -123,6 +124,8 @@ export default function App() {
               <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
               {/* Админ-зона (Ф17): очередь модерации товаров под роль-гейт admin. */}
               <Route path="/admin/moderation" element={<AdminRoute><ModerationPage /></AdminRoute>} />
+              {/* Админ-зона (Ф18): очередь жалоб и модерация UGC под роль-гейт admin. */}
+              <Route path="/admin/reports" element={<AdminRoute><ReportsPage /></AdminRoute>} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
