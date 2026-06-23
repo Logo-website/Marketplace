@@ -65,6 +65,17 @@ class KafkaService:
         })
 
     @staticmethod
+    def chat_message(recipient_id, payload):
+        """Живая доставка сообщения чата (Ф24): отдельный топик chat.message - чтобы не
+        смешивать с лентой-колокольчиком (user.notification). node роутит по recipient_id
+        (только адресату - граница приватности §8), отдаёт клиенту как chat.message.
+        payload - примитивы без PII: {conversation_id, message_id, sender_id, preview}."""
+        KafkaService._dispatch('chat.message', {
+            'recipient_id': recipient_id,
+            'message': payload,
+        })
+
+    @staticmethod
     def _dispatch(topic, data):
         try:
             from apps.orders.tasks import publish_order_event

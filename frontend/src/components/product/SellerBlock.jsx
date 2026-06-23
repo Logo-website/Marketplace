@@ -1,14 +1,29 @@
-import { Link } from 'react-router-dom'
-import { toast } from '../../store/toastStore'
+import { Link, useNavigate } from 'react-router-dom'
+import useAuthStore from '../../store/authStore'
+import useChatStore from '../../store/chatStore'
 
 // Блок продавца на карточке (Ф4). Показывает имя магазина (seller_name из API -
-// публичное имя, не email, S17). Витрина бренда (Ф20) теперь реальная ссылка на
-// /brand/:id (замыкание forward-ссылки Ф4); чат с продавцом (Ф24) пока forward -
-// заглушка-тост, не «мёртвая ссылка». Без sellerId кнопка «Витрина» не рисуется.
-export default function SellerBlock({ sellerName, sellerId }) {
+// публичное имя, не email, S17). Витрина бренда (Ф20) - ссылка на /brand/:id;
+// «Написать» (Ф24) - старт диалога с продавцом с контекстом товара. Гость -> логин
+// с возвратом (§5), не 401 в лицо. Без sellerId кнопки продавца не рисуются.
+export default function SellerBlock({ sellerName, sellerId, productId }) {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuthStore()
+
   if (!sellerName) return null
 
-  const soon = (what) => toast.info(`${what} появится позже`)
+  const writeToSeller = async () => {
+    if (!isAuthenticated) {
+      // Запоминаем, откуда шёл гость - вернём после логина (PrivateRoute-флоу).
+      const next = encodeURIComponent(productId ? `/products/${productId}` : '/chats')
+      navigate(`/login?next=${next}`)
+      return
+    }
+    const convId = await useChatStore.getState().startConversation({
+      kind: 'seller', seller: sellerId, product: productId,
+    })
+    if (convId) navigate(`/chats/${convId}`)
+  }
 
   return (
     <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 flex items-center justify-between gap-3">
@@ -30,12 +45,14 @@ export default function SellerBlock({ sellerName, sellerId }) {
             Витрина
           </Link>
         )}
-        <button
-          onClick={() => soon('Чат с продавцом')}
-          className="text-xs font-semibold text-white bg-[#111] hover:bg-gray-800 rounded-lg px-3 py-1.5 transition"
-        >
-          Написать
-        </button>
+        {sellerId && (
+          <button
+            onClick={writeToSeller}
+            className="text-xs font-semibold text-white bg-[#111] hover:bg-gray-800 rounded-lg px-3 py-1.5 transition"
+          >
+            Написать
+          </button>
+        )}
       </div>
     </div>
   )

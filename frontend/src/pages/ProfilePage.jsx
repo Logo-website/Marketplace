@@ -8,6 +8,7 @@ import AddressesTab from '../components/profile/AddressesTab'
 import MyReviewsTab from '../components/profile/MyReviewsTab'
 import NotificationsTab from '../components/profile/NotificationsTab'
 import ReturnsTab from '../components/profile/ReturnsTab'
+import ChatsTab from '../components/profile/ChatsTab'
 import ForwardTab from '../components/profile/ForwardTab'
 
 // Оболочка-кабинет (Ф10, узел 1.13). ProfilePage держит только роутинг вкладок
@@ -36,7 +37,6 @@ const FORWARD = {
   questions: { icon: '❓', title: 'Мои вопросы', phase: 'Ф6', description: 'Ваши вопросы о товарах и ответы на них появятся здесь.' },
   brands:    { icon: '🏷️', title: 'Избранные бренды', phase: 'Ф20', description: 'Подписки на бренды и магазины появятся здесь.' },
   points:    { icon: '🎁', title: 'Баллы и бонусы', phase: 'Ф27', description: 'Баллы лояльности, промокоды и акции появятся здесь.' },
-  chats:     { icon: '💬', title: 'Чаты', phase: 'Ф24', description: 'Переписка с продавцами и поддержкой появится здесь.' },
 }
 
 export default function ProfilePage() {
@@ -61,6 +61,7 @@ export default function ProfilePage() {
       case 'reviews': return <MyReviewsTab />
       case 'notifications': return <NotificationsTab />
       case 'returns': return <ReturnsTab />
+      case 'chats': return <ChatsTab />
       default: return <ForwardTab {...FORWARD[activeTab]} />
     }
   }

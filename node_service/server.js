@@ -110,21 +110,31 @@ wss.on('connection', (ws) => {
   ws.on('error', () => {});
 });
 
+// Топик -> как достать полезную нагрузку клиента из события Kafka. Оба роутятся по
+// recipient_id (id из проверенного на бэке получателя - клиент чужой id подделать не
+// может, S5). chat.message (Ф24) держим ОТДЕЛЬНЫМ типом от user.notification (Ф25):
+// чат и лента-колокольчик - разные домены на клиенте, не смешиваем.
+const TOPIC_PAYLOAD = {
+  'user.notification': (data) => data.notification,
+  'chat.message': (data) => data.message,
+};
+
 async function startConsumer() {
   await consumer.connect();
-  // Ф25: единый топик уведомлений. Центр notify() публикует {recipient_id, notification};
-  // роутим по recipient_id (обобщение прежнего buyer_id), id берётся из проверенного
-  // на бэке получателя - клиент чужой id подделать не может (S5).
-  await consumer.subscribe({ topics: ['user.notification'] });
+  await consumer.subscribe({ topics: Object.keys(TOPIC_PAYLOAD) });
 
   await consumer.run({
-    eachMessage: async ({ message }) => {
+    eachMessage: async ({ topic, message }) => {
+      const extract = TOPIC_PAYLOAD[topic];
+      if (!extract) return;
       const data = JSON.parse(message.value.toString());
       const userId = String(data.recipient_id || '');
       const sockets = clients.get(userId);
       if (!sockets) return;
 
-      const out = JSON.stringify({ type: 'user.notification', data: data.notification });
+      // Тип события клиенту = имя топика: notificationStore роутит chat.message в
+      // chatStore, user.notification - в ленту/тост.
+      const out = JSON.stringify({ type: topic, data: extract(data) });
       for (const ws of sockets) {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(out);

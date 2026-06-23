@@ -26,6 +26,8 @@ import ToastContainer from './components/ToastContainer'
 import ErrorBoundary from './components/states/ErrorBoundary'
 import WishlistPage from './pages/WishlistPage'
 import CheckoutPage from './pages/CheckoutPage'
+import ChatsPage from './pages/ChatsPage'
+import HelpPage from './pages/HelpPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import NotFoundPage from './pages/NotFoundPage'
 import AdminRoute from './components/admin/AdminRoute'
@@ -135,6 +137,11 @@ export default function App() {
               <Route path="/seller/settings" element={<SellerRoute><SellerSettingsPage /></SellerRoute>} />
               <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
               <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
+              {/* Чат (Ф24): список диалогов и окно переписки, только для залогиненных. */}
+              <Route path="/chats" element={<PrivateRoute><ChatsPage /></PrivateRoute>} />
+              <Route path="/chats/:id" element={<PrivateRoute><ChatsPage /></PrivateRoute>} />
+              {/* Помощь / FAQ (Ф24) - публичный раздел. */}
+              <Route path="/help" element={<HelpPage />} />
               {/* Админ-зона (Ф17): очередь модерации товаров под роль-гейт admin. */}
               <Route path="/admin/moderation" element={<AdminRoute><ModerationPage /></AdminRoute>} />
               {/* Админ-зона (Ф18): очередь жалоб и модерация UGC под роль-гейт admin. */}

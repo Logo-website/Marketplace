@@ -190,6 +190,9 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Notifications | POST | `/api/notifications/{id}/read/` | Authenticated (own; 404 otherwise) |
 | Notifications | POST | `/api/notifications/read-all/` | Authenticated |
 | Notifications | GET | `/api/notifications/unsubscribe/{token}/` | Public (signed one-click unsubscribe) |
+| Chat | GET/POST | `/api/chat/conversations/` | Authenticated (own dialogs; idempotent start, `?role=buyer/seller`) |
+| Chat | GET/POST | `/api/chat/conversations/{id}/messages/` | Authenticated (participant only; POST throttled) |
+| Chat | POST | `/api/chat/conversations/{id}/read/` | Authenticated (participant only; marks incoming read) |
 | Docs | GET | `/api/docs/` | Authenticated by default |
 | Admin | — | `/admin/` | Django admin (`is_staff`) |
 
@@ -215,7 +218,9 @@ SPA in `frontend/`. Dev server proxies `/api` to `http://localhost:8001` (see `v
 | `/forgot-password` | Password reset OTP | Public |
 | `/cart` | Cart management (guest cart supported) | Public |
 | `/checkout` | Checkout (`POST /orders/from-cart/`) | Private |
-| `/profile` | Account hub (tabs: overview, orders, my data, addresses, my reviews, notifications; `?tab=`) | Private |
+| `/profile` | Account hub (tabs: overview, orders, my data, addresses, my reviews, notifications, returns, chats; `?tab=`) | Private |
+| `/chats`, `/chats/:id` | Chat — dialog list and conversation window (buyer/seller + support) | Private |
+| `/help` | Help / FAQ (static accordion) | Public |
 | `/sell` | Seller onboarding (become seller; already-seller → settings) | Private |
 | `/seller` | Seller products and analytics | Seller |
 | `/seller/settings` | Store settings (legal data, requisites, storefront, tariff) | Seller |
@@ -412,6 +417,7 @@ cd backend && pytest
 | `apps/orders/tests/test_returns.py` | Returns end-to-end: create only on own delivered order within period (foreign/not-delivered/expired/duplicate/over-quantity/deleted-product rejected), multi-vendor split, no seller PII, dispute only `rejected`→`disputed` (blocked after arbitration), seller S4 isolation, status machine, idempotent stock restore on receive, full flow to refunded, photo upload |
 | `apps/cart/tests.py` | Cart add/get/set-quantity/remove/clear with stock checks, inactive product, auth, variant lines, guest-cart merge (clamp/sum/skip), batch by ids |
 | `apps/notifications/tests/test_notifications.py` | Notifications: `notify()` feed row, template render and UGC escaping, unknown-event safe default, transactional email always vs marketing opt-out, signed unsubscribe token (valid/forged), feed isolation (no foreign read/mark → 404), unread-count and mark-all, order create end-to-end through the center (one email, no dup), broadcast opt-out and segment filter |
+| `apps/chat/tests/test_chat.py` | Chat: idempotent dialog start (seller pair / one support thread per buyer), can't chat with self, non-seller → 404, anti-IDOR (outsider can't read/post → 403/404), participant post+read, blank-message rejection, XSS body stored as plain text, no counterparty email in list, read marks incoming only, delivery recipient routing (seller thread / support buyer no recipient / bot reply to buyer), support bot reply (keyword/default/empty), send throttling |
 
 Frontend: **Vitest** - `cd frontend && npm test`. Unit test of the pure size-matching function `src/utils/sizeMatch.test.js` (Ф5).
 

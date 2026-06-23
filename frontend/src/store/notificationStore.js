@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import api from '../api'
+import useChatStore from './chatStore'
 
 // WS-адрес через env (Vite), не хардкод. По умолчанию - локальный node-сервис.
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000'
@@ -59,6 +60,11 @@ const useNotificationStore = create((set, get) => ({
         }))
         // Авто-скрытие тоста через 6 секунд.
         setTimeout(() => get().dismiss(toast.id), 6000)
+        return
+      }
+      // Чат (Ф24) - отдельный домен: не в ленту-колокольчик, а в chatStore.
+      if (msg.type === 'chat.message') {
+        useChatStore.getState().receiveWsMessage(msg.data)
       }
     }
 
@@ -88,6 +94,8 @@ const useNotificationStore = create((set, get) => ({
       socket = null
     }
     set({ connected: false, notifications: [], feed: [], unread: 0 })
+    // Чат живёт на том же соединении - чистим его стор тоже (логаут).
+    useChatStore.getState().reset()
   },
 
   dismiss: (id) => {
