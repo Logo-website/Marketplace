@@ -37,7 +37,15 @@ SIZE_CHART_CACHE_TTL = 60 * 60  # размерный справочник мен
 class CategoryListView(generics.ListAPIView):
     # prefetch на 2 уровня вглубь (root -> дети -> внуки) покрывает реальную
     # глубину каталога одежды без N+1; ответ кэшируется на час (categories:root).
-    queryset = Category.objects.filter(parent=None).prefetch_related('children__children')
+    # is_visible=True (Ф19, узел 3.5): скрытая категория не показывается покупателю.
+    # Фильтр живёт в самих Prefetch, поэтому сериализатор отдаёт children.all() уже
+    # без скрытых, а защита от N+1 сохраняется (товары при этом не теряются -
+    # Product.category on_delete=SET_NULL не трогаем).
+    queryset = Category.objects.filter(parent=None, is_visible=True).prefetch_related(
+        Prefetch('children', queryset=Category.objects.filter(is_visible=True).prefetch_related(
+            Prefetch('children', queryset=Category.objects.filter(is_visible=True))
+        ))
+    )
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
 

@@ -210,6 +210,12 @@ class LoginVerifyView(APIView):
         except User.DoesNotExist:
             return Response({'error': 'Пользователь не найден'}, status=400)
 
+        # Enforcement блокировки (Ф19): authenticate() на шаге 1 уже отсекает
+        # неактивных, но OTP мог быть выдан ДО блокировки - тогда выдавать токены
+        # нельзя (иначе заблокированный «логинится», пусть и мёртвыми токенами).
+        if not user.is_active:
+            return Response({'error': 'Аккаунт заблокирован'}, status=403)
+
         refresh = RefreshToken.for_user(user)
         return Response({
             'access': str(refresh.access_token),

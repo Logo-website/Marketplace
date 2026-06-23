@@ -2113,3 +2113,41 @@ def test_f18_resolve_seller_report_no_block(admin_client, seller):
     rep.refresh_from_db(); seller.refresh_from_db()
     assert rep.status == 'resolved'
     assert seller.is_active is True  # не заблокирован
+
+
+# --- Ф19: видимость категории в каталоге (узел 3.5, «скрыть») ---
+
+@pytest.mark.django_db
+def test_f19_hidden_root_category_not_in_catalog(api_client, category):
+    """Скрытая корневая категория не отдаётся в каталоге Ф2."""
+    Category.objects.create(name='Архив', slug='archive', is_visible=False)
+    res = api_client.get('/api/products/categories/')
+    assert res.status_code == 200
+    slugs = [c['slug'] for c in res.data]
+    assert 'electronics' in slugs  # видимая на месте
+    assert 'archive' not in slugs  # скрытая выпала
+
+
+@pytest.mark.django_db
+def test_f19_hidden_child_category_not_in_catalog(api_client, category):
+    """Скрытая подкатегория не отдаётся среди children родителя."""
+    Category.objects.create(name='Видимая', slug='vis', parent=category)
+    Category.objects.create(name='Скрытая', slug='hid', parent=category, is_visible=False)
+    res = api_client.get('/api/products/categories/')
+    root = next(c for c in res.data if c['slug'] == 'electronics')
+    child_slugs = [c['slug'] for c in root['children']]
+    assert 'vis' in child_slugs
+    assert 'hid' not in child_slugs
+
+
+@pytest.mark.django_db
+def test_f19_hidden_category_keeps_products(api_client, product):
+    """Скрытие категории не удаляет её товары (скрыть != удалить)."""
+    cat = product.category
+    cat.is_visible = False
+    cat.save()
+    product.refresh_from_db()
+    assert product.category_id == cat.id  # товар цел, связь не обнулена
+    # и сам товар всё ещё доступен в общем списке
+    res = api_client.get('/api/products/')
+    assert any(p['id'] == product.id for p in res.data['results'])

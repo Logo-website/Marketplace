@@ -6,6 +6,12 @@ class Category(models.Model):
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    # Видимость в каталоге (Ф19, узел 3.5 «скрыть»). Не is_active (как у User -
+    # «может аутентифицироваться») и не status (как у Product): здесь смысл узкий -
+    # «показывается ли в навигации каталога Ф2». Скрытие обратимо и НЕ удаляет
+    # товары (Product.category on_delete=SET_NULL не трогаем) - в отличие от
+    # удаления, где parent on_delete=CASCADE снёс бы ветку.
+    is_visible = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name

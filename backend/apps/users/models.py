@@ -1,4 +1,4 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
 import secrets
 from django.utils import timezone
@@ -6,6 +6,20 @@ from datetime import timedelta
 
 # После скольких неверных попыток ввода код инвалидируется (анти-брутфорс)
 MAX_OTP_ATTEMPTS = 5
+
+class CustomUserManager(UserManager):
+    """createsuperuser должен оставаться согласованным с ролевой моделью.
+    Ниже (User.save) роль - единственный источник правды для is_staff/
+    is_superuser: при role != admin суперправа снимаются. Стандартный
+    create_superuser ставит is_superuser=True, но role оставляет default
+    'buyer' - тогда save() тут же снял бы права, и бутстрап /admin/ сломался.
+    Поэтому суперюзеру по умолчанию выставляем role=admin (инвариант
+    is_superuser <-> role==admin держится в обе стороны)."""
+
+    def create_superuser(self, *args, **kwargs):
+        kwargs.setdefault('role', self.model.ROLE_ADMIN)
+        return super().create_superuser(*args, **kwargs)
+
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
@@ -34,14 +48,22 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_BUYER)
 
+    objects = CustomUserManager()
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
     def save(self, *args, **kwargs):
-        # Синхронизируем role=admin с Django is_staff/is_superuser
+        # Роль - единственный источник правды для админ-привилегий (Ф19).
+        # role=admin -> выдаём is_staff/is_superuser; любая другая роль -> снимаем.
+        # Снятие (демоушен admin -> buyer/seller) закрывает дыру: раньше понижение
+        # роли оставляло суперюзера с полным доступом к /admin/ (тихая эскалация).
         if self.role == self.ROLE_ADMIN:
             self.is_staff = True
             self.is_superuser = True
+        else:
+            self.is_staff = False
+            self.is_superuser = False
         super().save(*args, **kwargs)
 
     def __str__(self):

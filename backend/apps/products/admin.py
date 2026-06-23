@@ -10,10 +10,30 @@ class ProductImageInline(admin.TabularInline):
     extra = 1
 
 
+@admin.action(description='Скрыть выбранные (из каталога)')
+def hide_categories(modeladmin, request, queryset):
+    """Скрытие категории из каталога Ф2 без удаления (Ф19, узел 3.5). Товары не
+    теряются - это не удаление с CASCADE."""
+    updated = queryset.update(is_visible=False)
+    modeladmin.message_user(request, f'Скрыто: {updated}', messages.SUCCESS)
+
+
+@admin.action(description='Показать выбранные (в каталоге)')
+def show_categories(modeladmin, request, queryset):
+    updated = queryset.update(is_visible=True)
+    modeladmin.message_user(request, f'Показано: {updated}', messages.SUCCESS)
+
+
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'parent']
+    # parent в списке = читаемое дерево без django-mptt (учебный объём категорий
+    # этого не требует - новая зависимость была бы scope creep).
+    list_display = ['name', 'slug', 'parent', 'is_visible']
+    list_filter = ['is_visible']
     prepopulated_fields = {'slug': ('name',)}
+    actions = [hide_categories, show_categories]
+    # Бренды (модель Brand) - Ф20/Ф21, атрибуты/фильтры/размерные сетки категории -
+    # Ф5/Ф2: в Ф19 не делаются (план §3.2, §3.3, §7).
 
 
 @admin.action(description='Одобрить выбранные (на модерации)')

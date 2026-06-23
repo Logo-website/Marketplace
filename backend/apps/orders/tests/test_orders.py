@@ -266,6 +266,27 @@ def test_second_order_cannot_oversell_stock(auth_client, product):
     assert product.stock == 1
 
 
+# --- Ф19: реестр заказов в админке (узел 3.4, поиск по id/почте) ---
+
+@pytest.mark.django_db
+def test_f19_admin_order_search_by_id(client, admin, user):
+    """Поиск по точному id заказа находит его (search_fields '=id')."""
+    order = Order.objects.create(buyer=user, total_price=Decimal('100'))
+    client.force_login(admin)
+    res = client.get(f'/admin/orders/order/?q={order.id}')
+    assert res.status_code == 200
+    assert str(order.id).encode() in res.content
+
+
+@pytest.mark.django_db
+def test_f19_admin_order_search_nonnumeric_no_500(client, admin, user):
+    """Нечисловой терм в поиске ('=id' на integer-поле) не роняет 500 (§6)."""
+    Order.objects.create(buyer=user, total_price=Decimal('100'))
+    client.force_login(admin)
+    res = client.get('/admin/orders/order/?q=notanumber')
+    assert res.status_code == 200
+
+
 # --- Ф8: честный выбор позиций и вариант в заказе ---
 
 @pytest.fixture
