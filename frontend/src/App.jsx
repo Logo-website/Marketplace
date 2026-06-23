@@ -8,6 +8,7 @@ import CatalogPage from './pages/CatalogPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ProductPage from './pages/ProductPage'
+import BrandPage from './pages/BrandPage'
 import SearchPage from './pages/SearchPage'
 import CartPage from './pages/CartPage'
 import ProfilePage from './pages/ProfilePage'
@@ -111,6 +112,8 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/products/:id" element={<ProductPage />} />
+              {/* Витрина бренда (Ф20) - публичная, открыта гостю и покупателю. */}
+              <Route path="/brand/:id" element={<BrandPage />} />
               <Route path="/search" element={<SearchPage />} />
               {/* Корзина доступна гостю (Ф8): вход просим только на оформлении. */}
               <Route path="/cart" element={<CartPage />} />

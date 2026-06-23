@@ -341,8 +341,8 @@ export default function ProductPage() {
                 ) : 'Купить в 1 клик'}
               </motion.button>
 
-              {/* Продавец (имя + forward-заглушки витрины/чата) */}
-              <SellerBlock sellerName={product.seller_name} />
+              {/* Продавец: имя + ссылка на витрину бренда (Ф20) + forward-чат (Ф24) */}
+              <SellerBlock sellerName={product.seller_name} sellerId={product.seller_id} />
 
               {/* Доставка - честная заглушка до Ф9/Ф32 (без выдуманных сроков) */}
               <div className="flex items-start gap-2.5 bg-gray-50 rounded-xl p-3 border border-gray-100">

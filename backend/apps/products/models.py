@@ -178,6 +178,46 @@ class AnswerVote(models.Model):
         unique_together = ['answer', 'user']
 
 
+class SellerReview(models.Model):
+    """Отзыв о продавце (Ф20, узел 1.21) - отдельная сущность от товарного Review.
+    Оценивает не товар, а работу продавца (скорость, упаковка, соответствие
+    описанию). Право оставить - только купивший у продавца (проверка в эндпоинте,
+    по образцу товарного отзыва «если купил»), не сам себе. unique_together -
+    один отзыв на продавца от пользователя (повтор -> 400).
+
+    Рейтинг продавца денормализуется в User.seller_rating сигналом (как
+    Product.rating из Review). Ответ продавца на отзыв - это Ф15, здесь не поле."""
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_reviews_received')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_reviews_written')
+    rating = models.IntegerField()
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['seller', 'author']
+
+    def __str__(self):
+        return f'{self.author.username} → {self.seller.username} ({self.rating}★)'
+
+
+class BrandFollow(models.Model):
+    """Подписка покупателя на бренд/продавца (Ф20, узел 1.21). Серверная (не
+    localStorage, как избранное 1.10): подписка - источник событий для рассылки
+    новинок/акций (Ф25). В Ф20 только хранение, уведомление не шлётся.
+    unique_together - идемпотентность (повторная подписка не плодит дубль).
+    На свой же магазин подписаться нельзя (проверка в эндпоинте)."""
+    follower = models.ForeignKey(User, on_delete=models.CASCADE, related_name='following')
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='followers')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['follower', 'seller']
+
+    def __str__(self):
+        return f'{self.follower.username} → {self.seller.username}'
+
+
 class Report(models.Model):
     """Жалоба на UGC/товар/продавца (Ф18, узел 3.8 + «пожаловаться» из 1.5).
 

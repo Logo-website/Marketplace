@@ -115,8 +115,11 @@ class SellerProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SellerProfile
+        # shop_banner (Ф20) редактируется тем же механизмом, что shop_logo -
+        # иначе заведённое для витрины бренда поле баннера было бы мёртвым
+        # (SellerProfile в admin read-only). Ф20 его только показывает.
         fields = ['legal_status', 'legal_name', 'inn', 'bank_account', 'bank_bik',
-                  'shop_name', 'shop_description', 'shop_logo', 'tariff',
+                  'shop_name', 'shop_description', 'shop_logo', 'shop_banner', 'tariff',
                   'offer_accepted', 'offer_accepted_at', 'status',
                   'created_at', 'updated_at']
         # status/role меняются только через активацию (сервер-инвариант),

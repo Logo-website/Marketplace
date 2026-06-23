@@ -1,10 +1,11 @@
+import { Link } from 'react-router-dom'
 import { toast } from '../../store/toastStore'
 
 // Блок продавца на карточке (Ф4). Показывает имя магазина (seller_name из API -
-// публичное имя, не email, S17). Витрина бренда (Ф20), чат с продавцом (Ф24) и
-// рейтинг продавца (Ф20) - forward-узлы: до своих фаз ссылки - заглушки (тост
-// «скоро»), не «мёртвые ссылки» и не выдуманный рейтинг (правило репо №1).
-export default function SellerBlock({ sellerName }) {
+// публичное имя, не email, S17). Витрина бренда (Ф20) теперь реальная ссылка на
+// /brand/:id (замыкание forward-ссылки Ф4); чат с продавцом (Ф24) пока forward -
+// заглушка-тост, не «мёртвая ссылка». Без sellerId кнопка «Витрина» не рисуется.
+export default function SellerBlock({ sellerName, sellerId }) {
   if (!sellerName) return null
 
   const soon = (what) => toast.info(`${what} появится позже`)
@@ -21,12 +22,14 @@ export default function SellerBlock({ sellerName }) {
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button
-          onClick={() => soon('Витрина бренда')}
-          className="text-xs font-semibold text-gray-600 hover:text-[#111] border border-gray-200 rounded-lg px-3 py-1.5 transition"
-        >
-          Витрина
-        </button>
+        {sellerId && (
+          <Link
+            to={`/brand/${sellerId}`}
+            className="text-xs font-semibold text-gray-600 hover:text-[#111] border border-gray-200 rounded-lg px-3 py-1.5 transition"
+          >
+            Витрина
+          </Link>
+        )}
         <button
           onClick={() => soon('Чат с продавцом')}
           className="text-xs font-semibold text-white bg-[#111] hover:bg-gray-800 rounded-lg px-3 py-1.5 transition"

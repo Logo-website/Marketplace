@@ -2,7 +2,9 @@ from django.utils.text import slugify
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound
 from apps.users.models import User
-from .models import Answer, Category, Product, ProductImage, Question, Report, Review
+from .models import (
+    Answer, Category, Product, ProductImage, Question, Report, Review, SellerReview,
+)
 
 class CategorySerializer(serializers.ModelSerializer):
     # Дерево категорий одним ответом: каждый узел несёт вложенных детей
@@ -31,6 +33,10 @@ class ProductSerializer(serializers.ModelSerializer):
     # S17: публичное имя магазина, НЕ email продавца. Каталог отдаётся
     # анонимам (AllowAny) - email тут был утечкой персданных третьих лиц.
     seller_name = serializers.SerializerMethodField()
+    # Ф20: id продавца для ссылки с карточки на витрину бренда (/brand/:id,
+    # замыкание forward-ссылки Ф4). Числовой id публичного продавца - не PII
+    # (в отличие от email/phone, S17): сама витрина по нему публична.
+    seller_id = serializers.IntegerField(read_only=True)
     # Ф5: размерная группа товара (верх/низ/платья/обувь) или null. Карточка
     # решает, показывать ли ссылку «Размерная сетка», без отдельного запроса
     # (резолв через тот же маппинг из size_charts.py - единый источник правды).
@@ -51,8 +57,8 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'description', 'price', 'old_price',
             'stock', 'attributes', 'status', 'category',
-            'category_name', 'seller_name', 'size_group', 'images', 'created_at',
-            'rating', 'reviews_count', 'rejection_reason'
+            'category_name', 'seller_name', 'seller_id', 'size_group', 'images',
+            'created_at', 'rating', 'reviews_count', 'rejection_reason'
         ]
         # rejection_reason - read-only (пишет только модерация Ф17 через сервис).
         # Непустой только у rejected-товаров, которых нет в публичном каталоге -
@@ -517,3 +523,85 @@ class ReportSerializer(serializers.ModelSerializer):
 
     def get_target(self, obj):
         return _report_target_preview(obj)
+
+
+# === Ф20. Витрина бренда (узел 1.21) ===
+
+def _seller_profile(user):
+    """Профиль магазина (Ф11) может ещё не существовать (продавец до онбординга /
+    сид-данные до Ф11). Тогда шапка витрины деградирует gracefully на дефолты
+    (план §3, §5: «продавец без логотипа/баннера/описания»)."""
+    return getattr(user, 'seller_profile', None)
+
+
+class BrandSerializer(serializers.ModelSerializer):
+    """Публичный профиль витрины бренда (Ф20). БЕЗ PII продавца (S17, план §8):
+    публичное имя магазина, лого/баннер/описание (из SellerProfile, read-only),
+    денормализованный рейтинг продавца - НЕ email/phone/реквизиты. products_count
+    (число активных товаров) считает вьюха и передаёт через context."""
+    name = serializers.SerializerMethodField()
+    logo = serializers.SerializerMethodField()
+    banner = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    products_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'logo', 'banner', 'description',
+                  'seller_rating', 'seller_reviews_count', 'products_count']
+
+    def get_name(self, obj):
+        return obj.shop_name or obj.username
+
+    def get_logo(self, obj):
+        p = _seller_profile(obj)
+        return p.shop_logo.url if p and p.shop_logo else None
+
+    def get_banner(self, obj):
+        p = _seller_profile(obj)
+        return p.shop_banner.url if p and p.shop_banner else None
+
+    def get_description(self, obj):
+        p = _seller_profile(obj)
+        return p.shop_description if p else ''
+
+    def get_products_count(self, obj):
+        return self.context.get('products_count', 0)
+
+
+# Лимит длины отзыва о продавце (граничный случай плана §5): пустое -> 400,
+# очень длинное -> 400, как QA_TEXT_MAX/SELLER_REPLY_MAX в других сущностях.
+SELLER_REVIEW_TEXT_MAX = 2000
+
+
+class BrandReviewSerializer(serializers.ModelSerializer):
+    """Отзыв о продавце для публичного показа (Ф20). Автор - только username
+    (как товарный ReviewSerializer), без email/id (S17, PII-минимизация §8)."""
+    author = serializers.CharField(source='author.username', read_only=True)
+
+    class Meta:
+        model = SellerReview
+        fields = ['id', 'author', 'rating', 'text', 'created_at']
+
+
+class BrandReviewCreateSerializer(serializers.ModelSerializer):
+    """Создание отзыва о продавце. Только rating+text - автора/продавца и проверку
+    покупки ставит вьюха (BrandReviewListCreateView)."""
+    class Meta:
+        model = SellerReview
+        fields = ['rating', 'text']
+
+    def validate_rating(self, value):
+        if value < 1 or value > 5:
+            raise serializers.ValidationError('Оценка должна быть от 1 до 5')
+        return value
+
+    def validate_text(self, value):
+        v = (value or '').strip()
+        if not v:
+            raise serializers.ValidationError('Введите текст отзыва')
+        if len(v) > SELLER_REVIEW_TEXT_MAX:
+            raise serializers.ValidationError(
+                f'Слишком длинный отзыв (макс. {SELLER_REVIEW_TEXT_MAX} символов)'
+            )
+        return v

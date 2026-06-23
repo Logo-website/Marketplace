@@ -35,6 +35,13 @@ class User(AbstractUser):
     # Настройки рассылок (Ф10): тумблеры по типам уведомлений. Хранение здесь,
     # реальная отправка - Ф25. Валидация ключей в UserSerializer.
     notification_prefs = models.JSONField(default=dict, blank=True)
+    # Рейтинг продавца (Ф20, узел 1.21) - денормализация по образцу Product.rating
+    # (P6a): пересчитывается сигналом из SellerReview, не агрегатом на каждый GET.
+    # Живёт на User (а не SellerProfile): продавец = User с role=seller (на него
+    # ссылаются Product.seller и SellerReview.seller), профиль Ф11 может ещё не
+    # существовать. seller_reviews_count=0 -> «нет оценок», не «0.0★».
+    seller_rating = models.FloatField(default=0)
+    seller_reviews_count = models.PositiveIntegerField(default=0)
 
     ROLE_BUYER = 'buyer'
     ROLE_SELLER = 'seller'
@@ -112,6 +119,10 @@ class SellerProfile(models.Model):
     bank_bik = models.CharField(max_length=9, blank=True)
     shop_description = models.TextField(blank=True)
     shop_logo = models.ImageField(upload_to='shops/', blank=True, null=True)
+    # Баннер витрины бренда (Ф20, узел 1.21 «шапка бренда»). Заведён здесь, рядом
+    # с логотипом/описанием (Ф11 владеет редактированием шапки); витрина Ф20 его
+    # только читает. blank/null - шапка деградирует gracefully при пустом баннере.
+    shop_banner = models.ImageField(upload_to='shops/banners/', blank=True, null=True)
     tariff = models.CharField(max_length=20, choices=TARIFF_CHOICES, default=TARIFF_FREE)
     offer_accepted = models.BooleanField(default=False)
     offer_accepted_at = models.DateTimeField(null=True, blank=True)

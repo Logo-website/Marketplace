@@ -9,10 +9,12 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from .caching import cache_delete
-from .models import Answer, AnswerVote, Category, Product, Review
+from .models import Answer, AnswerVote, Category, Product, Review, SellerReview
+from apps.users.models import User
 
 PRODUCT_CACHE_KEY = 'product_detail:{}'
 CATEGORIES_CACHE_KEY = 'categories:root'
+BRAND_CACHE_KEY = 'brand:{}'
 
 
 def recalc_product_rating(product_id):
@@ -48,6 +50,31 @@ def review_deleted(sender, instance, **kwargs):
 def product_changed(sender, instance, **kwargs):
     # Карточка изменилась (создание/правка продавцом/удаление) - сбросить её кэш.
     cache_delete(PRODUCT_CACHE_KEY.format(instance.id))
+    # Ф20: число активных товаров в шапке витрины бренда устаревает при
+    # add/hide/delete товара - сбрасываем и кэш профиля продавца.
+    cache_delete(BRAND_CACHE_KEY.format(instance.seller_id))
+
+
+def recalc_seller_rating(seller_id):
+    """Пересчитать рейтинг продавца и число отзывов из SellerReview и сбросить кэш
+    витрины (Ф20, зеркало recalc_product_rating P6a). update() не вызывает
+    User.post_save - рекурсии нет. Ноль отзывов -> rating=0 («нет оценок»)."""
+    if not seller_id:
+        return
+    agg = SellerReview.objects.filter(seller_id=seller_id).aggregate(
+        avg=Avg('rating'), cnt=Count('id')
+    )
+    rating = round(agg['avg'], 2) if agg['avg'] is not None else 0
+    User.objects.filter(id=seller_id).update(
+        seller_rating=rating, seller_reviews_count=agg['cnt']
+    )
+    cache_delete(BRAND_CACHE_KEY.format(seller_id))
+
+
+@receiver(post_save, sender=SellerReview)
+@receiver(post_delete, sender=SellerReview)
+def seller_review_changed(sender, instance, **kwargs):
+    recalc_seller_rating(instance.seller_id)
 
 
 @receiver(post_save, sender=Category)

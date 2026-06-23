@@ -6,13 +6,18 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Answer, AnswerVote, Category, Product, Question, Report, Review
+from .models import (
+    Answer, AnswerVote, BrandFollow, Category, Product, Question, Report, Review,
+    SellerReview,
+)
+from apps.users.models import User
 from .serializers import (
     CategorySerializer, ProductSerializer, ProductWriteSerializer,
     ReviewSerializer, ReviewCreateSerializer, MyReviewSerializer,
     QuestionSerializer, QuestionCreateSerializer, AnswerCreateSerializer,
     SellerReviewSerializer, ReviewReplySerializer, SellerQuestionSerializer,
     RejectionSerializer, ReportCreateSerializer, ReportSerializer,
+    BrandSerializer, BrandReviewSerializer, BrandReviewCreateSerializer,
     RESOLUTION_NOTE_MAX,
 )
 from .search import search_products, autocomplete, index_product, delete_product, PRICE_RANGES
@@ -30,6 +35,10 @@ CATEGORIES_CACHE_KEY = 'categories:root'
 CATEGORIES_CACHE_TTL = 60 * 60  # категории меняются редко
 PRODUCT_CACHE_KEY = 'product_detail:{}'
 PRODUCT_CACHE_TTL = 60 * 5
+# Кэш профиля витрины бренда (Ф20). Короткий TTL по образцу product_detail;
+# инвалидация сигналом при отзыве о продавце и изменении его товара (signals.py).
+BRAND_CACHE_KEY = 'brand:{}'
+BRAND_CACHE_TTL = 60 * 5
 SIZE_CHART_CACHE_KEY = 'size_chart:{}'
 SIZE_CHART_CACHE_TTL = 60 * 60  # размерный справочник меняется редко (как категории)
 
@@ -85,6 +94,17 @@ class ProductListView(generics.ListAPIView):
         category_id = self.request.query_params.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
+
+        # Лента товаров бренда (Ф20, узел 1.21): ?seller=<id> сужает выдачу до
+        # одного продавца, переиспользуя пагинацию/сортировку/фильтры Ф2 (DRY).
+        # Базовое status='active' не снимается - скрытые/на модерации товары
+        # продавца в витрину не утекают. Нечисловой id -> пустая лента, не 500.
+        seller_id = self.request.query_params.get('seller')
+        if seller_id:
+            if seller_id.isdigit():
+                queryset = queryset.filter(seller_id=int(seller_id))
+            else:
+                queryset = queryset.none()
 
         # Фильтры каталога Ф2 (цена/бренд/рейтинг/наличие). Ставим в get_queryset
         # как category/sort, не ломая ?ordering=/?search= от DRF-бэкендов.
@@ -237,6 +257,12 @@ class CatalogFacetsView(APIView):
         category_id = params.get('category')
         if category_id:
             base = base.filter(category_id=category_id)
+
+        # Ф20: фасеты витрины бренда считаются по товарам одного продавца, чтобы
+        # счётчики фильтров совпадали с лентой ?seller=. Нечисловой id -> нули.
+        seller_id = params.get('seller')
+        if seller_id:
+            base = base.filter(seller_id=int(seller_id)) if seller_id.isdigit() else base.none()
 
         # Общий count - под всеми применёнными фильтрами.
         count = _apply_catalog_filters(base, params).count()
@@ -988,3 +1014,104 @@ class UGCModerationView(APIView):
         else:
             moderation_ugc.unhide_ugc(obj, request.user)
         return Response({'id': obj.id, 'is_hidden': obj.is_hidden})
+
+
+# === Ф20. Витрина бренда (узел 1.21) ===
+
+class BrandStorefrontView(APIView):
+    """Публичный профиль витрины бренда (Ф20). AllowAny - витрина публична, как
+    каталог. БЕЗ PII продавца (S17): BrandSerializer не отдаёт email/phone. id не
+    продавца / заблокированного (is_active=False, Ф19) / несуществующего -> 404,
+    не 500. Кэш brand:{id}, инвалидируется сигналом при отзыве о продавце и при
+    изменении его товара (число товаров в шапке устаревает)."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        cache_key = BRAND_CACHE_KEY.format(pk)
+        data = cache_get(cache_key)
+        if data is None:
+            seller = get_object_or_404(User, pk=pk, role='seller', is_active=True)
+            products_count = Product.objects.filter(seller=seller, status='active').count()
+            data = BrandSerializer(seller, context={'products_count': products_count}).data
+            cache_set(cache_key, data, BRAND_CACHE_TTL)
+        return Response(data)
+
+
+class BrandReviewListCreateView(generics.ListCreateAPIView):
+    """Отзывы о продавце (Ф20, отдельно от товарных). GET - публичный список
+    (AllowAny, автор - username, не email); POST - создать (IsAuthenticated +
+    купил у продавца + не сам себе + не повторно). seller из URL pk; не продавец
+    -> 404. Ответ продавца на отзыв - это Ф15, здесь не делаем."""
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return BrandReviewCreateSerializer
+        return BrandReviewSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    def _get_seller(self):
+        if not hasattr(self, '_seller'):
+            self._seller = get_object_or_404(
+                User, pk=self.kwargs['pk'], role='seller', is_active=True
+            )
+        return self._seller
+
+    def get_queryset(self):
+        self._get_seller()  # 404, если id не продавца
+        return (SellerReview.objects.filter(seller_id=self.kwargs['pk'])
+                .select_related('author'))
+
+    def perform_create(self, serializer):
+        from apps.orders.models import Order
+        from rest_framework.exceptions import PermissionDenied, ValidationError
+        seller = self._get_seller()
+        user = self.request.user
+        # Сам себе - нельзя (продавец не накручивает свой рейтинг).
+        if seller.id == user.id:
+            raise PermissionDenied('Нельзя оставить отзыв самому себе')
+        # Только купивший у продавца (по образцу товарного отзыва «если купил»).
+        has_purchased = Order.objects.filter(
+            buyer=user, items__product__seller_id=seller.id
+        ).exists()
+        if not has_purchased:
+            raise PermissionDenied('Отзыв о продавце можно оставить только после покупки у него')
+        # Повторный отзыв (нарушил бы unique_together) -> 400 явным сообщением.
+        if SellerReview.objects.filter(seller=seller, author=user).exists():
+            raise ValidationError('Вы уже оставляли отзыв об этом продавце')
+        serializer.save(seller=seller, author=user)
+
+
+class BrandFollowView(APIView):
+    """Подписка на бренд (Ф20, узел 1.21). POST - toggle (IsAuthenticated,
+    идемпотентно, не на себя); GET - статус для отрисовки кнопки (гостю following
+    false, без 401 в лицо). Подписка серверная (питает Ф25); само уведомление
+    подписчику - Ф25, в Ф20 наружу ничего не шлём."""
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    def get(self, request, pk):
+        seller = get_object_or_404(User, pk=pk, role='seller', is_active=True)
+        following = bool(
+            request.user.is_authenticated
+            and BrandFollow.objects.filter(follower=request.user, seller=seller).exists()
+        )
+        return Response({'following': following})
+
+    def post(self, request, pk):
+        from rest_framework.exceptions import PermissionDenied
+        seller = get_object_or_404(User, pk=pk, role='seller', is_active=True)
+        if seller.id == request.user.id:
+            raise PermissionDenied('Нельзя подписаться на свой магазин')
+        # get_or_create + delete = идемпотентный toggle (двойной клик не плодит дубль).
+        follow, created = BrandFollow.objects.get_or_create(
+            follower=request.user, seller=seller
+        )
+        if not created:
+            follow.delete()
+        # TODO Ф25: уведомление подписчику о новинках/акциях - отдельная фаза.
+        return Response({'following': created})

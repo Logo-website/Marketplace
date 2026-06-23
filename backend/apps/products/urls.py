@@ -33,6 +33,9 @@ from .views import (
     ReportResolveView,
     ReportDismissView,
     UGCModerationView,
+    BrandStorefrontView,
+    BrandReviewListCreateView,
+    BrandFollowView,
 )
 
 urlpatterns = [
@@ -42,6 +45,11 @@ urlpatterns = [
     path('search/', ProductSearchView.as_view(), name='product-search'),
     path('autocomplete/', AutocompleteView.as_view(), name='product-autocomplete'),
     path('recommendations/', RecommendationsView.as_view(), name='recommendations'),
+    # Ф20 (узел 1.21): витрина бренда. Литерал brand/ до <int:pk>/ - не
+    # конфликтует. Профиль + отзывы о продавце + подписка (toggle/статус).
+    path('brand/<int:pk>/', BrandStorefrontView.as_view(), name='brand-detail'),
+    path('brand/<int:pk>/reviews/', BrandReviewListCreateView.as_view(), name='brand-reviews'),
+    path('brand/<int:pk>/follow/', BrandFollowView.as_view(), name='brand-follow'),
     # Литерал reviews/my/ - до <int:pk>/ (Ф10, мои отзывы).
     path('reviews/my/', MyReviewsView.as_view(), name='my-reviews'),
     # Ф15 (узел 2.8): кабинет продавца - агрегация отзывов/вопросов и ответ на
