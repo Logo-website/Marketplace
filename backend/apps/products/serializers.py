@@ -1,9 +1,11 @@
+from decimal import Decimal
 from django.utils.text import slugify
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound
 from apps.users.models import User
 from .models import (
-    Answer, Category, Product, ProductImage, Question, Report, Review, SellerReview,
+    Answer, Category, Look, LookItem, Product, ProductImage, Question, Report,
+    Review, SellerReview,
 )
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -647,3 +649,85 @@ class BrandReviewCreateSerializer(serializers.ModelSerializer):
                 f'Слишком длинный отзыв (макс. {SELLER_REVIEW_TEXT_MAX} символов)'
             )
         return v
+
+
+# === Ф22. Образы / лукбук (узел 1.23) ===
+
+def _look_cover(obj):
+    """Обложка образа: загруженный файл или внешняя ссылка (сиды). None - нет."""
+    return obj.cover_url or (obj.cover_image.url if obj.cover_image else None)
+
+
+def _look_source_name(obj):
+    """Имя источника БЕЗ PII (S17, §8): для бренда - публичное имя магазина (не
+    email), для редакции - наш лейбл. obj.seller у brand гарантирован clean()."""
+    if obj.source == 'brand' and obj.seller:
+        return obj.seller.shop_name or obj.seller.username
+    return 'Подборка редакции'
+
+
+def _look_active_products(obj):
+    """Только active-вещи образа (§8): скрытые/на модерации/отклонённые - непубличный
+    контент третьих лиц, в образ не попадают. items предзагружены prefetch'ем во
+    вьюхе (без N+1), порядок - LookItem.Meta.ordering ('order')."""
+    return [it.product for it in obj.items.all() if it.product.status == 'active']
+
+
+def _look_total_price(products):
+    """Сумма комплекта = агрегат цен активных вещей (не денормализуем, §4.1).
+    Пустой комплект -> '0' («нет в продаже» решает фронт)."""
+    return str(sum((p.price for p in products), Decimal('0')))
+
+
+class LookListSerializer(serializers.ModelSerializer):
+    """Карточка ленты образов (§4.2): обложка, источник без PII, число активных
+    вещей и сумма комплекта. Без описания - оно в карточке образа."""
+    cover = serializers.SerializerMethodField()
+    source_name = serializers.SerializerMethodField()
+    items_count = serializers.SerializerMethodField()
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Look
+        fields = ['id', 'title', 'cover', 'source', 'source_name', 'seller_id',
+                  'items_count', 'total_price']
+
+    def get_cover(self, obj):
+        return _look_cover(obj)
+
+    def get_source_name(self, obj):
+        return _look_source_name(obj)
+
+    def get_items_count(self, obj):
+        return len(_look_active_products(obj))
+
+    def get_total_price(self, obj):
+        return _look_total_price(_look_active_products(obj))
+
+
+class LookDetailSerializer(serializers.ModelSerializer):
+    """Карточка образа (§4.3): фото, описание, источник + все активные вещи через
+    ProductSerializer (переиспользуем; «переход на каждый товар» = ProductCard).
+    seller_id - для ссылки на витрину бренда (null у редакционного образа)."""
+    cover = serializers.SerializerMethodField()
+    source_name = serializers.SerializerMethodField()
+    products = serializers.SerializerMethodField()
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Look
+        fields = ['id', 'title', 'description', 'cover', 'source', 'source_name',
+                  'seller_id', 'products', 'total_price']
+
+    def get_cover(self, obj):
+        return _look_cover(obj)
+
+    def get_source_name(self, obj):
+        return _look_source_name(obj)
+
+    def get_products(self, obj):
+        products = _look_active_products(obj)
+        return ProductSerializer(products, many=True, context=self.context).data
+
+    def get_total_price(self, obj):
+        return _look_total_price(_look_active_products(obj))

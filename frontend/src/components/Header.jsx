@@ -109,6 +109,14 @@ export default function Header() {
               Бренды
             </Link>
 
+            {/* Образы (Ф22, узел 1.23) - вход в лукбук, отличие ниши от Lamoda */}
+            <Link
+              to="/looks"
+              className="hidden lg:flex items-center px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-semibold shrink-0"
+            >
+              Образы
+            </Link>
+
             {/* Поиск */}
             <form onSubmit={handleSearch} className="flex-1 max-w-2xl relative" ref={searchRef}>
               <div className="relative">

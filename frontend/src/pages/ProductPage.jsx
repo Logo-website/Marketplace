@@ -12,6 +12,7 @@ import ErrorState from '../components/states/ErrorState'
 import { toast } from '../store/toastStore'
 import Breadcrumbs from '../components/catalog/Breadcrumbs'
 import ProductGrid from '../components/catalog/ProductGrid'
+import LookCard from '../components/LookCard'
 import Gallery from '../components/product/Gallery'
 import VariantPicker from '../components/product/VariantPicker'
 import SpecsTable from '../components/product/SpecsTable'
@@ -63,6 +64,15 @@ export default function ProductPage() {
     [id]
   )
   const recommendations = recsData || []
+
+  // Собрать образ (Ф22, узел 1.5 -> 1.23): образы, содержащие этот товар. Блок
+  // скрыт, если образов нет (не мёртвая ссылка). Замыкает forward-ссылку карты.
+  const { data: looksData } = useAsyncData(
+    (signal) =>
+      api.get(`/products/looks/?contains=${id}`, { signal }).then((r) => r.data),
+    [id]
+  )
+  const looks = looksData?.results ?? []
 
   const handleAddToCart = async () => {
     // Гостю не редиректим на логин - корзина собирается без входа (Ф8).
@@ -414,6 +424,26 @@ export default function ProductPage() {
             onReport={(target) => setReport(target)}
           />
         </motion.div>
+
+        {/* Собрать образ (Ф22): образы с этим товаром. Скрыт, если их нет. */}
+        {looks.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.19 }}
+            className="mt-4"
+          >
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h2 className="text-xl font-black text-gray-900">Собрать образ</h2>
+              <span className="text-sm text-gray-400">Этот товар - в готовых комплектах</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {looks.slice(0, 4).map((look) => (
+                <LookCard key={look.id} look={look} />
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* С этим покупают (узлы Ф2: ProductGrid/ProductCard). Лента
             необязательная: при ошибке/пустоте просто не показываем (graceful). */}

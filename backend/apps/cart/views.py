@@ -4,8 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import serializers
 from apps.products.models import Product
 from .cart import (
-    get_cart, save_cart, add_to_cart, set_cart_quantity, remove_from_cart,
-    clear_cart, cart_key, parse_cart_key,
+    get_cart, save_cart, set_cart_quantity, remove_from_cart,
+    clear_cart, cart_key, parse_cart_key, try_add,
 )
 
 
@@ -89,27 +89,17 @@ class CartView(views.APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
-        product_id = data['product_id']
-        quantity = data['quantity']
-        size = data['size']
-        color = data['color']
-
-        try:
-            product = Product.objects.get(id=product_id, status='active')
-        except Product.DoesNotExist:
+        # Валидация active+остаток вынесена в cart.try_add (общая с батчем Ф22).
+        result = try_add(request.user.id, data['product_id'], data['quantity'],
+                         data['size'], data['color'])
+        if result['reason'] == 'not_found':
             return Response({'error': 'Товар не найден'}, status=status.HTTP_404_NOT_FOUND)
-
-        key = cart_key(product_id, size, color)
-        cart = get_cart(request.user.id)
-        current_quantity = cart.get(key, 0)
-        if current_quantity + quantity > product.stock:
+        if result['reason'] == 'out_of_stock':
             return Response(
-                {'error': f'Недостаточно товара на складе. Доступно: {product.stock}'},
+                {'error': f'Недостаточно товара на складе. Доступно: {result["stock"]}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        cart = add_to_cart(request.user.id, key, quantity)
-        return Response({'cart': cart})
+        return Response({'cart': get_cart(request.user.id)})
 
     def put(self, request):
         """Установить точное количество позиции (кнопки +/-). Атомарный set,

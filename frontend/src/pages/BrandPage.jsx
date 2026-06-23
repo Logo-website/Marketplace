@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../api'
 import useAsyncData from '../hooks/useAsyncData'
@@ -21,6 +21,15 @@ import ErrorState from '../components/states/ErrorState'
 // Маршрут: /brand/:id по user.id продавца.
 
 const PAGE_SIZE = 20 // = DRF PAGE_SIZE
+
+// Склонение «образ» под число (1 образ / 2 образа / 5 образов).
+function pluralizeLooks(n) {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return 'образ'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'образа'
+  return 'образов'
+}
 
 function Stars({ value }) {
   return (
@@ -166,6 +175,14 @@ export default function BrandPage() {
   )
   const following = followData?.following ?? false
   const [followBusy, setFollowBusy] = useState(false)
+
+  // --- Образы бренда (Ф22): вход показываем, только если они есть (не мёртвая
+  // ссылка, §4.5). Лёгкий запрос - только за наличием/числом. ---
+  const { data: looksData } = useAsyncData(
+    (signal) => api.get(`/products/looks/?seller=${id}`, { signal }).then((r) => r.data),
+    [id]
+  )
+  const looksCount = looksData?.count ?? 0
 
   const toggleFollow = async () => {
     if (!isAuthenticated) {
@@ -400,14 +417,19 @@ export default function BrandPage() {
           </div>
         </motion.div>
 
-        {/* Образы бренда (узел 1.23) - forward Ф22, честная заглушка-вход */}
-        <button
-          onClick={() => toast.info('Образы бренда появятся позже')}
-          className="w-full bg-white rounded-2xl border border-gray-100 p-4 mb-6 flex items-center justify-between hover:border-gray-300 transition text-left"
-        >
-          <span className="text-sm font-semibold text-gray-700">Образы бренда</span>
-          <span className="text-xs text-gray-400">Лукбуки и подборки - скоро</span>
-        </button>
+        {/* Образы бренда (узел 1.23, Ф22) - вход в лукбук этого бренда. Показываем,
+            только если у бренда есть опубликованные образы (иначе блок скрыт). */}
+        {looksCount > 0 && (
+          <Link
+            to={`/looks?seller=${id}`}
+            className="w-full bg-white rounded-2xl border border-gray-100 p-4 mb-6 flex items-center justify-between hover:border-gray-300 transition text-left"
+          >
+            <span className="text-sm font-semibold text-gray-700">Образы бренда</span>
+            <span className="text-xs text-gray-400">
+              {looksCount} {pluralizeLooks(looksCount)} - смотреть →
+            </span>
+          </Link>
+        )}
 
         {/* Лента товаров бренда: фильтры/сортировка как в каталоге Ф2 */}
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">

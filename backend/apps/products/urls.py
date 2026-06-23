@@ -37,6 +37,9 @@ from .views import (
     BrandReviewListCreateView,
     BrandFollowView,
     BrandListView,
+    LookListView,
+    LookDetailView,
+    LookAddToCartView,
 )
 
 urlpatterns = [
@@ -49,6 +52,11 @@ urlpatterns = [
     # Ф21 (узел 1.22): каталог брендов - индекс продавцов с активными товарами.
     # Литерал brands/ до <int:pk>/ и до brand/<int:pk>/ - не конфликтует.
     path('brands/', BrandListView.as_view(), name='brand-list'),
+    # Ф22 (узел 1.23): образы / лукбук. Литерал looks/ до <int:pk>/ - не
+    # конфликтует. Лента + карточка образа (публичные) + батч «весь образ в корзину».
+    path('looks/', LookListView.as_view(), name='look-list'),
+    path('looks/<int:pk>/', LookDetailView.as_view(), name='look-detail'),
+    path('looks/<int:pk>/add-to-cart/', LookAddToCartView.as_view(), name='look-add-to-cart'),
     # Ф20 (узел 1.21): витрина бренда. Литерал brand/ до <int:pk>/ - не
     # конфликтует. Профиль + отзывы о продавце + подписка (toggle/статус).
     path('brand/<int:pk>/', BrandStorefrontView.as_view(), name='brand-detail'),

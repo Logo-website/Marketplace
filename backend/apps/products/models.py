@@ -218,6 +218,66 @@ class BrandFollow(models.Model):
         return f'{self.follower.username} → {self.seller.username}'
 
 
+class Look(models.Model):
+    """Образ / лукбук - готовый комплект из нескольких товаров (Ф22, узел 1.23).
+    Главное отличие ниши от Lamoda: продаём не отдельные вещи, а собранные образы.
+
+    Источник (source) - редакция площадки или конкретный бренд (план §3):
+    - editorial: всегда seller=null (автор-админ заводит через админку/сиды);
+    - brand: привязан к seller (User role=seller), показывается на витрине Ф20.
+    Консистентность источника проверяет clean() (админ-форма зовёт full_clean).
+
+    is_published - флаг публикации (ставит админ/сид, §3): черновик не светится в
+    ленте и отдаёт 404. Сумму комплекта НЕ денормализуем - считаем в сериализаторе
+    по активным вещам (меняется с ценой/статусом товара, §4.1). seller=CASCADE -
+    как Product.seller: удаление бренда уносит его образы."""
+    SOURCE_CHOICES = [('editorial', 'Редакция'), ('brand', 'Бренд')]
+
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default='')
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='editorial')
+    seller = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=True, blank=True, related_name='looks'
+    )
+    # Обложка образа - фото комплекта целиком (не одной вещи, прямо по узлу 1.23).
+    # Пара image/url как у ProductImage: загрузка файла или внешняя ссылка (сиды).
+    cover_image = models.ImageField(upload_to='looks/', blank=True, null=True)
+    cover_url = models.URLField(blank=True, null=True)
+    is_published = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        # brand требует продавца, editorial - без него (план §5, консистентность).
+        if self.source == 'brand' and self.seller_id is None:
+            raise ValidationError({'seller': 'Образ бренда требует продавца'})
+        if self.source == 'editorial' and self.seller_id is not None:
+            raise ValidationError({'seller': 'Редакционный образ без продавца'})
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title
+
+
+class LookItem(models.Model):
+    """Вещь в образе (Ф22). M2M Look<->Product с порядком показа. product=CASCADE:
+    удалённый товар выпадает из образа, карточка не ломается (план §5).
+    unique_together(look, product) - один товар не дублируется в одном образе
+    (между разными образами - норма)."""
+    look = models.ForeignKey(Look, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='look_items')
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ['look', 'product']
+
+    def __str__(self):
+        return f'{self.look.title}: {self.product.name}'
+
+
 class Report(models.Model):
     """Жалоба на UGC/товар/продавца (Ф18, узел 3.8 + «пожаловаться» из 1.5).
 

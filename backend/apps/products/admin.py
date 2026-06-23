@@ -1,6 +1,8 @@
 from django.contrib import admin, messages
 from django.shortcuts import render
-from .models import Answer, Category, Product, ProductImage, Question, Report, Review
+from .models import (
+    Answer, Category, Look, LookItem, Product, ProductImage, Question, Report, Review,
+)
 from .moderation import approve as approve_product, reject as reject_product, ModerationError
 from .serializers import REJECTION_REASON_MAX
 
@@ -125,3 +127,22 @@ class ReviewAdmin(admin.ModelAdmin):
     list_filter = ['is_hidden', 'rating']
     search_fields = ['text']
     readonly_fields = ['hidden_at', 'hidden_by']
+
+
+# Образы / лукбук (Ф22, узел 1.23). Ввод данных редакцией/брендом - через эту
+# админку (план §3): создать образ, привязать вещи инлайном, задать источник и
+# is_published. Конструктор образов в кабинете продавца - forward (Ф11/Ф30).
+class LookItemInline(admin.TabularInline):
+    model = LookItem
+    extra = 1
+    # raw_id вместо выпадашки на весь каталог товаров (тысячи позиций).
+    raw_id_fields = ['product']
+
+
+@admin.register(Look)
+class LookAdmin(admin.ModelAdmin):
+    list_display = ['id', 'title', 'source', 'seller', 'is_published', 'created_at']
+    list_filter = ['source', 'is_published']
+    search_fields = ['title', 'description']
+    raw_id_fields = ['seller']
+    inlines = [LookItemInline]

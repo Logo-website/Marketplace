@@ -159,6 +159,18 @@ const useCartStore = create((set, get) => ({
     set({ items: [], total: '0' })
   },
 
+  // «Весь образ в корзину» (Ф22). Батч-эндпоинт под IsAuthenticated (кладёт в
+  // корзину текущего юзера) - гостя сюда не пускаем: вызывающий (LookPage) при
+  // отсутствии входа редиректит на логин. Возвращает {added, skipped, cart} -
+  // частичный успех штатен (часть вещей могла кончиться). После успеха
+  // рефрешим корзину из ответа (сервер уже собрал items/total), без лишнего GET.
+  addLookToCart: async (lookId) => {
+    const res = await api.post(`/products/looks/${lookId}/add-to-cart/`)
+    const { cart } = res.data
+    if (cart) set({ items: cart.items, total: cart.total })
+    return res.data
+  },
+
   // Слияние гостевой корзины в серверную при входе (Ф8). Сервер суммирует и
   // обрезает по стоку, недоступное пропускает. После успеха гостевую чистим.
   mergeGuestCart: async () => {

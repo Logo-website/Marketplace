@@ -8,8 +8,8 @@ from rest_framework import generics, permissions, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import (
-    Answer, AnswerVote, BrandFollow, Category, Product, Question, Report, Review,
-    SellerReview,
+    Answer, AnswerVote, BrandFollow, Category, Look, LookItem, Product, Question,
+    Report, Review, SellerReview,
 )
 from apps.users.models import User
 from .serializers import (
@@ -19,8 +19,11 @@ from .serializers import (
     SellerReviewSerializer, ReviewReplySerializer, SellerQuestionSerializer,
     RejectionSerializer, ReportCreateSerializer, ReportSerializer,
     BrandSerializer, BrandListSerializer, BrandReviewSerializer,
-    BrandReviewCreateSerializer, RESOLUTION_NOTE_MAX,
+    BrandReviewCreateSerializer, LookListSerializer, LookDetailSerializer,
+    RESOLUTION_NOTE_MAX,
 )
+from apps.cart.cart import try_add, get_cart
+from apps.cart.views import build_cart_items
 from .search import search_products, autocomplete, index_product, delete_product, PRICE_RANGES
 from .size_charts import get_size_chart
 from .caching import cache_get, cache_set
@@ -40,6 +43,10 @@ PRODUCT_CACHE_TTL = 60 * 5
 # инвалидация сигналом при отзыве о продавце и изменении его товара (signals.py).
 BRAND_CACHE_KEY = 'brand:{}'
 BRAND_CACHE_TTL = 60 * 5
+# Кэш карточки образа (Ф22). Короткий TTL по образцу product_detail; инвалидация
+# сигналом на Look/LookItem и при смене статуса вещи образа (signals.py).
+LOOK_CACHE_KEY = 'look:{}'
+LOOK_CACHE_TTL = 60 * 5
 SIZE_CHART_CACHE_KEY = 'size_chart:{}'
 SIZE_CHART_CACHE_TTL = 60 * 60  # размерный справочник меняется редко (как категории)
 
@@ -1177,3 +1184,98 @@ class BrandListView(generics.ListAPIView):
         return qs.annotate(
             display_name=Coalesce(NullIf('shop_name', Value('')), 'username')
         ).order_by(Lower('display_name'), 'id')
+
+
+# === Ф22. Образы / лукбук (узел 1.23) ===
+
+def _looks_with_items():
+    """Опубликованные образы с предзагруженными вещами (без N+1). Вещи тянем через
+    LookItem с select_related товара/категории/продавца и prefetch фото - этого
+    хватает и ленте (статус/цена), и карточке (ProductSerializer: images, category_name,
+    seller_name, size_group)."""
+    item_qs = LookItem.objects.select_related(
+        'product__category', 'product__seller'
+    ).prefetch_related('product__images').order_by('order')
+    return (
+        Look.objects.filter(is_published=True)
+        .select_related('seller')
+        .prefetch_related(Prefetch('items', queryset=item_qs))
+    )
+
+
+class LookListView(generics.ListAPIView):
+    """Лента образов (Ф22, §4.2). Публичная (AllowAny), только is_published, новые
+    сверху. Фильтры: ?source=editorial|brand, ?seller=<id> (вход с витрины бренда
+    Ф20), ?contains=<product_id> (вход «собрать образ» с карточки товара Ф4).
+    Неопубликованные образы и вещи не-active в выдачу не утекают (§8)."""
+    serializer_class = LookListSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        params = self.request.query_params
+        qs = _looks_with_items().order_by('-created_at')
+
+        source = params.get('source')
+        if source in ('editorial', 'brand'):
+            qs = qs.filter(source=source)
+
+        # Образы бренда (Ф20). Нечисловой id -> пустая лента, не 500.
+        seller_id = params.get('seller')
+        if seller_id:
+            qs = qs.filter(seller_id=int(seller_id)) if seller_id.isdigit() else qs.none()
+
+        # Образы, содержащие конкретный товар (вход «собрать образ» Ф4, §4.5).
+        # distinct: товар в образе один (unique_together), но фильтр по m2m без
+        # distinct может задвоить строку. Нечисло -> пустая лента.
+        contains = params.get('contains')
+        if contains:
+            qs = (qs.filter(items__product_id=int(contains)).distinct()
+                  if contains.isdigit() else qs.none())
+
+        return qs
+
+
+class LookDetailView(generics.RetrieveAPIView):
+    """Карточка образа (Ф22, §4.3). Публичная, кэш look:{id}. Отдаёт образ + все
+    активные вещи через ProductSerializer. is_published=False / нет id -> 404."""
+    permission_classes = [permissions.AllowAny]
+
+    def retrieve(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        cache_key = LOOK_CACHE_KEY.format(pk)
+        data = cache_get(cache_key)
+        if data is None:
+            look = get_object_or_404(_looks_with_items(), pk=pk)  # 404 если не is_published
+            data = LookDetailSerializer(look, context={'request': request}).data
+            cache_set(cache_key, data, LOOK_CACHE_TTL)
+        return Response(data)
+
+
+class LookAddToCartView(APIView):
+    """«Весь образ в корзину» (Ф22, §4.4). Батч поверх валидации Ф8 (cart.try_add):
+    добавляет активные вещи образа, недоступные (нет остатка) честно пропускает.
+    IsAuthenticated - кладёт только в корзину текущего пользователя (§8). Частичный
+    успех - штатный результат, не 500: возвращает {added, skipped, cart}."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        look = get_object_or_404(Look.objects.filter(is_published=True), pk=pk)
+        items = (
+            look.items.filter(product__status='active')
+            .select_related('product').order_by('order')
+        )
+        added, skipped = [], []
+        for item in items:
+            # Каждая вещь проходит ту же проверку остатка, что одиночное добавление
+            # (батч не способ «налить» больше склада, §8). Количество - по одной.
+            result = try_add(request.user.id, item.product_id, 1)
+            if result['ok']:
+                added.append(item.product_id)
+            else:
+                skipped.append({'product_id': item.product_id, 'reason': result['reason']})
+        cart_items, total = build_cart_items(get_cart(request.user.id))
+        return Response({
+            'added': added,
+            'skipped': skipped,
+            'cart': {'items': cart_items, 'total': str(total)},
+        })

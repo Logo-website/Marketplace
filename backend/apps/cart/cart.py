@@ -64,6 +64,30 @@ def add_to_cart(user_id, key, quantity=1):
     return cart
 
 
+def try_add(user_id, product_id, quantity=1, size='', color=''):
+    """Единая точка добавления в корзину с валидацией (Ф8 + батч-образ Ф22).
+
+    Проверяет «товар active» и «текущее в корзине + qty <= остаток», затем
+    добавляет. Возвращает dict {ok, reason, stock}, где reason in
+    (None | 'not_found' | 'out_of_stock'), stock - остаток для сообщения
+    («Доступно: N»). Вынесено сюда, чтобы одиночное добавление (CartView.post) и
+    батч «весь образ в корзину» (LookAddToCartView) не дублировали логику и не
+    расходились по правилам остатка (план §4.4). Каждый вызов читает/пишет корзину
+    сам - в батче последовательные вызовы корректно накапливают «текущее в корзине».
+    """
+    from apps.products.models import Product
+    try:
+        product = Product.objects.get(id=product_id, status='active')
+    except Product.DoesNotExist:
+        return {'ok': False, 'reason': 'not_found', 'stock': None}
+    key = cart_key(product_id, size, color)
+    cart = get_cart(user_id)
+    if cart.get(key, 0) + quantity > product.stock:
+        return {'ok': False, 'reason': 'out_of_stock', 'stock': product.stock}
+    add_to_cart(user_id, key, quantity)
+    return {'ok': True, 'reason': None, 'stock': product.stock}
+
+
 def set_cart_quantity(user_id, key, quantity):
     """Устанавливает точное количество позиции (для кнопок +/-, не delete+post)."""
     cart = get_cart(user_id)

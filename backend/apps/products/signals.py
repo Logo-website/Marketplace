@@ -9,12 +9,15 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from .caching import cache_delete
-from .models import Answer, AnswerVote, Category, Product, Review, SellerReview
+from .models import (
+    Answer, AnswerVote, Category, Look, LookItem, Product, Review, SellerReview,
+)
 from apps.users.models import User
 
 PRODUCT_CACHE_KEY = 'product_detail:{}'
 CATEGORIES_CACHE_KEY = 'categories:root'
 BRAND_CACHE_KEY = 'brand:{}'
+LOOK_CACHE_KEY = 'look:{}'
 
 
 def recalc_product_rating(product_id):
@@ -53,6 +56,12 @@ def product_changed(sender, instance, **kwargs):
     # Ф20: число активных товаров в шапке витрины бренда устаревает при
     # add/hide/delete товара - сбрасываем и кэш профиля продавца.
     cache_delete(BRAND_CACHE_KEY.format(instance.seller_id))
+    # Ф22 (§5): смена статуса вещи (active<->hidden/moderation) меняет состав и
+    # сумму образов с этим товаром - сбрасываем кэш каждого такого образа.
+    for look_id in LookItem.objects.filter(
+        product_id=instance.id
+    ).values_list('look_id', flat=True):
+        cache_delete(LOOK_CACHE_KEY.format(look_id))
 
 
 def recalc_seller_rating(seller_id):
@@ -81,6 +90,20 @@ def seller_review_changed(sender, instance, **kwargs):
 @receiver(post_delete, sender=Category)
 def category_changed(sender, **kwargs):
     cache_delete(CATEGORIES_CACHE_KEY)
+
+
+# Ф22 (§5): правка самого образа или его состава (добавили/убрали вещь, сменили
+# порядок/публикацию) инвалидирует кэш карточки образа.
+@receiver(post_save, sender=Look)
+@receiver(post_delete, sender=Look)
+def look_changed(sender, instance, **kwargs):
+    cache_delete(LOOK_CACHE_KEY.format(instance.id))
+
+
+@receiver(post_save, sender=LookItem)
+@receiver(post_delete, sender=LookItem)
+def look_item_changed(sender, instance, **kwargs):
+    cache_delete(LOOK_CACHE_KEY.format(instance.look_id))
 
 
 def recalc_answer_helpful(answer_id):

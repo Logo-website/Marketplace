@@ -10,6 +10,8 @@ import RegisterPage from './pages/RegisterPage'
 import ProductPage from './pages/ProductPage'
 import BrandPage from './pages/BrandPage'
 import BrandsPage from './pages/BrandsPage'
+import LooksPage from './pages/LooksPage'
+import LookPage from './pages/LookPage'
 import SearchPage from './pages/SearchPage'
 import CartPage from './pages/CartPage'
 import ProfilePage from './pages/ProfilePage'
@@ -115,6 +117,9 @@ export default function App() {
               <Route path="/products/:id" element={<ProductPage />} />
               {/* Каталог брендов (Ф21) - публичный индекс марок, открыт гостю. */}
               <Route path="/brands" element={<BrandsPage />} />
+              {/* Лукбук (Ф22) - лента образов и карточка образа, публичные. */}
+              <Route path="/looks" element={<LooksPage />} />
+              <Route path="/looks/:id" element={<LookPage />} />
               {/* Витрина бренда (Ф20) - публичная, открыта гостю и покупателю. */}
               <Route path="/brand/:id" element={<BrandPage />} />
               <Route path="/search" element={<SearchPage />} />
