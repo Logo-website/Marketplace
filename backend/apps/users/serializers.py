@@ -50,7 +50,10 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'email', 'username', 'phone', 'role', 'avatar',
                   'shop_name', 'body_params', 'notification_prefs']
-        read_only_fields = ['role']
+        # email read-only: вход делает .lower() (users/views.py), а профиль писал
+        # email сырьём без приведения регистра -> при «Ivan@Mail.ru» вход не
+        # находил пользователя (самоблокировка). Смена email - отдельная фича с OTP.
+        read_only_fields = ['role', 'email']
 
     def validate_body_params(self, value):
         if not isinstance(value, dict):

@@ -6,7 +6,7 @@ import useAuthStore from '../../store/authStore'
 // Inline-редактирование одного поля профиля (email/имя/телефон). Вынесено из
 // ProfilePage при сборке оболочки кабинета (Ф10), чтобы MyDataTab переиспользовал
 // готовый отлаженный виджет, а не дублировал его.
-export default function ProfileField({ label, fieldKey, value, type, icon, description }) {
+export default function ProfileField({ label, fieldKey, value, type, icon, description, readOnly }) {
   const { fetchProfile } = useAuthStore()
   const [editing, setEditing] = useState(false)
   const [inputValue, setInputValue] = useState(value || '')
@@ -106,7 +106,7 @@ export default function ProfileField({ label, fieldKey, value, type, icon, descr
             </div>
           </div>
 
-          {!editing && (
+          {!editing && !readOnly && (
             <motion.button onClick={() => setEditing(true)} className="shrink-0 flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#111] px-3 py-1.5 rounded-xl hover:bg-gray-100 transition font-medium mt-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />

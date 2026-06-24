@@ -110,6 +110,31 @@ def test_password_change_weak_new(auth_client):
     assert r.status_code == 400
 
 
+# --- Email read-only (поток D, стресс-тест 2026-06-24) ---
+
+@pytest.mark.django_db
+def test_email_not_editable_via_profile(auth_client, user):
+    # PATCH с новым email не меняет email (read_only_fields), ответ 200.
+    old_email = user.email
+    r = auth_client.patch('/api/auth/profile/', {
+        'email': 'Changed@Mail.ru',
+    }, format='json')
+    assert r.status_code == 200
+    user.refresh_from_db()
+    assert user.email == old_email
+
+
+@pytest.mark.django_db
+def test_profile_other_fields_still_editable(auth_client, user):
+    # Регрессия: остальные поля профиля по-прежнему пишутся.
+    r = auth_client.patch('/api/auth/profile/', {
+        'phone': '+79990001122',
+    }, format='json')
+    assert r.status_code == 200
+    user.refresh_from_db()
+    assert user.phone == '+79990001122'
+
+
 # --- Параметры фигуры / уведомления ---
 
 @pytest.mark.django_db
