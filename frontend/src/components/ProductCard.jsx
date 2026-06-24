@@ -141,14 +141,14 @@ export default function ProductCard({ product }) {
               </div>
             )}
 
-            <div className="flex items-center justify-between mt-auto pt-2">
-              <span className="text-lg font-black text-[#111]">
-                {Number(product.price).toLocaleString()} ₽
+            <div className="flex flex-wrap items-center justify-between gap-2 mt-auto pt-2">
+              <span className="text-lg font-black text-[#111] whitespace-nowrap">
+                {Number(product.price).toLocaleString()}&nbsp;₽
               </span>
               <motion.button
                 onClick={handleAddToCart}
                 disabled={product.stock === 0 || adding}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
                   added ? 'bg-green-500 text-white' : 'bg-[#111] text-white hover:bg-gray-800'
                 } disabled:opacity-30`}
                 whileTap={{ scale: 0.9 }}
