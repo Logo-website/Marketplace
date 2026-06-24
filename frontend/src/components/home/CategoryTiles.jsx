@@ -4,12 +4,14 @@ import api from '../../api'
 import useAsyncData from '../../hooks/useAsyncData'
 import { Skeleton } from '../states/Skeleton'
 import ErrorState from '../states/ErrorState'
+import CategoryIcon from './categoryIcons'
 
 // Плитки категорий главной (узел 1.2): расфасовка трафика по категориям -
 // прямо в критерии «Готово, когда» карты. Грузит то же дерево /products/
 // categories/, что каталог-меню Ф1; клик ведёт в выдачу категории /catalog/<id>
 // (маршрут Ф2). У категории нет картинки в модели - плитка строится на
-// градиенте из палитры (по индексу) + название, без фейковых изображений.
+// градиенте из палитры (по индексу) + line-иконка (categoryIcons по имени,
+// fallback - вешалка) + название, без фейковых фото товаров.
 
 // Палитра фонов плиток - циклически по индексу, чтобы соседние различались.
 const TILE_GRADIENTS = [
@@ -77,7 +79,11 @@ export default function CategoryTiles() {
                 TILE_GRADIENTS[i % TILE_GRADIENTS.length]
               } relative overflow-hidden hover:opacity-90 transition`}
             >
-              <span className="text-white font-bold text-sm leading-snug line-clamp-2">
+              <CategoryIcon
+                name={cat.name}
+                className="absolute -bottom-3 -right-2 w-20 h-20 text-white/15 pointer-events-none"
+              />
+              <span className="relative text-white font-bold text-sm leading-snug line-clamp-2">
                 {cat.name}
               </span>
             </Link>

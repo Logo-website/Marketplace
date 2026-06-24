@@ -20,7 +20,7 @@ function FooterItem({ label, to }) {
   return (
     <li className="flex items-center gap-2">
       <span className="text-gray-500 text-sm cursor-default">{label}</span>
-      <span className="text-[10px] font-bold uppercase tracking-wide text-gray-600 border border-gray-700 rounded px-1 py-0.5">
+      <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400 border border-indigo-500/70 rounded px-1 py-0.5 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.45)]">
         Скоро
       </span>
     </li>
@@ -63,7 +63,7 @@ const COLUMNS = [
   },
 ]
 
-const SOCIALS = ['VK', 'TG', 'IG', 'YT']
+const SOCIALS = ['VK', 'TG', 'Max']
 
 export default function Footer() {
   return (

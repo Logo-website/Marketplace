@@ -101,10 +101,11 @@ export default function Header() {
               <CatalogMenu />
             </div>
 
-            {/* Бренды (Ф21, узел 1.22) - второй главный вход в товар, через марку */}
+            {/* Бренды (Ф21, узел 1.22) - второй главный вход в товар, через марку.
+                На xl и выше - чтобы на средних экранах не давить поле поиска. */}
             <Link
               to="/brands"
-              className="hidden lg:flex items-center px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-semibold shrink-0"
+              className="hidden xl:flex items-center px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-semibold shrink-0"
             >
               Бренды
             </Link>
@@ -112,13 +113,13 @@ export default function Header() {
             {/* Образы (Ф22, узел 1.23) - вход в лукбук, отличие ниши от Lamoda */}
             <Link
               to="/looks"
-              className="hidden lg:flex items-center px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-semibold shrink-0"
+              className="hidden xl:flex items-center px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-semibold shrink-0"
             >
               Образы
             </Link>
 
             {/* Поиск */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-2xl relative" ref={searchRef}>
+            <form onSubmit={handleSearch} className="flex-1 sm:min-w-64 max-w-3xl relative" ref={searchRef}>
               <div className="relative">
                 <input
                   type="text"
@@ -151,7 +152,7 @@ export default function Header() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
+                    className="absolute top-full left-0 right-0 sm:right-auto sm:w-[min(28rem,calc(100vw-2rem))] sm:min-w-full mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
                   >
                     {hasQuery ? (
                       <>
@@ -270,7 +271,7 @@ export default function Header() {
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
-                  <span className="text-white text-sm font-medium hidden lg:block">Избранное</span>
+                  <span className="text-white text-sm font-medium hidden xl:block">Избранное</span>
                   <AnimatePresence>
                     {wishlistItems.length > 0 && (
                       <motion.span
@@ -296,7 +297,7 @@ export default function Header() {
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
                   </svg>
-                  <span className="text-white text-sm font-medium hidden lg:block">Корзина</span>
+                  <span className="text-white text-sm font-medium hidden xl:block">Корзина</span>
                   <AnimatePresence>
                     {totalItems > 0 && (
                       <motion.span
@@ -360,7 +361,7 @@ export default function Header() {
                       <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-black text-white">
                         {user?.username?.[0]?.toUpperCase() || 'U'}
                       </div>
-                      <span className="text-white text-sm font-medium hidden lg:block">{user?.username}</span>
+                      <span className="text-white text-sm font-medium hidden xl:block">{user?.username}</span>
                     </motion.div>
                   </Link>
                   <motion.button
