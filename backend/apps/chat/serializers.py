@@ -54,7 +54,7 @@ class ConversationSerializer(serializers.ModelSerializer):
         return other.shop_name or other.username
 
     def get_product_title(self, obj):
-        return obj.product.title if obj.product_id else None
+        return obj.product.name if obj.product_id else None
 
     def get_last_message(self, obj):
         # messages приходят из prefetch (view), берём последнее по created_at.

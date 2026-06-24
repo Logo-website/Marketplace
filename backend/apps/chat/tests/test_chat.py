@@ -88,6 +88,29 @@ def test_unknown_kind_is_400(buyer):
     assert res.status_code == 400
 
 
+# --- Контекст товара не роняет диалог (Product.name, не .title) ---
+
+@pytest.mark.django_db
+def test_seller_conversation_with_product_serializes(buyer, shop):
+    # Диалог с привязанным товаром (кнопка «написать продавцу» с карточки):
+    # создание и листинг не должны падать 500 на сериализации product_title.
+    from apps.products.models import Product
+    product = Product.objects.create(
+        seller=shop, name='Пальто оверсайз', slug='palto-oversize', price='4990.00'
+    )
+    c = client_for(buyer)
+    created = c.post(
+        '/api/chat/conversations/',
+        {'kind': 'seller', 'seller': shop.id, 'product': product.id},
+    )
+    assert created.status_code == 200
+    assert created.data['product_title'] == 'Пальто оверсайз'
+
+    listed = c.get('/api/chat/conversations/')
+    assert listed.status_code == 200
+    assert listed.data[0]['product_title'] == 'Пальто оверсайз'
+
+
 # --- Анти-IDOR: чтение и запись только участнику ---
 
 @pytest.mark.django_db
