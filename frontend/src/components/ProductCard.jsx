@@ -141,17 +141,17 @@ export default function ProductCard({ product }) {
               </div>
             )}
 
-            <div className="flex flex-wrap items-center justify-between gap-2 mt-auto pt-2">
-              <span className="text-lg font-black text-[#111] whitespace-nowrap">
+            <div className="mt-auto pt-2">
+              <span className="block text-lg font-black text-[#111] whitespace-nowrap mb-2">
                 {Number(product.price).toLocaleString()}&nbsp;₽
               </span>
               <motion.button
                 onClick={handleAddToCart}
                 disabled={product.stock === 0 || adding}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                   added ? 'bg-green-500 text-white' : 'bg-[#111] text-white hover:bg-gray-800'
                 } disabled:opacity-30`}
-                whileTap={{ scale: 0.9 }}
+                whileTap={{ scale: 0.97 }}
               >
                 {adding ? (
                   <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
