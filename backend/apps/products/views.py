@@ -49,6 +49,9 @@ LOOK_CACHE_KEY = 'look:{}'
 LOOK_CACHE_TTL = 60 * 5
 SIZE_CHART_CACHE_KEY = 'size_chart:{}'
 SIZE_CHART_CACHE_TTL = 60 * 60  # размерный справочник меняется редко (как категории)
+# Кап на число id в ветке ?ids= (гостевая корзина Ф8): столько позиций она не
+# держит, запас с избытком - но защищает от выгрузки всей базы одним запросом.
+GUEST_CART_IDS_MAX = 100
 
 
 class CategoryListView(generics.ListAPIView):
@@ -96,12 +99,18 @@ class ProductListView(generics.ListAPIView):
         # Только active - снятый/протухший товар не вернётся, фронт его почистит.
         ids = self.request.query_params.get('ids')
         if ids:
-            id_list = [int(x) for x in ids.split(',') if x.strip().isdigit()]
+            id_list = [int(x) for x in ids.split(',') if x.strip().isdigit()][:GUEST_CART_IDS_MAX]
             return queryset.filter(id__in=id_list)
 
+        # Нечисловой category -> пустая выдача, не 500: filter(category_id='abc')
+        # падает на касте FK в int. try/int, а НЕ isdigit: isdigit() пропускает
+        # unicode-надстрочные ('²'), на которых int() всё равно бросает ValueError.
         category_id = self.request.query_params.get('category')
         if category_id:
-            queryset = queryset.filter(category_id=category_id)
+            try:
+                queryset = queryset.filter(category_id=int(category_id))
+            except (TypeError, ValueError):
+                queryset = queryset.none()
 
         # Лента товаров бренда (Ф20, узел 1.21): ?seller=<id> сужает выдачу до
         # одного продавца, переиспользуя пагинацию/сортировку/фильтры Ф2 (DRY).
@@ -264,7 +273,12 @@ class CatalogFacetsView(APIView):
         base = Product.objects.filter(status='active')
         category_id = params.get('category')
         if category_id:
-            base = base.filter(category_id=category_id)
+            # Нечисловой category -> нули, не 500 (паритет с лентой каталога;
+            # try/int, а не isdigit - см. ProductListView.get_queryset).
+            try:
+                base = base.filter(category_id=int(category_id))
+            except (TypeError, ValueError):
+                base = base.none()
 
         # Ф20: фасеты витрины бренда считаются по товарам одного продавца, чтобы
         # счётчики фильтров совпадали с лентой ?seller=. Нечисловой id -> нули.

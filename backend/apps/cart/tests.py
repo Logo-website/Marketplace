@@ -191,6 +191,40 @@ def test_merge_skips_inactive(auth_client, user, product):
 
 
 @pytest.mark.django_db
+def test_long_size_rejected(auth_client, product):
+    """№6 (стресс-тест 2026-06-24): size длиннее капа OrderItem.size (50) -> 400,
+    иначе позиция прошла бы в корзину, но упала при переносе в заказ."""
+    r = auth_client.post(
+        '/api/cart/',
+        {'product_id': product.id, 'quantity': 1, 'size': 'X' * 51},
+        format='json',
+    )
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_long_color_rejected(auth_client, product):
+    """№6: color длиннее капа OrderItem.color (50) -> 400."""
+    r = auth_client.post(
+        '/api/cart/',
+        {'product_id': product.id, 'quantity': 1, 'color': 'Ц' * 51},
+        format='json',
+    )
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_max_length_size_color_accepted(auth_client, product):
+    """№6 (граница): ровно 50 символов проходит - кап не отрезает валидные значения."""
+    r = auth_client.post(
+        '/api/cart/',
+        {'product_id': product.id, 'quantity': 1, 'size': 'S' * 50, 'color': 'K' * 50},
+        format='json',
+    )
+    assert r.status_code == 200
+
+
+@pytest.mark.django_db
 def test_batch_products_by_ids(auth_client, product, product2):
     # Гостевая корзина дочитывает товары по списку id одним запросом, без пагинации.
     r = auth_client.get(f'/api/products/?ids={product.id},{product2.id}')

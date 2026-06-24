@@ -70,8 +70,10 @@ def build_cart_items(cart):
 class CartItemSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     quantity = serializers.IntegerField(min_value=1)
-    size = serializers.CharField(required=False, allow_blank=True, default='')
-    color = serializers.CharField(required=False, allow_blank=True, default='')
+    # max_length=50 = капы OrderItem.size/color (orders/models.py): иначе позиция
+    # пройдёт в корзину, но упадёт при переносе в заказ ("value too long").
+    size = serializers.CharField(required=False, allow_blank=True, default='', max_length=50)
+    color = serializers.CharField(required=False, allow_blank=True, default='', max_length=50)
 
 
 class CartView(views.APIView):

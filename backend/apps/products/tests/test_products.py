@@ -356,6 +356,48 @@ def test_recommendations_general_popular_for_anon(api_client, seller, category, 
     assert ids.index(high.id) < ids.index(low.id)  # по рейтингу, не случайно
 
 
+# --- Стресс-тест (аудит 2026-06-24): харднинг ввода каталога ---
+
+@pytest.mark.django_db
+def test_nonnumeric_category_returns_empty_not_500(api_client, product):
+    """№3: нечисловой ?category= не роняет каталог (был 500 на касте FK в int),
+    отдаёт 200 с пустым списком."""
+    response = api_client.get('/api/products/?category=abc')
+    assert response.status_code == 200
+    assert response.data['results'] == []
+
+
+@pytest.mark.django_db
+def test_superscript_category_not_500(api_client, product):
+    """№3 (граница unicode): '²' проходит str.isdigit(), но int('²') бросает
+    ValueError - гард на try/int, а не isdigit, иначе тут снова 500."""
+    response = api_client.get('/api/products/?category=²')
+    assert response.status_code == 200
+    assert response.data['results'] == []
+
+
+@pytest.mark.django_db
+def test_nonnumeric_category_facets_not_500(api_client, product):
+    """№3 (зеркало в фасетах): тот же кривой ?category= не роняет /facets/."""
+    response = api_client.get('/api/products/facets/?category=abc')
+    assert response.status_code == 200
+    assert response.data['count'] == 0
+
+
+@pytest.mark.django_db
+def test_ids_branch_capped(api_client, product):
+    """№7: ветка ?ids= обрезается по капу - id за пределами первых
+    GUEST_CART_IDS_MAX отбрасываются, вся база одним запросом не выгружается."""
+    from apps.products.views import GUEST_CART_IDS_MAX
+    # GUEST_CART_IDS_MAX несуществующих id, затем реальный товар на позиции +1.
+    # Срез берёт первые GUEST_CART_IDS_MAX (все мусорные) -> реальный отброшен.
+    fake = ','.join(str(i) for i in range(900000, 900000 + GUEST_CART_IDS_MAX))
+    response = api_client.get(f'/api/products/?ids={fake},{product.id}')
+    assert response.status_code == 200
+    returned = {p['id'] for p in response.data}
+    assert product.id not in returned  # за капом - не вернулся
+
+
 @pytest.mark.django_db
 def test_recommendations_fallback_when_cpp_down(api_client, product, seller, category, monkeypatch):
     """C++ недоступен -> 200 и fallback на популярное по категории, не 500."""
