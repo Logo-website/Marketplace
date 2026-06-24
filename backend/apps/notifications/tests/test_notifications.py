@@ -129,18 +129,21 @@ def test_unread_count_and_mark_all(auth_client, user):
 # --- Этап 4: заказ end-to-end через центр (одно письмо, без дубля) ---
 
 @pytest.mark.django_db
-def test_order_create_goes_through_center(auth_client, seller, capture_email,
+def test_order_create_goes_through_center(auth_client, user, seller, capture_email,
                                           django_capture_on_commit_callbacks):
     from apps.products.models import Category, Product
+    from apps.cart.cart import add_to_cart, clear_cart
     category = Category.objects.create(name='Одежда', slug='clothes-notif')
     product = Product.objects.create(
         seller=seller, category=category, name='Куртка', slug='jacket-notif',
         price=1000, stock=5, status='active',
     )
+    # Заказ создаётся боевым путём (from-cart): прямой POST /orders/ закрыт.
+    clear_cart(user.id)
+    add_to_cart(user.id, product.id, 1)
     with django_capture_on_commit_callbacks(execute=True):
-        res = auth_client.post('/api/orders/', {
-            'delivery_address': 'Москва',
-            'items': [{'product': product.id, 'quantity': 1}],
+        res = auth_client.post('/api/orders/from-cart/', {
+            'delivery_address': 'Москва', 'accept_offer': True,
         }, format='json')
     assert res.status_code == 201
     notes = Notification.objects.filter(recipient__email='test@test.com', category='order')

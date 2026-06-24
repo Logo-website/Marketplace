@@ -332,20 +332,22 @@ export default function CheckoutPage() {
             >
               <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Получатель</h2>
               <div className="flex flex-col gap-3">
+                {/* maxLength совпадает с капами модели (стресс-тест F4):
+                    defense-in-depth, бэкенд валидирует длину независимо. */}
                 <input
                   type="text" placeholder="Имя и фамилия *" value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
+                  onChange={(e) => setRecipientName(e.target.value)} maxLength={200}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
                 />
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="tel" placeholder="Телефон *" value={recipientPhone}
-                    onChange={(e) => setRecipientPhone(e.target.value)}
+                    onChange={(e) => setRecipientPhone(e.target.value)} maxLength={20}
                     className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
                   />
                   <input
                     type="email" placeholder="E-mail" value={recipientEmail}
-                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    onChange={(e) => setRecipientEmail(e.target.value)} maxLength={254}
                     className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
                   />
                 </div>

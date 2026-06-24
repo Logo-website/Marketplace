@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Order, OrderItem, ReturnRequest, ReturnItem
 from .serializers import (
-    OrderSerializer, OrderCreateSerializer, SellerOrderSerializer,
+    OrderSerializer, SellerOrderSerializer,
     ReturnRequestSerializer, SellerReturnSerializer,
 )
 from apps.permissions import IsSellerOrAdmin
@@ -107,20 +107,16 @@ def on_order_created(order):
     transaction.on_commit(dispatch)
 
 
-class OrderListCreateView(generics.ListCreateAPIView):
+# Только список заказов покупателя. Создание заказа идёт ИСКЛЮЧИТЕЛЬНО через
+# OrderFromCartView (/orders/from-cart/), где стоит guard согласия 54-ФЗ. Прямой
+# POST /orders/ закрыт (стресс-тест №5): открытый create в обход гарда был мёртвым
+# путём (фронт им не пользуется) - метод убран, POST теперь 405.
+class OrderListCreateView(generics.ListAPIView):
+    serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    def get_serializer_class(self):
-        if self.request.method == 'POST':
-            return OrderCreateSerializer
-        return OrderSerializer
 
     def get_queryset(self):
         return Order.objects.filter(buyer=self.request.user).prefetch_related('items')
-
-    def perform_create(self, serializer):
-        order = serializer.save()
-        on_order_created(order)
 
 
 class OrderFromCartView(APIView):
@@ -154,6 +150,30 @@ class OrderFromCartView(APIView):
         if payment_method not in dict(Order.PAYMENT_CHOICES):
             return Response({'error': 'Недопустимый способ оплаты'}, status=400)
 
+        # Длина полей получателя/доставки (стресс-тест №2/№8). Order.objects.create
+        # пишет в БД без full_clean, поэтому строка сверх varchar-капа уронила бы
+        # Postgres «value too long» -> 500 и откат транзакции. Проверяем длину
+        # заранее -> понятный 400. Капы получателя совпадают с моделью (name=200,
+        # phone=20, email=254); address/comment - TextField без DB-границы, ставим
+        # product-лимит, чтобы нельзя было записать гигабайт. (… or '') - клиент
+        # может прислать null: len(None) уронил бы в 500.
+        recipient_name = (request.data.get('recipient_name') or '').strip()
+        recipient_phone = (request.data.get('recipient_phone') or '').strip()
+        recipient_email = (request.data.get('recipient_email') or '').strip()
+        comment = request.data.get('comment') or ''
+        for label, value, cap in (
+            ('Имя получателя', recipient_name, 200),
+            ('Телефон', recipient_phone, 20),
+            ('E-mail', recipient_email, 254),
+            ('Адрес доставки', delivery_address, 500),
+            ('Комментарий', comment, 1000),
+        ):
+            if len(value) > cap:
+                return Response(
+                    {'error': f'{label}: слишком длинное значение (максимум {cap} символов)'},
+                    status=400,
+                )
+
         # Честный выбор позиций (Ф8 этап 5): если переданы выбранные позиции -
         # оформляем только их, остальное остаётся в корзине. Без items - вся
         # корзина (обратная совместимость со старым контрактом).
@@ -182,14 +202,13 @@ class OrderFromCartView(APIView):
             order = Order.objects.create(
                 buyer=request.user,
                 delivery_address=delivery_address,
-                # (… or '') - клиент может прислать null: get(default) сработает
-                # только при отсутствии ключа, а None.strip() уронил бы в 500.
-                recipient_name=(request.data.get('recipient_name') or '').strip(),
-                recipient_phone=(request.data.get('recipient_phone') or '').strip(),
-                recipient_email=(request.data.get('recipient_email') or '').strip(),
+                # recipient_*/comment уже нормализованы и проверены по длине выше.
+                recipient_name=recipient_name,
+                recipient_phone=recipient_phone,
+                recipient_email=recipient_email,
                 delivery_method=delivery_method,
                 payment_method=payment_method,
-                comment=request.data.get('comment', ''),
+                comment=comment,
                 total_price=total_price,
             )
 

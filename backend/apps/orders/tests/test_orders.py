@@ -24,46 +24,32 @@ def product(db, seller, category):
     )
 
 
+# Стресс-тест №5/C.3: прямой POST /orders/ закрыт. Создание заказа - только через
+# /orders/from-cart/ (там guard согласия 54-ФЗ). OrderCreateSerializer удалён.
 @pytest.mark.django_db
-def test_create_order(auth_client, product):
-    response = auth_client.post('/api/orders/', {
+def test_direct_post_orders_closed(auth_client, product):
+    # POST /orders/ больше не создаёт заказ -> 405 Method Not Allowed.
+    r = auth_client.post('/api/orders/', {
         'delivery_address': 'Москва, ул. Ленина 1',
         'items': [{'product': product.id, 'quantity': 2}]
     }, format='json')
-    assert response.status_code == 201
-    assert len(response.data['items']) == 1
+    assert r.status_code == 405
+    # GET-список при этом продолжает работать.
+    assert auth_client.get('/api/orders/').status_code == 200
+    # Заказ не создан.
+    assert not Order.objects.exists()
 
 
 @pytest.mark.django_db
-def test_order_reduces_stock(auth_client, product):
-    auth_client.post('/api/orders/', {
-        'delivery_address': 'Москва',
-        'items': [{'product': product.id, 'quantity': 3}]
-    }, format='json')
-    product.refresh_from_db()
-    assert product.stock == 7
+def test_order_create_serializer_removed():
+    # Мёртвый сериализатор удалён из модуля (правило репо №3).
+    from apps.orders import serializers as order_serializers
+    assert not hasattr(order_serializers, 'OrderCreateSerializer')
 
 
 @pytest.mark.django_db
-def test_order_exceeds_stock(auth_client, product):
-    response = auth_client.post('/api/orders/', {
-        'delivery_address': 'Москва',
-        'items': [{'product': product.id, 'quantity': 99}]
-    }, format='json')
-    assert response.status_code == 400
-
-
-@pytest.mark.django_db
-def test_empty_order(auth_client):
-    response = auth_client.post('/api/orders/', {
-        'delivery_address': 'Москва',
-        'items': []
-    }, format='json')
-    assert response.status_code == 400
-
-
-@pytest.mark.django_db
-def test_order_unauthorized(api_client, product):
+def test_order_post_unauthorized(api_client, product):
+    # Гость на /orders/ -> 401 (проверка прав раньше разбора метода).
     response = api_client.post('/api/orders/', {
         'delivery_address': 'Москва',
         'items': [{'product': product.id, 'quantity': 1}]
@@ -72,11 +58,10 @@ def test_order_unauthorized(api_client, product):
 
 
 @pytest.mark.django_db
-def test_order_list(auth_client, product):
-    auth_client.post('/api/orders/', {
-        'delivery_address': 'Москва',
-        'items': [{'product': product.id, 'quantity': 1}]
-    }, format='json')
+def test_order_list(auth_client, user, product, _clean_buyer_cart):
+    add_to_cart(user.id, product.id, 1)
+    auth_client.post('/api/orders/from-cart/',
+                     {'delivery_address': 'Москва', 'accept_offer': True}, format='json')
     response = auth_client.get('/api/orders/')
     assert response.status_code == 200
     assert len(response.data['results']) == 1
@@ -128,17 +113,22 @@ def test_seller_cannot_update_mixed_order(seller_client, user, product, other_se
 
 # --- P4: покупательский flow отмены (возврат стока, идемпотентность) ---
 
+def _order_via_cart(auth_client, user, product, qty):
+    """Создаёт заказ боевым путём (from-cart): списывает сток, как прод."""
+    add_to_cart(user.id, product.id, qty)
+    r = auth_client.post('/api/orders/from-cart/',
+                         {'delivery_address': 'Москва', 'accept_offer': True}, format='json')
+    assert r.status_code == 201
+    return Order.objects.get(buyer=user)
+
+
 @pytest.mark.django_db
-def test_buyer_cancel_restores_stock(auth_client, product):
+def test_buyer_cancel_restores_stock(auth_client, user, product, _clean_buyer_cart):
     # stock = 10, заказ на 3 -> 7, отмена -> снова 10
-    auth_client.post('/api/orders/', {
-        'delivery_address': 'Москва',
-        'items': [{'product': product.id, 'quantity': 3}]
-    }, format='json')
+    order = _order_via_cart(auth_client, user, product, 3)
     product.refresh_from_db()
     assert product.stock == 7
 
-    order = Order.objects.get(buyer__email='test@test.com')
     r = auth_client.post(f'/api/orders/{order.id}/cancel/')
     assert r.status_code == 200
     order.refresh_from_db()
@@ -148,12 +138,8 @@ def test_buyer_cancel_restores_stock(auth_client, product):
 
 
 @pytest.mark.django_db
-def test_buyer_cancel_twice_rejected(auth_client, product):
-    auth_client.post('/api/orders/', {
-        'delivery_address': 'Москва',
-        'items': [{'product': product.id, 'quantity': 2}]
-    }, format='json')
-    order = Order.objects.get(buyer__email='test@test.com')
+def test_buyer_cancel_twice_rejected(auth_client, user, product, _clean_buyer_cart):
+    order = _order_via_cart(auth_client, user, product, 2)
 
     first = auth_client.post(f'/api/orders/{order.id}/cancel/')
     assert first.status_code == 200
@@ -165,12 +151,8 @@ def test_buyer_cancel_twice_rejected(auth_client, product):
 
 
 @pytest.mark.django_db
-def test_buyer_cannot_cancel_shipped_order(auth_client, product):
-    auth_client.post('/api/orders/', {
-        'delivery_address': 'Москва',
-        'items': [{'product': product.id, 'quantity': 1}]
-    }, format='json')
-    order = Order.objects.get(buyer__email='test@test.com')
+def test_buyer_cannot_cancel_shipped_order(auth_client, user, product, _clean_buyer_cart):
+    order = _order_via_cart(auth_client, user, product, 1)
     order.status = 'shipped'
     order.save(update_fields=['status'])
 
@@ -247,20 +229,16 @@ def test_order_from_cart_exceeds_stock_rejected(auth_client, user, product, _cle
 
 
 @pytest.mark.django_db
-def test_second_order_cannot_oversell_stock(auth_client, product):
+def test_second_order_cannot_oversell_stock(auth_client, user, product, _clean_buyer_cart):
     # Детерминированный аналог гонки: первый заказ забирает почти весь сток,
     # второй на больший объём - отклонён, сток не уходит в минус.
-    auth_client.post('/api/orders/', {
-        'delivery_address': 'Москва',
-        'items': [{'product': product.id, 'quantity': 9}]
-    }, format='json')
+    _order_via_cart(auth_client, user, product, 9)
     product.refresh_from_db()
     assert product.stock == 1
 
-    r = auth_client.post('/api/orders/', {
-        'delivery_address': 'Москва',
-        'items': [{'product': product.id, 'quantity': 2}]
-    }, format='json')
+    add_to_cart(user.id, product.id, 2)
+    r = auth_client.post('/api/orders/from-cart/',
+                         {'delivery_address': 'Москва', 'accept_offer': True}, format='json')
     assert r.status_code == 400
     product.refresh_from_db()
     assert product.stock == 1
@@ -408,6 +386,70 @@ def test_order_from_cart_null_recipient_not_crash(auth_client, user, product, _c
     }, format='json')
     assert r.status_code == 201
     assert r.data['recipient_name'] == ''
+
+
+# --- Стресс-тест №2/№8: длина полей чекаута -> 400, не 500 ---
+
+@pytest.mark.django_db
+def test_order_from_cart_long_phone_rejected(auth_client, user, product, _clean_buyer_cart):
+    # Телефон сверх varchar(20) -> 400 (раньше Postgres "value too long" = 500).
+    add_to_cart(user.id, product.id, 1)
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'Москва', 'accept_offer': True,
+        'recipient_phone': '+7 (999) 123-45-67 доб. 1234',  # 28 символов
+    }, format='json')
+    assert r.status_code == 400
+    assert not Order.objects.filter(buyer=user).exists()
+    product.refresh_from_db()
+    assert product.stock == 10  # сток не списан, транзакция не открывалась
+
+
+@pytest.mark.django_db
+def test_order_from_cart_long_email_rejected(auth_client, user, product, _clean_buyer_cart):
+    # E-mail сверх varchar(254) -> 400.
+    add_to_cart(user.id, product.id, 1)
+    long_email = 'a' * 250 + '@x.ru'  # 255 символов
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'Москва', 'accept_offer': True,
+        'recipient_email': long_email,
+    }, format='json')
+    assert r.status_code == 400
+    assert not Order.objects.filter(buyer=user).exists()
+
+
+@pytest.mark.django_db
+def test_order_from_cart_long_name_rejected(auth_client, user, product, _clean_buyer_cart):
+    # Имя сверх varchar(200) -> 400.
+    add_to_cart(user.id, product.id, 1)
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'Москва', 'accept_offer': True,
+        'recipient_name': 'И' * 201,
+    }, format='json')
+    assert r.status_code == 400
+    assert not Order.objects.filter(buyer=user).exists()
+
+
+@pytest.mark.django_db
+def test_order_from_cart_long_address_rejected(auth_client, user, product, _clean_buyer_cart):
+    # Адрес (TextField без DB-границы) сверх product-лимита 500 -> 400.
+    add_to_cart(user.id, product.id, 1)
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'М' * 501, 'accept_offer': True,
+    }, format='json')
+    assert r.status_code == 400
+    assert not Order.objects.filter(buyer=user).exists()
+
+
+@pytest.mark.django_db
+def test_order_from_cart_long_comment_rejected(auth_client, user, product, _clean_buyer_cart):
+    # Комментарий сверх лимита 1000 -> 400.
+    add_to_cart(user.id, product.id, 1)
+    r = auth_client.post('/api/orders/from-cart/', {
+        'delivery_address': 'Москва', 'accept_offer': True,
+        'comment': 'к' * 1001,
+    }, format='json')
+    assert r.status_code == 400
+    assert not Order.objects.filter(buyer=user).exists()
 
 
 # --- Ф14: заказы продавца (list/detail, авторизация, смешанный заказ) ---
