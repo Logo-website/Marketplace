@@ -43,6 +43,8 @@ backend/*.csv
 
 # Docker
 .dockerignore
+# Локальный dev-override (у каждого свой, не в репозиторий)
+docker-compose.override.yml
 
 # IDE
 .idea/
