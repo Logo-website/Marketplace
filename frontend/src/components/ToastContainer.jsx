@@ -1,12 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import useToastStore from '../store/toastStore'
+import { MOTION } from '../lib/motion'
 
 // Тосты действий пользователя. Позиционируются сверху по центру, чтобы не
 // конфликтовать с WS-тостами заказов (те - снизу справа, см. NotificationToasts).
 const STYLES = {
-  success: 'bg-emerald-500 text-white',
-  error: 'bg-red-500 text-white',
-  info: 'bg-[#111] text-white',
+  success: 'bg-success text-white',
+  error: 'bg-danger text-white',
+  info: 'bg-ink text-white',
 }
 
 export default function ToastContainer() {
@@ -21,7 +22,7 @@ export default function ToastContainer() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
+            transition={MOTION}
             onClick={() => dismiss(t.id)}
             className={`pointer-events-auto cursor-pointer max-w-full break-words rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${STYLES[t.type] || STYLES.info}`}
           >

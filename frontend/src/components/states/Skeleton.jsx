@@ -10,7 +10,7 @@ export function Skeleton({ className = '' }) {
 // чтобы при загрузке не было «прыжка» при подмене на реальные карточки.
 export function CardSkeleton() {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden">
+    <div className="bg-card rounded-2xl overflow-hidden">
       <div className="skeleton h-48 w-full" />
       <div className="p-4 flex flex-col gap-2">
         <div className="skeleton h-3 rounded-full w-1/3" />

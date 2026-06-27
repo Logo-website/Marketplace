@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import useNotificationStore from '../store/notificationStore'
+import { MOTION } from '../lib/motion'
 
 // Живые уведомления о заказах, приходящие по WebSocket.
 export default function NotificationToasts() {
@@ -14,9 +15,9 @@ export default function NotificationToasts() {
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 40 }}
-            transition={{ duration: 0.2 }}
+            transition={MOTION}
             onClick={() => dismiss(n.id)}
-            className="cursor-pointer rounded-lg bg-black px-4 py-3 text-sm text-white shadow-lg"
+            className="cursor-pointer rounded-lg bg-ink px-4 py-3 text-sm text-white shadow-lg"
           >
             {n.text}
           </motion.div>

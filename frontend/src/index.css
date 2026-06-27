@@ -1,35 +1,52 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
-/* ─── Design tokens ──────────────────────────────────────────── */
-:root {
-  --bg:          #f5f5f5;
-  --bg-card:     #ffffff;
-  --surface:     #f9f9f9;
-  --border:      #e5e7eb;
-  --border-soft: #f3f4f6;
+/* ─── Design tokens (Gallery Minimal) ────────────────────────────
+   Источник правды - business/assets/brand-guidelines.md. Tailwind v4
+   CSS-first: токены живут в @theme, поэтому появляются утилиты bg-accent,
+   text-ink, border-line и т.п. Имена --color-* подчинены требованию
+   Tailwind генерировать утилиты; роли и HEX соответствуют бренд-гайду
+   (если расходятся - прав бренд-гайд). Старый «AI-индиго» #6366f1 убран. */
+@theme {
+  /* Поверхности */
+  --color-canvas:      #FFFFFF;   /* фон страницы (галерейный белый) */
+  --color-surface:     #FAFAF9;   /* секции, мягкие подложки, поля ввода */
+  --color-card:        #FFFFFF;   /* карточки/блоки */
+  --color-line:        #EBEBEE;   /* обычные границы, разделители */
+  --color-line-strong: #DEDEE2;   /* граница при наведении, акцентный разделитель */
 
-  --text-primary:   #111111;
-  --text-secondary: #4b5563;
-  --text-muted:     #9ca3af;
+  /* Текст (чернильная шкала по убыванию контраста) */
+  --color-ink:       #0E0E0F;     /* заголовки, цена, основной текст, primary CTA */
+  --color-ink-soft:  #5B5C60;     /* вторичный текст, описания */
+  --color-ink-faint: #9A9CA1;     /* подписи, мета, бренд-капс */
 
-  --accent:        #6366f1;
-  --accent-hover:  #4f46e5;
-  --accent-light:  #eef2ff;
+  /* Бренд-акцент - хвойный зелёный (связи и акценты, НЕ основное действие) */
+  --color-accent:       #1E4035;
+  --color-accent-hover: #163027;
+  --color-accent-soft:  #EEF3F1;
 
-  --success:       #10b981;
-  --warning:       #f59e0b;
-  --danger:        #ef4444;
+  /* Статусы */
+  --color-success: #1F7A55;
+  --color-warning: #B8791F;
+  --color-danger:  #B23A2E;
 
-  --radius-sm:  0.5rem;
-  --radius-md:  0.75rem;
-  --radius-lg:  1rem;
-  --radius-xl:  1.25rem;
-  --radius-2xl: 1.5rem;
+  /* Функциональные */
+  --color-star: #E8A93B;          /* звёзды рейтинга */
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.04);
+  /* Скругления (бренд) - не переопределяем дефолтную шкалу Tailwind,
+     добавляем семантический токен карточки. */
+  --radius-card: 14px;
+
+  /* Шрифты: дисплейный Bricolage Grotesque + тело Inter (см. бренд-гайд) */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+
+  /* Тени (мягкие, тёплые-нейтральные). Отдельные имена, чтобы не ломать
+     существующие shadow-sm/md/lg по всему сайту до экранных фаз. */
+  --shadow-card: 0 1px 2px rgba(16,16,20,.04), 0 1px 3px rgba(16,16,20,.06);
+  --shadow-lift: 0 6px 20px rgba(16,16,20,.07), 0 2px 6px rgba(16,16,20,.04);
+
+  /* Motion: единый easing бренда (framer-motion - в lib/motion.js) */
+  --ease-brand: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ─── Base ───────────────────────────────────────────────────── */
@@ -45,8 +62,8 @@ html {
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--text-primary);
+  background: var(--color-canvas);
+  color: var(--color-ink);
   line-height: 1.5;
 }
 
@@ -87,7 +104,7 @@ body {
   );
   background-size: 400px 100%;
   animation: shimmer 1.4s ease-in-out infinite;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 /* ─── Utilities ──────────────────────────────────────────────── */
@@ -100,7 +117,7 @@ body {
 
 /* Focus ring — единый стиль для всего сайта */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
@@ -109,9 +126,9 @@ body {
   outline: none;
 }
 
-/* Плавные переходы для интерактивных элементов */
+/* Плавные переходы для интерактивных элементов (easing - токен бренда) */
 button, a, input, select, textarea {
   transition-property: color, background-color, border-color, box-shadow, opacity, transform;
-  transition-duration: 150ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-brand);
 }

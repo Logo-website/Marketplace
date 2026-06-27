@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
+import Button from '../ui/Button'
 
 // Пустое состояние экрана: иконка в кружке + заголовок + подпись +
 // необязательная кнопка действия. Используется для корзины, избранного,
@@ -15,24 +17,20 @@ export default function EmptyState({ icon, title, subtitle, action, className = 
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`text-center py-20 bg-white rounded-2xl border border-gray-100 ${className}`}
+      transition={MOTION}
+      className={`text-center py-20 bg-card rounded-2xl border border-line ${className}`}
     >
       {icon && (
-        <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">
+        <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">
           {icon}
         </div>
       )}
-      <p className="text-gray-700 font-semibold mb-1">{title}</p>
-      {subtitle && <p className="text-gray-400 text-sm max-w-sm mx-auto px-4">{subtitle}</p>}
+      <p className="text-ink font-semibold mb-1">{title}</p>
+      {subtitle && <p className="text-ink-faint text-sm max-w-sm mx-auto px-4">{subtitle}</p>}
       {action && (
-        <motion.button
-          onClick={action.onClick}
-          className="mt-5 px-6 py-2.5 rounded-xl bg-[#111] text-white text-sm font-semibold hover:bg-gray-800 transition"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
+        <Button onClick={action.onClick} className="mt-5">
           {action.label}
-        </motion.button>
+        </Button>
       )}
     </motion.div>
   )
