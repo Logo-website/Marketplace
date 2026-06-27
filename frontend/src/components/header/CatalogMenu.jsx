@@ -46,7 +46,7 @@ export default function CatalogMenu({ onNavigate, embedded = false }) {
           onRetry={retry}
         />
       ) : categories.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-8 px-4">
+        <p className="text-sm text-ink-faint text-center py-8 px-4">
           Категории пока не настроены
         </p>
       ) : (
@@ -56,7 +56,7 @@ export default function CatalogMenu({ onNavigate, embedded = false }) {
               <Link
                 to={`/catalog/${cat.id}`}
                 onClick={handleClick}
-                className="block text-sm font-bold text-[#111] hover:text-indigo-600 transition"
+                className="block text-sm font-bold text-ink hover:text-accent transition-colors"
               >
                 {cat.name}
               </Link>
@@ -67,7 +67,7 @@ export default function CatalogMenu({ onNavigate, embedded = false }) {
                       <Link
                         to={`/catalog/${sub.id}`}
                         onClick={handleClick}
-                        className="block text-sm text-gray-500 hover:text-[#111] transition"
+                        className="block text-sm text-ink-soft hover:text-ink transition-colors"
                       >
                         {sub.name}
                       </Link>
@@ -86,10 +86,10 @@ export default function CatalogMenu({ onNavigate, embedded = false }) {
   if (embedded) {
     return (
       <div>
-        <p className="px-1 pb-2 text-xs font-bold uppercase tracking-widest text-gray-400">
+        <p className="px-1 pb-2 text-xs font-bold uppercase tracking-widest text-ink-faint">
           Каталог
         </p>
-        <div className="rounded-2xl border border-gray-100 bg-white">{tree}</div>
+        <div className="rounded-2xl border border-line bg-card">{tree}</div>
       </div>
     )
   }
@@ -100,7 +100,7 @@ export default function CatalogMenu({ onNavigate, embedded = false }) {
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-semibold"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-ink hover:bg-surface transition-colors font-semibold"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -115,7 +115,7 @@ export default function CatalogMenu({ onNavigate, embedded = false }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full left-0 mt-2 w-[min(90vw,32rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
+            className="absolute top-full left-0 mt-2 w-[min(90vw,32rem)] bg-card rounded-2xl shadow-lift border border-line overflow-hidden z-50"
           >
             {tree}
           </motion.div>

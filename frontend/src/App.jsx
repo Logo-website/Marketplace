@@ -56,7 +56,7 @@ function SellerRoute({ children }) {
     return <Navigate to={`/login?next=${next}`} replace />
   }
   // Профиль ещё грузится (user null до fetchProfile) - не редиректим раньше времени.
-  if (!user) return <div className="max-w-6xl mx-auto px-4 py-20"><div className="bg-white rounded-2xl h-64 skeleton" /></div>
+  if (!user) return <div className="max-w-6xl mx-auto px-4 py-20"><div className="bg-card rounded-2xl h-64 skeleton" /></div>
   if (user.role !== 'seller') return <Navigate to="/sell" replace />
   return children
 }
@@ -107,7 +107,7 @@ export default function App() {
     <BrowserRouter>
       {/* flex-col + flex-1 на контенте - футер (сосед PageWrapper) прижимается
           к низу на коротких страницах (план Ф7, решение 3.2.7). */}
-      <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
+      <div className="min-h-screen bg-surface flex flex-col">
         <Header />
         <NotificationToasts />
         <ToastContainer />

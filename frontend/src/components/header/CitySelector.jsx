@@ -37,7 +37,7 @@ export default function CitySelector({ onNavigate }) {
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="flex items-center gap-2 px-3 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-medium"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-ink-soft hover:text-ink hover:bg-surface transition-colors font-medium"
       >
         <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" />
@@ -53,9 +53,9 @@ export default function CitySelector({ onNavigate }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 max-h-[60vh] overflow-y-auto"
+            className="absolute top-full right-0 mt-2 w-56 bg-card rounded-2xl shadow-lift border border-line overflow-hidden z-50 max-h-[60vh] overflow-y-auto"
           >
-            <p className="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-widest text-gray-400">
+            <p className="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-widest text-ink-faint">
               Ваш город
             </p>
             {CITIES.map((c) => (
@@ -63,8 +63,8 @@ export default function CitySelector({ onNavigate }) {
                 key={c}
                 type="button"
                 onClick={() => select(c)}
-                className={`w-full text-left px-4 py-2.5 text-sm transition hover:bg-gray-50 ${
-                  c === city ? 'font-bold text-[#111]' : 'text-gray-600'
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-surface ${
+                  c === city ? 'font-bold text-ink' : 'text-ink-soft'
                 }`}
               >
                 {c}

@@ -71,28 +71,33 @@ export default function Header() {
   const showBecomeSeller = !isSeller && !isAdmin
   const hasQuery = search.trim().length >= 2
 
+  // Воздушная иконка-действие шапки (избранное/корзина): без тяжёлой пилюли,
+  // на hover уходит в бренд-зелёный (бренд-гайд §1, §5).
+  const actionCls =
+    'relative flex items-center justify-center w-10 h-10 rounded-full text-ink-soft hover:text-accent hover:bg-surface transition-colors'
+
   return (
     <>
       <motion.header
-        className="fixed top-0 left-0 right-0 z-50 bg-[#111]"
+        className="fixed top-0 left-0 right-0 z-50 bg-canvas border-b border-line"
         initial={{ y: -80 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="max-w-7xl mx-auto px-4 py-3.5">
           <div className="flex items-center gap-3">
 
-            {/* Логотип */}
+            {/* Вордмарк (бренд-гайд §4): зелёный знак-квадрат + строчное «маркет» */}
             <Link to="/" className="flex items-center gap-2.5 shrink-0">
               <motion.div
-                className="w-9 h-9 bg-white rounded-xl flex items-center justify-center"
-                whileHover={{ scale: 1.05, rotate: 5 }}
+                className="w-9 h-9 bg-accent rounded-[10px] flex items-center justify-center"
+                whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <span className="text-[#111] font-black text-base">M</span>
+                <span className="text-white font-display font-extrabold text-lg leading-none">М</span>
               </motion.div>
-              <span className="text-white font-bold text-xl tracking-tight hidden sm:block">
-                Market<span className="text-gray-500 font-normal">place</span>
+              <span className="font-display font-extrabold text-xl tracking-tight text-ink hidden sm:block">
+                маркет
               </span>
             </Link>
 
@@ -105,7 +110,7 @@ export default function Header() {
                 На xl и выше - чтобы на средних экранах не давить поле поиска. */}
             <Link
               to="/brands"
-              className="hidden xl:flex items-center px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-semibold shrink-0"
+              className="hidden xl:flex items-center px-3 py-2 rounded-lg text-sm text-ink-soft hover:text-ink hover:bg-surface transition-colors font-medium shrink-0"
             >
               Бренды
             </Link>
@@ -113,7 +118,7 @@ export default function Header() {
             {/* Образы (Ф22, узел 1.23) - вход в лукбук, отличие ниши от Lamoda */}
             <Link
               to="/looks"
-              className="hidden xl:flex items-center px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-semibold shrink-0"
+              className="hidden xl:flex items-center px-3 py-2 rounded-lg text-sm text-ink-soft hover:text-ink hover:bg-surface transition-colors font-medium shrink-0"
             >
               Образы
             </Link>
@@ -131,13 +136,14 @@ export default function Header() {
                   }}
                   onFocus={() => setShowSearch(true)}
                   placeholder="Поиск товаров, брендов..."
-                  className="w-full bg-white/10 text-white placeholder-gray-500 rounded-xl pl-4 pr-12 py-3 text-sm border border-white/10 focus:outline-none focus:border-white/30 focus:bg-white/15 transition-all"
+                  className="w-full bg-surface text-ink placeholder:text-ink-faint rounded-xl pl-4 pr-12 py-2.5 text-sm border border-line focus:bg-card focus:border-line-strong transition-colors"
                 />
                 <button
                   type="submit"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition"
+                  aria-label="Найти"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg text-ink-soft hover:text-accent hover:bg-card transition-colors"
                 >
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </button>
@@ -152,7 +158,7 @@ export default function Header() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute top-full left-0 right-0 sm:right-auto sm:w-[min(28rem,calc(100vw-2rem))] sm:min-w-full mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
+                    className="absolute top-full left-0 right-0 sm:right-auto sm:w-[min(28rem,calc(100vw-2rem))] sm:min-w-full mt-2 bg-card rounded-2xl shadow-lift border border-line overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
                   >
                     {hasQuery ? (
                       <>
@@ -165,9 +171,9 @@ export default function Header() {
                               setShowSearch(false)
                               navigate(`/products/${item.id}`)
                             }}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition text-left border-b border-gray-50 last:border-0"
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface transition-colors text-left border-b border-line last:border-0"
                           >
-                            <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                            <div className="w-10 h-10 bg-surface rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
                               {item.image_url ? (
                                 <img
                                   src={item.image_url}
@@ -176,21 +182,23 @@ export default function Header() {
                                   onError={(e) => { e.target.style.display = 'none' }}
                                 />
                               ) : (
-                                <span className="text-lg">📦</span>
+                                <svg className="w-5 h-5 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-14L4 7m8 4v10m0-10L4 7v10l8 4" />
+                                </svg>
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-800 line-clamp-1">{item.name}</p>
-                              <p className="text-xs text-gray-400">{item.category_name}</p>
+                              <p className="text-sm font-medium text-ink line-clamp-1">{item.name}</p>
+                              <p className="text-xs text-ink-faint">{item.category_name}</p>
                             </div>
-                            <span className="text-sm font-bold text-emerald-600 shrink-0">
+                            <span className="text-sm font-display font-bold text-ink shrink-0">
                               {Number(item.price).toLocaleString()} ₽
                             </span>
                           </button>
                         ))}
                         <button
                           type="submit"
-                          className="w-full px-4 py-3 text-sm text-indigo-600 font-semibold hover:bg-indigo-50 transition text-center"
+                          className="w-full px-4 py-3 text-sm text-accent font-semibold hover:bg-accent-soft transition-colors text-center"
                         >
                           Показать все результаты по "{search.trim()}" →
                         </button>
@@ -200,13 +208,13 @@ export default function Header() {
                         {history.length > 0 && (
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                              <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                              <p className="text-xs font-bold uppercase tracking-widest text-ink-faint">
                                 История
                               </p>
                               <button
                                 type="button"
                                 onClick={clearHistory}
-                                className="text-xs text-gray-400 hover:text-gray-700 transition"
+                                className="text-xs text-ink-faint hover:text-ink transition-colors"
                               >
                                 Очистить
                               </button>
@@ -217,7 +225,7 @@ export default function Header() {
                                   key={q}
                                   type="button"
                                   onClick={() => goToSearch(q)}
-                                  className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-sm hover:bg-gray-200 transition"
+                                  className="px-3 py-1.5 rounded-lg bg-surface text-ink-soft text-sm hover:bg-accent-soft hover:text-accent transition-colors"
                                 >
                                   {q}
                                 </button>
@@ -226,7 +234,7 @@ export default function Header() {
                           </div>
                         )}
                         <div>
-                          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
+                          <p className="text-xs font-bold uppercase tracking-widest text-ink-faint mb-2">
                             Популярное
                           </p>
                           <div className="flex flex-wrap gap-2">
@@ -235,7 +243,7 @@ export default function Header() {
                                 key={q}
                                 type="button"
                                 onClick={() => goToSearch(q)}
-                                className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-medium hover:bg-indigo-100 transition"
+                                className="px-3 py-1.5 rounded-lg bg-accent-soft text-accent text-sm font-medium hover:bg-accent hover:text-white transition-colors"
                               >
                                 {q}
                               </button>
@@ -250,7 +258,7 @@ export default function Header() {
             </form>
 
             {/* Правая часть */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
 
               {/* Город (десктоп) */}
               <div className="hidden md:block">
@@ -262,111 +270,88 @@ export default function Header() {
               {isAuthenticated && <NotificationBell />}
 
               {/* Избранное */}
-              <Link to="/wishlist">
-                <motion.div
-                  className="relative flex items-center gap-2 px-3 md:px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                  <span className="text-white text-sm font-medium hidden xl:block">Избранное</span>
-                  <AnimatePresence>
-                    {wishlistItems.length > 0 && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        exit={{ scale: 0 }}
-                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-black rounded-full w-5 h-5 flex items-center justify-center"
-                      >
-                        {wishlistItems.length}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
+              <Link to="/wishlist" aria-label="Избранное" className={actionCls}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                <AnimatePresence>
+                  {wishlistItems.length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className="absolute -top-0.5 -right-0.5 bg-ink text-white text-xs font-black rounded-full w-5 h-5 flex items-center justify-center"
+                    >
+                      {wishlistItems.length}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </Link>
 
               {/* Корзина */}
-              <Link to="/cart">
-                <motion.div
-                  className="relative flex items-center gap-2 px-3 md:px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
-                  </svg>
-                  <span className="text-white text-sm font-medium hidden xl:block">Корзина</span>
-                  <AnimatePresence>
-                    {totalItems > 0 && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        exit={{ scale: 0 }}
-                        className="absolute -top-1.5 -right-1.5 bg-white text-[#111] text-xs font-black rounded-full w-5 h-5 flex items-center justify-center"
-                      >
-                        {totalItems}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
+              <Link to="/cart" aria-label="Корзина" className={actionCls}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
+                </svg>
+                <AnimatePresence>
+                  {totalItems > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className="absolute -top-0.5 -right-0.5 bg-ink text-white text-xs font-black rounded-full w-5 h-5 flex items-center justify-center"
+                    >
+                      {totalItems}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </Link>
+
+              {/* Тонкий разделитель перед входами (десктоп) */}
+              <div className="hidden md:block w-px h-6 bg-line mx-1.5" />
 
               {/* «Продавать» / «Продавцу» (десктоп) */}
               {isSeller ? (
-                <Link to="/seller" className="hidden md:block">
-                  <motion.div
-                    className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-medium"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    Продавцу
-                  </motion.div>
+                <Link
+                  to="/seller"
+                  className="hidden md:flex items-center px-3 py-2 rounded-lg text-sm text-ink-soft hover:text-ink hover:bg-surface transition-colors font-medium"
+                >
+                  Продавцу
                 </Link>
               ) : showBecomeSeller ? (
-                <Link to="/sell" className="hidden md:block">
-                  <motion.div
-                    className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-medium"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    Продавать
-                  </motion.div>
+                <Link
+                  to="/sell"
+                  className="hidden md:flex items-center px-3 py-2 rounded-lg text-sm text-ink-soft hover:text-ink hover:bg-surface transition-colors font-medium"
+                >
+                  Продавать
                 </Link>
               ) : null}
 
               {/* Модерация - вход в админ-очередь (Ф17), только роль admin */}
               {isAdmin && (
-                <Link to="/admin/moderation" className="hidden md:block">
-                  <motion.div
-                    className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition text-sm text-white font-medium"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    Модерация
-                  </motion.div>
+                <Link
+                  to="/admin/moderation"
+                  className="hidden md:flex items-center px-3 py-2 rounded-lg text-sm text-ink-soft hover:text-ink hover:bg-surface transition-colors font-medium"
+                >
+                  Модерация
                 </Link>
               )}
 
               {/* Профиль / Войти (десктоп) */}
               {isAuthenticated ? (
                 <>
-                  <Link to="/profile" className="hidden md:block">
-                    <motion.div
-                      className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 transition"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-black text-white">
-                        {user?.username?.[0]?.toUpperCase() || 'U'}
-                      </div>
-                      <span className="text-white text-sm font-medium hidden xl:block">{user?.username}</span>
-                    </motion.div>
+                  <Link
+                    to="/profile"
+                    className="hidden md:flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full hover:bg-surface transition-colors"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-accent-soft flex items-center justify-center text-xs font-black text-accent">
+                      {user?.username?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                    <span className="text-ink text-sm font-medium hidden xl:block">{user?.username}</span>
                   </Link>
                   <motion.button
                     onClick={handleLogout}
-                    className="hidden md:block px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition text-sm font-medium"
+                    className="hidden md:block px-3 py-2 rounded-lg text-ink-faint hover:text-ink hover:bg-surface transition-colors text-sm font-medium"
                     whileTap={{ scale: 0.97 }}
                   >
                     Выйти
@@ -374,19 +359,15 @@ export default function Header() {
                 </>
               ) : (
                 <>
-                  <Link to="/login" className="hidden md:block">
-                    <motion.div
-                      className="px-5 py-3 rounded-xl text-white text-sm font-semibold hover:bg-white/10 transition border border-white/20"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      Войти
-                    </motion.div>
+                  <Link
+                    to="/login"
+                    className="hidden md:flex items-center px-4 py-2 rounded-lg text-ink-soft text-sm font-semibold hover:text-ink hover:bg-surface transition-colors"
+                  >
+                    Войти
                   </Link>
                   <Link to="/register" className="hidden md:block">
                     <motion.div
-                      className="px-5 py-3 rounded-xl bg-white text-[#111] text-sm font-bold hover:bg-gray-100 transition"
-                      whileHover={{ scale: 1.02 }}
+                      className="px-5 py-2.5 rounded-xl bg-ink text-white text-sm font-semibold hover:bg-accent transition-colors"
                       whileTap={{ scale: 0.98 }}
                     >
                       Регистрация
@@ -401,7 +382,7 @@ export default function Header() {
           </div>
         </div>
       </motion.header>
-      <div className="h-[73px]" />
+      <div className="h-[71px]" />
     </>
   )
 }

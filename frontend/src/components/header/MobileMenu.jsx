@@ -19,9 +19,9 @@ export default function MobileMenu({ isAuthenticated, user, onLogout }) {
         onClick={toggle}
         aria-expanded={open}
         aria-label="Меню"
-        className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 hover:bg-white/15 transition"
+        className="flex items-center justify-center w-10 h-10 rounded-full text-ink-soft hover:text-accent hover:bg-surface transition-colors"
       >
-        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           {open ? (
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           ) : (
@@ -37,7 +37,7 @@ export default function MobileMenu({ isAuthenticated, user, onLogout }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full right-0 mt-2 w-[min(92vw,22rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 z-50 max-h-[80vh] overflow-y-auto flex flex-col gap-4"
+            className="absolute top-full right-0 mt-2 w-[min(92vw,22rem)] bg-card rounded-2xl shadow-lift border border-line p-4 z-50 max-h-[80vh] overflow-y-auto flex flex-col gap-4"
           >
             <CatalogMenu embedded onNavigate={close} />
 
@@ -45,27 +45,24 @@ export default function MobileMenu({ isAuthenticated, user, onLogout }) {
             <Link
               to="/brands"
               onClick={close}
-              className="px-4 py-2.5 rounded-xl bg-gray-100 text-[#111] text-sm font-semibold text-center"
+              className="px-4 py-2.5 rounded-xl bg-surface text-ink text-sm font-semibold text-center hover:bg-accent-soft hover:text-accent transition-colors"
             >
               Бренды
             </Link>
 
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Город</span>
-              {/* CitySelector тёмный по стилю - оборачиваем в тёмный чип для контраста */}
-              <div className="rounded-xl bg-[#111]">
-                <CitySelector onNavigate={close} />
-              </div>
+              <span className="text-xs font-bold uppercase tracking-widest text-ink-faint">Город</span>
+              <CitySelector onNavigate={close} />
             </div>
 
-            <div className="flex flex-col gap-2 border-t border-gray-100 pt-4">
+            <div className="flex flex-col gap-2 border-t border-line pt-4">
               {/* Продавец -> кабинет; покупатель/гость -> онбординг /sell (Ф11).
                   Админу «стать продавцом» не предлагаем (таблица ролей 4.1). */}
               {user?.role !== 'admin' && (
                 <Link
                   to={user?.role === 'seller' ? '/seller' : '/sell'}
                   onClick={close}
-                  className="px-4 py-2.5 rounded-xl bg-[#111] text-white text-sm font-semibold text-center"
+                  className="px-4 py-2.5 rounded-xl bg-ink text-white text-sm font-semibold text-center hover:bg-accent transition-colors"
                 >
                   {user?.role === 'seller' ? 'Кабинет продавца' : 'Продавать'}
                 </Link>
@@ -76,14 +73,14 @@ export default function MobileMenu({ isAuthenticated, user, onLogout }) {
                   <Link
                     to="/profile"
                     onClick={close}
-                    className="px-4 py-2.5 rounded-xl bg-gray-100 text-[#111] text-sm font-semibold text-center"
+                    className="px-4 py-2.5 rounded-xl bg-surface text-ink text-sm font-semibold text-center hover:bg-accent-soft hover:text-accent transition-colors"
                   >
                     Профиль
                   </Link>
                   <button
                     type="button"
                     onClick={() => { close(); onLogout?.() }}
-                    className="px-4 py-2.5 rounded-xl text-gray-500 text-sm font-medium text-center hover:bg-gray-50 transition"
+                    className="px-4 py-2.5 rounded-xl text-ink-soft text-sm font-medium text-center hover:bg-surface transition-colors"
                   >
                     Выйти
                   </button>
@@ -93,14 +90,14 @@ export default function MobileMenu({ isAuthenticated, user, onLogout }) {
                   <Link
                     to="/login"
                     onClick={close}
-                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-[#111] text-sm font-semibold text-center"
+                    className="px-4 py-2.5 rounded-xl border border-line text-ink text-sm font-semibold text-center hover:border-line-strong transition-colors"
                   >
                     Войти
                   </Link>
                   <Link
                     to="/register"
                     onClick={close}
-                    className="px-4 py-2.5 rounded-xl bg-[#111] text-white text-sm font-bold text-center"
+                    className="px-4 py-2.5 rounded-xl bg-ink text-white text-sm font-bold text-center hover:bg-accent transition-colors"
                   >
                     Регистрация
                   </Link>

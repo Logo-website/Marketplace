@@ -11,7 +11,7 @@ function FooterItem({ label, to }) {
   if (to) {
     return (
       <li>
-        <Link to={to} className="text-gray-400 hover:text-white transition text-sm">
+        <Link to={to} className="text-white/55 hover:text-white transition-colors text-sm">
           {label}
         </Link>
       </li>
@@ -19,8 +19,8 @@ function FooterItem({ label, to }) {
   }
   return (
     <li className="flex items-center gap-2">
-      <span className="text-gray-500 text-sm cursor-default">{label}</span>
-      <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400 border border-indigo-500/70 rounded px-1 py-0.5 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.45)]">
+      <span className="text-white/40 text-sm cursor-default">{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-wide text-accent-soft border border-accent-soft/30 rounded px-1 py-0.5">
         Скоро
       </span>
     </li>
@@ -67,27 +67,27 @@ const SOCIALS = ['VK', 'TG', 'Max']
 
 export default function Footer() {
   return (
-    <footer className="bg-[#111] text-white mt-12">
+    <footer className="bg-ink text-white mt-12">
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-          {/* Бренд */}
+          {/* Бренд - вордмарк (бренд-гайд §4): на тёмном фоне знак тот же, текст белый */}
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center">
-                <span className="text-[#111] font-black text-base">M</span>
+              <div className="w-9 h-9 bg-accent rounded-[10px] flex items-center justify-center">
+                <span className="text-white font-display font-extrabold text-lg leading-none">М</span>
               </div>
-              <span className="font-bold text-xl tracking-tight">
-                Market<span className="text-gray-500 font-normal">place</span>
+              <span className="font-display font-extrabold text-xl tracking-tight">
+                маркет
               </span>
             </Link>
-            <p className="text-gray-500 text-sm mt-4 max-w-xs">
+            <p className="text-white/45 text-sm mt-4 max-w-xs leading-relaxed">
               Маркетплейс одежды: локальные бренды и частные продавцы в одном месте.
             </p>
           </div>
 
           {COLUMNS.map((col) => (
             <div key={col.title}>
-              <h3 className="font-bold text-sm mb-4">{col.title}</h3>
+              <h3 className="font-display font-bold text-sm mb-4">{col.title}</h3>
               <ul className="flex flex-col gap-2.5">
                 {col.items.map((item) => (
                   <FooterItem key={item.label} label={item.label} to={item.to} />
@@ -98,16 +98,16 @@ export default function Footer() {
         </div>
 
         {/* Низ: соцсети (заглушки до своих ссылок) + копирайт */}
-        <div className="border-t border-gray-800 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-gray-500 text-sm">
-            © {new Date().getFullYear()} Marketplace. Все права защищены.
+        <div className="border-t border-white/10 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-white/40 text-sm">
+            © {new Date().getFullYear()} маркет. Все права защищены.
           </p>
           <div className="flex items-center gap-2">
             {SOCIALS.map((s) => (
               <span
                 key={s}
                 title="Скоро"
-                className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-xs font-bold text-gray-500 cursor-default select-none"
+                className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-xs font-bold text-white/45 cursor-default select-none transition-colors"
               >
                 {s}
               </span>
