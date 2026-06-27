@@ -50,8 +50,8 @@ export default function HelpPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Помощь и частые вопросы</h1>
-      <p className="text-gray-500 mb-8">
+      <h1 className="text-3xl font-bold text-ink mb-2">Помощь и частые вопросы</h1>
+      <p className="text-ink-faint mb-8">
         Не нашли ответ? Откройте чат с поддержкой - мы поможем.
       </p>
 
@@ -62,14 +62,14 @@ export default function HelpPage() {
             <div
               key={item.id}
               id={item.id}
-              className="bg-white rounded-2xl border border-gray-100 overflow-hidden scroll-mt-24"
+              className="bg-card rounded-2xl border border-line overflow-hidden scroll-mt-24"
             >
               <button
                 onClick={() => setOpen(isOpen ? '' : item.id)}
                 className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
               >
-                <span className="font-semibold text-gray-900">{item.q}</span>
-                <span className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+                <span className="font-semibold text-ink">{item.q}</span>
+                <span className={`text-ink-faint transition-transform ${isOpen ? 'rotate-180' : ''}`}>
                   ▾
                 </span>
               </button>
@@ -81,7 +81,7 @@ export default function HelpPage() {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <p className="px-5 pb-4 text-gray-600 text-sm leading-relaxed">{item.a}</p>
+                    <p className="px-5 pb-4 text-ink-soft text-sm leading-relaxed">{item.a}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -91,14 +91,14 @@ export default function HelpPage() {
       </div>
 
       {/* Юр-документы - forward в Ф26 (оферта, политика 152-ФЗ), пока заглушка. */}
-      <div className="mt-8 flex flex-wrap gap-4 text-sm text-gray-400">
-        <button onClick={() => toast('Юридические документы появятся в фазе Ф26')} className="hover:text-gray-600 underline">
+      <div className="mt-8 flex flex-wrap gap-4 text-sm text-ink-faint">
+        <button onClick={() => toast('Юридические документы появятся в фазе Ф26')} className="hover:text-ink-soft underline">
           Публичная оферта
         </button>
-        <button onClick={() => toast('Юридические документы появятся в фазе Ф26')} className="hover:text-gray-600 underline">
+        <button onClick={() => toast('Юридические документы появятся в фазе Ф26')} className="hover:text-ink-soft underline">
           Политика конфиденциальности
         </button>
-        <Link to="/chats" className="hover:text-gray-600 underline ml-auto">
+        <Link to="/chats" className="hover:text-ink-soft underline ml-auto">
           Открыть чаты
         </Link>
       </div>

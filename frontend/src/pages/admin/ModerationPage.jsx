@@ -34,10 +34,10 @@ function ModerationCard({ product, busy, onApprove, onReject }) {
   const coverUrl = cover?.image_url || cover?.image || null
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+    <div className="bg-card rounded-2xl border border-line p-5">
       <div className="flex gap-4">
         {/* Превью фото */}
-        <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
+        <div className="w-20 h-20 sm:w-24 sm:h-24 bg-surface rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
           {coverUrl ? (
             <img
               src={coverUrl}
@@ -55,25 +55,25 @@ function ModerationCard({ product, busy, onApprove, onReject }) {
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <Link
               to={`/products/${product.id}`}
-              className="font-semibold text-gray-900 hover:underline line-clamp-2"
+              className="font-semibold text-ink hover:underline line-clamp-2"
             >
               {product.name}
             </Link>
-            <span className="text-base font-black text-gray-900 shrink-0">
+            <span className="text-base font-black text-ink shrink-0">
               {Number(product.price).toLocaleString()} ₽
             </span>
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-ink-faint mt-0.5">
             {product.seller_name}
             {product.category_name ? ` · ${product.category_name}` : ''}
           </p>
           {product.description && (
-            <p className="text-sm text-gray-600 mt-2 line-clamp-2">{product.description}</p>
+            <p className="text-sm text-ink-soft mt-2 line-clamp-2">{product.description}</p>
           )}
           {attrChips(product.attributes).length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {attrChips(product.attributes).map((chip, i) => (
-                <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg">
+                <span key={i} className="text-xs bg-surface text-ink-soft px-2 py-0.5 rounded-lg">
                   {chip}
                 </span>
               ))}
@@ -88,14 +88,14 @@ function ModerationCard({ product, busy, onApprove, onReject }) {
           <button
             onClick={() => onApprove(product)}
             disabled={busy}
-            className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-emerald-700 transition disabled:opacity-50"
+            className="bg-success text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-success/90 transition disabled:opacity-50"
           >
             {busy ? 'Обработка…' : 'Одобрить'}
           </button>
           <button
             onClick={() => setRejecting(true)}
             disabled={busy}
-            className="px-4 py-2 rounded-xl font-semibold text-sm text-red-600 border border-red-200 hover:bg-red-50 transition disabled:opacity-50"
+            className="px-4 py-2 rounded-xl font-semibold text-sm text-danger border border-danger/30 hover:bg-danger/10 transition disabled:opacity-50"
           >
             Отклонить
           </button>
@@ -107,19 +107,19 @@ function ModerationCard({ product, busy, onApprove, onReject }) {
             onChange={(e) => setReason(e.target.value)}
             placeholder="Причина отклонения — её увидит продавец и сможет исправить товар"
             rows={3}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition resize-none"
+            className="w-full border border-line-strong rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-danger focus:ring-2 focus:ring-danger/20 transition resize-none"
           />
           <div className="flex items-center gap-2 mt-2">
             <button
               onClick={() => onReject(product, reason.trim(), () => setRejecting(false))}
               disabled={busy || !reason.trim()}
-              className="bg-red-600 text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-red-700 transition disabled:opacity-50"
+              className="bg-danger text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-danger/90 transition disabled:opacity-50"
             >
               {busy ? 'Отклоняем…' : 'Подтвердить отклонение'}
             </button>
             <button
               onClick={() => { setRejecting(false); setReason('') }}
-              className="px-4 py-2 rounded-xl font-semibold text-sm text-gray-500 hover:text-gray-900 transition"
+              className="px-4 py-2 rounded-xl font-semibold text-sm text-ink-faint hover:text-ink transition"
             >
               Отмена
             </button>
@@ -188,23 +188,23 @@ export default function ModerationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-surface">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#111] rounded-2xl p-6 mb-6"
+          className="bg-ink rounded-2xl p-6 mb-6"
         >
-          <p className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-1">Администрирование</p>
+          <p className="text-xs font-semibold text-accent-soft uppercase tracking-widest mb-1">Администрирование</p>
           <h1 className="text-2xl font-black text-white">Модерация товаров</h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-ink-faint text-sm mt-1">
             Одобрите товар для публикации в каталоге или отклоните с причиной
           </p>
         </motion.div>
 
         {loading ? (
           <div className="flex flex-col gap-3">
-            {[...Array(4)].map((_, i) => <div key={i} className="bg-white rounded-2xl h-32 skeleton" />)}
+            {[...Array(4)].map((_, i) => <div key={i} className="bg-card rounded-2xl h-32 skeleton" />)}
           </div>
         ) : listError ? (
           <ErrorState title="Не удалось загрузить очередь модерации" onRetry={fetchQueue} />

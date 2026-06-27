@@ -37,10 +37,10 @@ export default function LegalPage() {
     if (error?.response?.status === 404) {
       return (
         <div className="max-w-3xl mx-auto px-4 py-20 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">📄</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Документ не найден</h1>
-          <p className="text-gray-400 text-sm mb-6">Такого документа нет или он снят с публикации.</p>
-          <Link to="/" className="inline-block px-6 py-2.5 rounded-xl bg-[#111] text-white text-sm font-semibold hover:bg-gray-800 transition">
+          <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">📄</div>
+          <h1 className="text-2xl font-bold text-ink mb-2">Документ не найден</h1>
+          <p className="text-ink-faint text-sm mb-6">Такого документа нет или он снят с публикации.</p>
+          <Link to="/" className="inline-block px-6 py-2.5 rounded-xl bg-ink text-white text-sm font-semibold hover:bg-ink/90 transition">
             На главную
           </Link>
         </div>
@@ -63,17 +63,17 @@ export default function LegalPage() {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-3xl mx-auto px-4 py-10"
     >
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">{data.title}</h1>
-      <p className="text-sm text-gray-400 mb-8">
+      <h1 className="text-3xl font-bold text-ink mb-2">{data.title}</h1>
+      <p className="text-sm text-ink-faint mb-8">
         Редакция {data.version}
         {effective ? ` · действует с ${effective}` : ''}
       </p>
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8">
+      <div className="bg-card rounded-2xl border border-line p-6 sm:p-8">
         {data.body ? (
-          <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">{data.body}</p>
+          <p className="text-ink-soft text-sm leading-relaxed whitespace-pre-line">{data.body}</p>
         ) : (
-          <p className="text-gray-400 text-sm">Текст документа готовится.</p>
+          <p className="text-ink-faint text-sm">Текст документа готовится.</p>
         )}
       </div>
     </motion.div>

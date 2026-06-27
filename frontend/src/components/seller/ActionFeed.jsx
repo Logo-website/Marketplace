@@ -14,23 +14,23 @@ import { motion } from 'framer-motion'
 
 function Row({ icon, tone, title, subtitle, onClick }) {
   const tones = {
-    indigo: 'bg-indigo-50 text-indigo-600',
-    amber: 'bg-amber-50 text-amber-600',
-    emerald: 'bg-emerald-50 text-emerald-600',
+    indigo: 'bg-accent-soft text-accent',
+    amber: 'bg-warning/10 text-warning',
+    emerald: 'bg-success/10 text-success',
   }
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition text-left"
+      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface transition text-left"
     >
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tones[tone]}`}>
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-gray-900">{title}</p>
-        {subtitle && <p className="text-xs text-gray-400 truncate">{subtitle}</p>}
+        <p className="text-sm font-semibold text-ink">{title}</p>
+        {subtitle && <p className="text-xs text-ink-faint truncate">{subtitle}</p>}
       </div>
-      <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4 text-ink-faint shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
       </svg>
     </button>
@@ -115,20 +115,20 @@ export default function ActionFeed({ data, onNavigate }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <h3 className="text-sm font-semibold text-gray-900 mb-1">Что требует действия</h3>
-      <p className="text-xs text-gray-400 mb-4">Сигналы по вашему магазину</p>
+    <div className="bg-card rounded-2xl border border-line p-5">
+      <h3 className="text-sm font-semibold text-ink mb-1">Что требует действия</h3>
+      <p className="text-xs text-ink-faint mb-4">Сигналы по вашему магазину</p>
 
       {rows.length === 0 ? (
         // Пустая панель -> «всё под контролем», не пустой блок (план этап 4).
         <div className="flex flex-col items-center justify-center text-center py-8">
-          <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mb-3">
-            <svg className="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center mb-3">
+            <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <p className="text-sm font-semibold text-gray-700">Всё под контролем</p>
-          <p className="text-xs text-gray-400 mt-0.5">Нет задач, требующих внимания</p>
+          <p className="text-sm font-semibold text-ink-soft">Всё под контролем</p>
+          <p className="text-xs text-ink-faint mt-0.5">Нет задач, требующих внимания</p>
         </div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1">

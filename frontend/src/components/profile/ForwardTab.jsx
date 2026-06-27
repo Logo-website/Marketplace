@@ -16,16 +16,16 @@ export default function ForwardTab({ icon = '🚧', title, phase, description })
       key={title}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border border-gray-100 py-20 text-center px-6"
+      className="bg-card rounded-2xl border border-line py-20 text-center px-6"
     >
-      <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">
+      <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">
         {icon}
       </div>
-      <h2 className="text-lg font-bold text-gray-900 mb-1">{title}</h2>
+      <h2 className="text-lg font-bold text-ink mb-1">{title}</h2>
       {description && (
-        <p className="text-gray-400 text-sm max-w-sm mx-auto">{description}</p>
+        <p className="text-ink-faint text-sm max-w-sm mx-auto">{description}</p>
       )}
-      <span className="inline-block mt-5 text-xs font-semibold text-indigo-500 bg-indigo-50 px-3 py-1.5 rounded-full">
+      <span className="inline-block mt-5 text-xs font-semibold text-accent bg-accent-soft px-3 py-1.5 rounded-full">
         Появится в фазе {phase}
       </span>
     </motion.div>

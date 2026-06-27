@@ -25,8 +25,8 @@ export default function StatusTabs({ active, counts, onChange }) {
             onClick={() => onChange(tab.id)}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${
               isActive
-                ? 'bg-[#111] text-white shadow-sm'
-                : 'bg-white text-gray-500 hover:text-gray-900 border border-gray-100'
+                ? 'bg-ink text-white shadow-sm'
+                : 'bg-card text-ink-faint hover:text-ink border border-line'
             }`}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -34,7 +34,7 @@ export default function StatusTabs({ active, counts, onChange }) {
             {tab.label}
             {count != null && (
               <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-md ${
-                isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
+                isActive ? 'bg-white/20 text-white' : 'bg-surface text-ink-faint'
               }`}>
                 {count}
               </span>

@@ -42,27 +42,27 @@ export default function ConfirmModal({
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-6"
+        className="w-full sm:max-w-sm bg-card rounded-t-2xl sm:rounded-2xl p-6"
         onClick={(e) => e.stopPropagation()}
         initial={{ y: '100%', opacity: 0.5 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%', opacity: 0 }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
       >
-        <h2 className="text-lg font-black text-gray-900 mb-1">{title}</h2>
-        {message && <p className="text-sm text-gray-500 mb-5">{message}</p>}
+        <h2 className="text-lg font-black text-ink mb-1">{title}</h2>
+        {message && <p className="text-sm text-ink-faint mb-5">{message}</p>}
         <div className="flex gap-2">
           <button
             onClick={onCancel}
             disabled={loading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition disabled:opacity-50"
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-ink-soft border border-line-strong hover:bg-surface transition disabled:opacity-50"
           >
             Отмена
           </button>
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition disabled:opacity-50"
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-danger hover:bg-danger/90 transition disabled:opacity-50"
           >
             {loading ? loadingLabel : confirmLabel}
           </button>

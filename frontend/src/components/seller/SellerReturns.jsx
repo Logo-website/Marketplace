@@ -7,12 +7,12 @@ import ErrorState from '../states/ErrorState'
 // Возвраты продавца (Ф23, узел 2.7): заявки на ЕГО товары (S4), проведение по
 // машине статусов - принять/отклонить, приёмка (восстановит сток), возврат денег.
 const STATUS_CONFIG = {
-  requested: { label: 'Новая заявка',      color: 'bg-amber-100 text-amber-600' },
-  approved:  { label: 'Одобрен',           color: 'bg-blue-100 text-blue-600' },
-  received:  { label: 'Товар принят',      color: 'bg-purple-100 text-purple-600' },
-  refunded:  { label: 'Деньги возвращены', color: 'bg-emerald-100 text-emerald-600' },
-  rejected:  { label: 'Отклонён',          color: 'bg-red-100 text-red-600' },
-  disputed:  { label: 'Спор (арбитраж)',   color: 'bg-orange-100 text-orange-600' },
+  requested: { label: 'Новая заявка',      color: 'bg-warning/10 text-warning' },
+  approved:  { label: 'Одобрен',           color: 'bg-accent-soft text-accent' },
+  received:  { label: 'Товар принят',      color: 'bg-surface text-ink-soft' },
+  refunded:  { label: 'Деньги возвращены', color: 'bg-success/10 text-success' },
+  rejected:  { label: 'Отклонён',          color: 'bg-danger/10 text-danger' },
+  disputed:  { label: 'Спор (арбитраж)',   color: 'bg-warning/10 text-warning' },
 }
 const FILTERS = [
   { id: 'all', label: 'Все' },
@@ -79,7 +79,7 @@ export default function SellerReturns() {
             key={f.id}
             onClick={() => setStatusFilter(f.id)}
             className={`px-3 py-1.5 rounded-xl text-sm font-semibold transition ${
-              statusFilter === f.id ? 'bg-[#111] text-white' : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+              statusFilter === f.id ? 'bg-ink text-white' : 'bg-card text-ink-faint border border-line hover:bg-surface'
             }`}
           >
             {f.label}
@@ -88,13 +88,13 @@ export default function SellerReturns() {
       </div>
 
       {loading ? (
-        <div className="flex flex-col gap-3">{[...Array(3)].map((_, i) => <div key={i} className="bg-white rounded-2xl h-28 skeleton" />)}</div>
+        <div className="flex flex-col gap-3">{[...Array(3)].map((_, i) => <div key={i} className="bg-card rounded-2xl h-28 skeleton" />)}</div>
       ) : listError ? (
         <ErrorState title="Не удалось загрузить возвраты" onRetry={() => fetchReturns()} />
       ) : returns.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
+        <div className="text-center py-20 bg-card rounded-2xl border border-line">
           <p className="text-4xl mb-3">↩️</p>
-          <p className="text-gray-400">{statusFilter === 'all' ? 'Возвратов пока нет' : 'Нет возвратов в этом статусе'}</p>
+          <p className="text-ink-faint">{statusFilter === 'all' ? 'Возвратов пока нет' : 'Нет возвратов в этом статусе'}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -102,48 +102,48 @@ export default function SellerReturns() {
             const st = STATUS_CONFIG[ret.status] ?? STATUS_CONFIG.requested
             const busy = busyId === ret.id
             return (
-              <div key={ret.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div key={ret.id} className="bg-card rounded-2xl border border-line p-5">
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <div>
-                    <p className="font-bold text-gray-800">Возврат по заказу #{ret.order_id}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{ret.buyer_name} · {new Date(ret.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    <p className="font-bold text-ink">Возврат по заказу #{ret.order_id}</p>
+                    <p className="text-xs text-ink-faint mt-0.5">{ret.buyer_name} · {new Date(ret.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                   </div>
                   <span className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 ${st.color}`}>{st.label}</span>
                 </div>
 
-                <div className="text-sm text-gray-600 mb-2">
+                <div className="text-sm text-ink-soft mb-2">
                   {(ret.items ?? []).map((it) => (
-                    <div key={it.id} className="flex justify-between py-1 border-b border-gray-50 last:border-0">
-                      <span>{it.product_name}{(it.size || it.color) && <span className="text-gray-400"> · {[it.size, it.color].filter(Boolean).join(' / ')}</span>}</span>
-                      <span className="text-gray-400 shrink-0 ml-3">{it.quantity} шт.</span>
+                    <div key={it.id} className="flex justify-between py-1 border-b border-line last:border-0">
+                      <span>{it.product_name}{(it.size || it.color) && <span className="text-ink-faint"> · {[it.size, it.color].filter(Boolean).join(' / ')}</span>}</span>
+                      <span className="text-ink-faint shrink-0 ml-3">{it.quantity} шт.</span>
                     </div>
                   ))}
                 </div>
 
                 <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-gray-500">{ret.reason_display}</span>
-                  <span className="font-bold text-gray-900">{Number(ret.refund_amount).toLocaleString()} ₽</span>
+                  <span className="text-ink-faint">{ret.reason_display}</span>
+                  <span className="font-bold text-ink">{Number(ret.refund_amount).toLocaleString()} ₽</span>
                 </div>
                 {/* UGC покупателя: текст как текст, фото как картинка (не HTML) */}
-                {ret.reason_text && <p className="text-sm text-gray-500 mb-2 whitespace-pre-line">{ret.reason_text}</p>}
-                {ret.photo && <img src={ret.photo} alt="Фото возврата" className="w-24 h-24 object-cover rounded-xl border border-gray-100 mb-2" />}
+                {ret.reason_text && <p className="text-sm text-ink-faint mb-2 whitespace-pre-line">{ret.reason_text}</p>}
+                {ret.photo && <img src={ret.photo} alt="Фото возврата" className="w-24 h-24 object-cover rounded-xl border border-line mb-2" />}
 
                 {/* Действия по машине статусов */}
                 <div className="flex flex-wrap gap-2 mt-3">
                   {ret.status === 'requested' && (
                     <>
-                      <button onClick={() => patchStatus(ret, 'approved')} disabled={busy} className="text-xs font-semibold bg-[#111] text-white px-4 py-2 rounded-xl hover:bg-gray-800 transition disabled:opacity-50">Одобрить</button>
-                      <button onClick={() => handleReject(ret)} disabled={busy} className="text-xs font-semibold text-red-500 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-50 transition disabled:opacity-50">Отклонить</button>
+                      <button onClick={() => patchStatus(ret, 'approved')} disabled={busy} className="text-xs font-semibold bg-ink text-white px-4 py-2 rounded-xl hover:bg-ink/90 transition disabled:opacity-50">Одобрить</button>
+                      <button onClick={() => handleReject(ret)} disabled={busy} className="text-xs font-semibold text-danger border border-danger/30 px-4 py-2 rounded-xl hover:bg-danger/10 transition disabled:opacity-50">Отклонить</button>
                     </>
                   )}
                   {ret.status === 'approved' && (
-                    <button onClick={() => patchStatus(ret, 'received')} disabled={busy} className="text-xs font-semibold bg-[#111] text-white px-4 py-2 rounded-xl hover:bg-gray-800 transition disabled:opacity-50">Товар принят</button>
+                    <button onClick={() => patchStatus(ret, 'received')} disabled={busy} className="text-xs font-semibold bg-ink text-white px-4 py-2 rounded-xl hover:bg-ink/90 transition disabled:opacity-50">Товар принят</button>
                   )}
                   {ret.status === 'received' && (
-                    <button onClick={() => patchStatus(ret, 'refunded')} disabled={busy} className="text-xs font-semibold bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition disabled:opacity-50">Вернуть деньги</button>
+                    <button onClick={() => patchStatus(ret, 'refunded')} disabled={busy} className="text-xs font-semibold bg-success text-white px-4 py-2 rounded-xl hover:bg-success/90 transition disabled:opacity-50">Вернуть деньги</button>
                   )}
                   {ret.status === 'disputed' && (
-                    <p className="text-xs text-orange-600">Спор передан на арбитраж администрации площадки.</p>
+                    <p className="text-xs text-warning">Спор передан на арбитраж администрации площадки.</p>
                   )}
                 </div>
               </div>

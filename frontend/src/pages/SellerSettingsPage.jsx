@@ -73,21 +73,21 @@ export default function SellerSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-surface">
       <div className="max-w-3xl mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#111] rounded-2xl p-6 mb-6 relative overflow-hidden"
+          className="bg-ink rounded-2xl p-6 mb-6 relative overflow-hidden"
         >
           <div className="absolute inset-0 opacity-10"
-            style={{ background: 'radial-gradient(circle at 90% 50%, #6366f1 0%, transparent 60%)' }}
+            style={{ background: 'radial-gradient(circle at 90% 50%, var(--color-accent) 0%, transparent 60%)' }}
           />
           <div className="relative flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-1">Магазин</p>
+              <p className="text-xs font-semibold text-accent-soft uppercase tracking-widest mb-1">Магазин</p>
               <h1 className="text-2xl font-black text-white">Настройки магазина</h1>
-              <p className="text-gray-400 text-sm mt-1">Юр-данные, реквизиты, витрина и тариф</p>
+              <p className="text-ink-faint text-sm mt-1">Юр-данные, реквизиты, витрина и тариф</p>
             </div>
             <Link
               to="/seller"
@@ -101,7 +101,7 @@ export default function SellerSettingsPage() {
         {loading ? (
           <div className="flex flex-col gap-6">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl h-40 skeleton" />
+              <div key={i} className="bg-card rounded-2xl h-40 skeleton" />
             ))}
           </div>
         ) : (

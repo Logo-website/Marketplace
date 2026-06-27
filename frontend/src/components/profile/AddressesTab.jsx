@@ -64,14 +64,14 @@ export default function AddressesTab() {
     }
   }
 
-  const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white'
+  const inputCls = 'w-full border border-line-strong rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-soft bg-card'
 
   return (
     <motion.div key="addresses" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-black text-gray-900">Адреса доставки</h2>
+        <h2 className="text-xl font-black text-ink">Адреса доставки</h2>
         {!form && (
-          <button onClick={openAdd} className="text-xs font-semibold bg-[#111] text-white px-4 py-2 rounded-xl hover:bg-gray-800 transition">
+          <button onClick={openAdd} className="text-xs font-semibold bg-ink text-white px-4 py-2 rounded-xl hover:bg-ink/90 transition">
             + Добавить
           </button>
         )}
@@ -85,13 +85,13 @@ export default function AddressesTab() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-white rounded-2xl border border-gray-100 p-6 mb-4 overflow-hidden"
+            className="bg-card rounded-2xl border border-line p-6 mb-4 overflow-hidden"
           >
             <div className="grid grid-cols-2 gap-3 mb-4">
               {FORM_FIELDS.map((f) => (
                 <div key={f.key} className={f.col === 2 ? 'col-span-2' : 'col-span-1'}>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">
-                    {f.label}{f.required && <span className="text-red-400"> *</span>}
+                  <label className="block text-xs font-medium text-ink-faint mb-1">
+                    {f.label}{f.required && <span className="text-danger"> *</span>}
                   </label>
                   <input
                     type="text"
@@ -103,15 +103,15 @@ export default function AddressesTab() {
                 </div>
               ))}
             </div>
-            <label className="flex items-center gap-2 text-sm text-gray-600 mb-4 cursor-pointer">
-              <input type="checkbox" checked={!!form.is_default} onChange={(e) => setForm((p) => ({ ...p, is_default: e.target.checked }))} className="w-4 h-4 accent-[#111]" />
+            <label className="flex items-center gap-2 text-sm text-ink-soft mb-4 cursor-pointer">
+              <input type="checkbox" checked={!!form.is_default} onChange={(e) => setForm((p) => ({ ...p, is_default: e.target.checked }))} className="w-4 h-4 accent-ink" />
               Использовать по умолчанию
             </label>
             <div className="flex gap-2">
-              <button type="submit" disabled={saving} className="text-xs font-semibold bg-[#111] text-white px-5 py-2.5 rounded-xl hover:bg-gray-800 transition disabled:opacity-50">
+              <button type="submit" disabled={saving} className="text-xs font-semibold bg-ink text-white px-5 py-2.5 rounded-xl hover:bg-ink/90 transition disabled:opacity-50">
                 {saving ? 'Сохранение...' : 'Сохранить'}
               </button>
-              <button type="button" onClick={closeForm} className="text-xs font-medium text-gray-400 hover:text-gray-600 px-4 py-2.5 rounded-xl hover:bg-gray-100 transition">
+              <button type="button" onClick={closeForm} className="text-xs font-medium text-ink-faint hover:text-ink-soft px-4 py-2.5 rounded-xl hover:bg-surface transition">
                 Отмена
               </button>
             </div>
@@ -121,7 +121,7 @@ export default function AddressesTab() {
 
       {/* Список */}
       {status === 'loading' ? (
-        <div className="flex flex-col gap-3">{[...Array(2)].map((_, i) => <div key={i} className="bg-white rounded-2xl h-24 animate-pulse" />)}</div>
+        <div className="flex flex-col gap-3">{[...Array(2)].map((_, i) => <div key={i} className="bg-card rounded-2xl h-24 animate-pulse" />)}</div>
       ) : status === 'error' ? (
         <ErrorState onRetry={fetch} />
       ) : items.length === 0 && !form ? (
@@ -134,29 +134,29 @@ export default function AddressesTab() {
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((a) => (
-            <motion.div key={a.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl border border-gray-100 p-5">
+            <motion.div key={a.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-line p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="font-bold text-gray-800">{a.full_name}</p>
-                    {a.is_default && <span className="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">По умолчанию</span>}
+                    <p className="font-bold text-ink">{a.full_name}</p>
+                    {a.is_default && <span className="text-[10px] font-bold bg-success/10 text-success px-2 py-0.5 rounded-full">По умолчанию</span>}
                   </div>
-                  <p className="text-sm text-gray-500">{a.phone}</p>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-ink-faint">{a.phone}</p>
+                  <p className="text-sm text-ink-faint mt-1">
                     {a.postal_code && `${a.postal_code}, `}{a.city}, {a.street} {a.house}{a.apartment && `, кв. ${a.apartment}`}
                   </p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 mt-3">
                 {!a.is_default && (
-                  <button onClick={() => handleSetDefault(a)} className="text-xs font-semibold text-indigo-600 border border-indigo-100 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition">
+                  <button onClick={() => handleSetDefault(a)} className="text-xs font-semibold text-accent border border-accent/30 px-3 py-1.5 rounded-lg hover:bg-accent-soft transition">
                     Сделать основным
                   </button>
                 )}
-                <button onClick={() => openEdit(a)} className="text-xs font-semibold text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition">
+                <button onClick={() => openEdit(a)} className="text-xs font-semibold text-ink-soft border border-line-strong px-3 py-1.5 rounded-lg hover:bg-surface transition">
                   Изменить
                 </button>
-                <button onClick={() => handleDelete(a)} className="text-xs font-semibold text-red-500 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition">
+                <button onClick={() => handleDelete(a)} className="text-xs font-semibold text-danger border border-danger/30 px-3 py-1.5 rounded-lg hover:bg-danger/10 transition">
                   Удалить
                 </button>
               </div>

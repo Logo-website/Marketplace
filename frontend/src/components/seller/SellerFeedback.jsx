@@ -18,9 +18,9 @@ const SUB_TABS = [
 
 function Stars({ value }) {
   return (
-    <span className="text-amber-400 text-sm">
+    <span className="text-star text-sm">
       {[1, 2, 3, 4, 5].map((s) => (
-        <span key={s} className={value >= s ? 'text-amber-400' : 'text-gray-200'}>★</span>
+        <span key={s} className={value >= s ? 'text-star' : 'text-line-strong'}>★</span>
       ))}
     </span>
   )
@@ -30,7 +30,7 @@ function ProductLink({ id, name }) {
   return (
     <Link
       to={`/products/${id}`}
-      className="text-xs font-semibold text-indigo-600 hover:underline"
+      className="text-xs font-semibold text-accent hover:underline"
     >
       {name}
     </Link>
@@ -46,20 +46,20 @@ function ReplyForm({ initial = '', placeholder, busy, onSubmit, onCancel }) {
         onChange={(e) => setText(e.target.value)}
         placeholder={placeholder}
         rows={3}
-        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition resize-none bg-white"
+        className="w-full border border-line-strong rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition resize-none bg-card"
       />
       <div className="flex items-center gap-2 mt-2">
         <button
           onClick={() => onSubmit(text)}
           disabled={busy || !text.trim()}
-          className="bg-[#111] text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-gray-800 transition disabled:opacity-50"
+          className="bg-ink text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-ink/90 transition disabled:opacity-50"
         >
           {busy ? 'Отправляем…' : 'Отправить'}
         </button>
         {onCancel && (
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-xl font-semibold text-sm text-gray-500 hover:text-gray-900 transition"
+            className="px-4 py-2 rounded-xl font-semibold text-sm text-ink-faint hover:text-ink transition"
           >
             Отмена
           </button>
@@ -73,28 +73,28 @@ function ReviewCard({ review, busy, onReply }) {
   const [editing, setEditing] = useState(false)
   const hasReply = !!review.seller_reply
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+    <div className="bg-card rounded-2xl border border-line p-5">
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <div className="flex items-center gap-2.5">
           <Stars value={review.rating} />
-          <span className="font-semibold text-sm text-gray-800">{review.username}</span>
+          <span className="font-semibold text-sm text-ink">{review.username}</span>
         </div>
         <ProductLink id={review.product_id} name={review.product_name} />
       </div>
-      <p className="text-sm text-gray-600 leading-relaxed">{review.text}</p>
+      <p className="text-sm text-ink-soft leading-relaxed">{review.text}</p>
 
       {hasReply && !editing && (
-        <div className="mt-3 bg-gray-50 border-l-2 border-[#111] rounded-r-xl p-3.5">
+        <div className="mt-3 bg-surface border-l-2 border-ink rounded-r-xl p-3.5">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-bold text-gray-800">Ваш ответ</span>
+            <span className="text-xs font-bold text-ink">Ваш ответ</span>
             <button
               onClick={() => setEditing(true)}
-              className="text-xs text-indigo-600 font-semibold hover:underline"
+              className="text-xs text-accent font-semibold hover:underline"
             >
               Редактировать
             </button>
           </div>
-          <p className="text-sm text-gray-600 leading-relaxed">{review.seller_reply}</p>
+          <p className="text-sm text-ink-soft leading-relaxed">{review.seller_reply}</p>
         </div>
       )}
 
@@ -115,24 +115,24 @@ function QuestionCard({ question, busy, onAnswer }) {
   const [answering, setAnswering] = useState(false)
   const sellerAnswered = (question.answers || []).some((a) => a.is_seller_answer)
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+    <div className="bg-card rounded-2xl border border-line p-5">
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-        <span className="font-semibold text-sm text-gray-800">{question.username}</span>
+        <span className="font-semibold text-sm text-ink">{question.username}</span>
         <ProductLink id={question.product_id} name={question.product_name} />
       </div>
-      <p className="text-sm text-gray-600 leading-relaxed">{question.text}</p>
+      <p className="text-sm text-ink-soft leading-relaxed">{question.text}</p>
 
       {(question.answers || []).length > 0 && (
         <div className="mt-3 flex flex-col gap-2">
           {question.answers.map((a) => (
-            <div key={a.id} className="bg-gray-50 rounded-xl p-3">
+            <div key={a.id} className="bg-surface rounded-xl p-3">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-bold text-gray-800">{a.username}</span>
+                <span className="text-xs font-bold text-ink">{a.username}</span>
                 {a.is_seller_answer && (
-                  <span className="bg-[#111] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">Продавец</span>
+                  <span className="bg-ink text-white text-[10px] font-bold px-1.5 py-0.5 rounded">Продавец</span>
                 )}
               </div>
-              <p className="text-sm text-gray-600 leading-relaxed">{a.text}</p>
+              <p className="text-sm text-ink-soft leading-relaxed">{a.text}</p>
             </div>
           ))}
         </div>
@@ -141,7 +141,7 @@ function QuestionCard({ question, busy, onAnswer }) {
       {!answering ? (
         <button
           onClick={() => setAnswering(true)}
-          className="mt-3 text-sm text-indigo-600 font-semibold hover:underline"
+          className="mt-3 text-sm text-accent font-semibold hover:underline"
         >
           {sellerAnswered ? 'Добавить ответ' : 'Ответить'}
         </button>
@@ -229,19 +229,19 @@ export default function SellerFeedback() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
-                tab === t.id ? 'bg-[#111] text-white shadow-sm' : 'bg-white text-gray-500 hover:text-gray-900 border border-gray-100'
+                tab === t.id ? 'bg-ink text-white shadow-sm' : 'bg-card text-ink-faint hover:text-ink border border-line'
               }`}
             >
               {t.label}
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+        <label className="flex items-center gap-2 text-sm text-ink-soft cursor-pointer select-none">
           <input
             type="checkbox"
             checked={onlyUnanswered}
             onChange={(e) => setOnlyUnanswered(e.target.checked)}
-            className="rounded border-gray-300"
+            className="rounded border-line-strong"
           />
           Только без ответа
         </label>
@@ -249,7 +249,7 @@ export default function SellerFeedback() {
 
       {loading ? (
         <div className="flex flex-col gap-3">
-          {[...Array(4)].map((_, i) => <div key={i} className="bg-white rounded-2xl h-24 skeleton" />)}
+          {[...Array(4)].map((_, i) => <div key={i} className="bg-card rounded-2xl h-24 skeleton" />)}
         </div>
       ) : listError ? (
         <ErrorState
@@ -257,8 +257,8 @@ export default function SellerFeedback() {
           onRetry={fetchItems}
         />
       ) : items.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-          <p className="text-gray-400">{emptyText}</p>
+        <div className="text-center py-20 bg-card rounded-2xl border border-line">
+          <p className="text-ink-faint">{emptyText}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">

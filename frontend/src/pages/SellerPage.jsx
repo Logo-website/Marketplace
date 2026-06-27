@@ -213,23 +213,23 @@ export default function SellerPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-surface">
       <div className="max-w-6xl mx-auto px-4 py-8">
 
         {/* Шапка */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#111] rounded-2xl p-6 mb-6 relative overflow-hidden"
+          className="bg-ink rounded-2xl p-6 mb-6 relative overflow-hidden"
         >
           <div className="absolute inset-0 opacity-10"
-            style={{ background: 'radial-gradient(circle at 90% 50%, #6366f1 0%, transparent 60%)' }}
+            style={{ background: 'radial-gradient(circle at 90% 50%, var(--color-accent) 0%, transparent 60%)' }}
           />
           <div className="relative flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-1">Кабинет</p>
+              <p className="text-xs font-semibold text-accent-soft uppercase tracking-widest mb-1">Кабинет</p>
               <h1 className="text-2xl font-black text-white">Управление магазином</h1>
-              <p className="text-gray-400 text-sm mt-1">Товары, аналитика и продажи</p>
+              <p className="text-ink-faint text-sm mt-1">Товары, аналитика и продажи</p>
             </div>
             <div className="flex items-center gap-2">
             <Link
@@ -247,7 +247,7 @@ export default function SellerPage() {
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
                 showForm
                   ? 'bg-white/10 text-white hover:bg-white/15'
-                  : 'bg-white text-[#111] hover:bg-gray-100'
+                  : 'bg-white text-ink hover:bg-surface'
               }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -280,15 +280,15 @@ export default function SellerPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
-              className="bg-white rounded-2xl p-5 border border-gray-100"
+              className="bg-card rounded-2xl p-5 border border-line"
             >
               <div className="flex items-start justify-between mb-3">
-                <div className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500">
+                <div className="w-9 h-9 bg-surface rounded-xl flex items-center justify-center text-ink-faint">
                   {stat.icon}
                 </div>
               </div>
-              <p className="text-2xl font-black text-gray-900">{stat.value}</p>
-              <p className="text-sm text-gray-400 mt-0.5">{stat.label}</p>
+              <p className="text-2xl font-black text-ink">{stat.value}</p>
+              <p className="text-sm text-ink-faint mt-0.5">{stat.label}</p>
             </motion.div>
           ))}
         </div>
@@ -314,15 +314,15 @@ export default function SellerPage() {
         </AnimatePresence>
 
         {/* Табы */}
-        <div className="flex items-center bg-white border border-gray-100 rounded-2xl p-1 gap-1 mb-6 w-fit">
+        <div className="flex items-center bg-card border border-line rounded-2xl p-1 gap-1 mb-6 w-fit">
           {TABS.map(tab => (
             <motion.button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === tab.id
-                  ? 'bg-[#111] text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-ink text-white shadow-sm'
+                  : 'text-ink-faint hover:text-ink hover:bg-surface'
               }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -347,7 +347,7 @@ export default function SellerPage() {
               {loading ? (
                 <div className="flex flex-col gap-3">
                   {[...Array(5)].map((_, i) => (
-                    <div key={i} className="bg-white rounded-2xl h-16 skeleton" />
+                    <div key={i} className="bg-card rounded-2xl h-16 skeleton" />
                   ))}
                 </div>
               ) : listError ? (
@@ -356,15 +356,15 @@ export default function SellerPage() {
                   onRetry={() => fetchProducts()}
                 />
               ) : products.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="text-center py-20 bg-card rounded-2xl border border-line">
+                  <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
                     </svg>
                   </div>
-                  <p className="text-gray-400">{EMPTY_BY_STATUS[statusFilter] || 'Товаров нет'}</p>
+                  <p className="text-ink-faint">{EMPTY_BY_STATUS[statusFilter] || 'Товаров нет'}</p>
                   {statusFilter === 'all' && (
-                    <button onClick={openCreate} className="mt-3 text-sm text-indigo-600 hover:underline font-medium">
+                    <button onClick={openCreate} className="mt-3 text-sm text-accent hover:underline font-medium">
                       Добавить первый товар
                     </button>
                   )}
@@ -397,23 +397,23 @@ export default function SellerPage() {
           {activeTab === 'analytics' && (
             <motion.div key="analytics" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {analytics.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="text-center py-20 bg-card rounded-2xl border border-line">
+                  <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                   </div>
-                  <p className="text-gray-400">Данных пока нет</p>
+                  <p className="text-ink-faint">Данных пока нет</p>
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="bg-card rounded-2xl border border-line overflow-hidden">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Товар</th>
-                        <th className="text-right px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Просмотры</th>
-                        <th className="text-right px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Покупки</th>
-                        <th className="text-right px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Конверсия</th>
+                      <tr className="border-b border-line">
+                        <th className="text-left px-6 py-4 text-xs font-semibold text-ink-faint uppercase tracking-wide">Товар</th>
+                        <th className="text-right px-6 py-4 text-xs font-semibold text-ink-faint uppercase tracking-wide">Просмотры</th>
+                        <th className="text-right px-6 py-4 text-xs font-semibold text-ink-faint uppercase tracking-wide">Покупки</th>
+                        <th className="text-right px-6 py-4 text-xs font-semibold text-ink-faint uppercase tracking-wide">Конверсия</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -425,16 +425,16 @@ export default function SellerPage() {
                             initial={{ opacity: 0, x: -8 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.04 }}
-                            className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition"
+                            className="border-b border-line last:border-0 hover:bg-surface transition"
                           >
-                            <td className="px-6 py-4 text-sm text-gray-800 font-medium">{item.name}</td>
-                            <td className="px-6 py-4 text-sm text-right text-gray-500">{item.views || 0}</td>
-                            <td className="px-6 py-4 text-sm text-right text-gray-500">{item.purchases || 0}</td>
+                            <td className="px-6 py-4 text-sm text-ink font-medium">{item.name}</td>
+                            <td className="px-6 py-4 text-sm text-right text-ink-faint">{item.views || 0}</td>
+                            <td className="px-6 py-4 text-sm text-right text-ink-faint">{item.purchases || 0}</td>
                             <td className="px-6 py-4 text-right">
                               <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-lg ${
-                                conv >= 10 ? 'bg-emerald-50 text-emerald-600' :
-                                conv >= 5  ? 'bg-amber-50 text-amber-600' :
-                                             'bg-gray-100 text-gray-500'
+                                conv >= 10 ? 'bg-success/10 text-success' :
+                                conv >= 5  ? 'bg-warning/10 text-warning' :
+                                             'bg-surface text-ink-faint'
                               }`}>
                                 {conv}%
                               </span>

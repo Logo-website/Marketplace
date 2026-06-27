@@ -5,8 +5,8 @@ import ChatThreadList from '../chat/ChatThreadList'
 // Клик ведёт на полноценный экран /chats/:id.
 export default function ChatsTab() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <h2 className="text-lg font-bold text-gray-900 mb-4">Чаты</h2>
+    <div className="bg-card rounded-2xl border border-line p-5">
+      <h2 className="text-lg font-bold text-ink mb-4">Чаты</h2>
       <ChatThreadList
         role="buyer"
         emptyTitle="Пока нет диалогов"

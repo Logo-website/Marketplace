@@ -91,12 +91,12 @@ export default function MyDataTab() {
     }
   }
 
-  const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white'
+  const inputCls = 'w-full border border-line-strong rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-soft bg-card'
 
   return (
     <motion.div key="data" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <h2 className="text-xl font-black text-gray-900 mb-1">Мои данные</h2>
-      <p className="text-sm text-gray-400 mb-6">Управляйте личными данными и параметрами</p>
+      <h2 className="text-xl font-black text-ink mb-1">Мои данные</h2>
+      <p className="text-sm text-ink-faint mb-6">Управляйте личными данными и параметрами</p>
 
       {/* Контактные данные */}
       <div className="flex flex-col gap-3 mb-8">
@@ -104,29 +104,29 @@ export default function MyDataTab() {
       </div>
 
       {/* Роль */}
-      <div className="p-5 rounded-2xl border border-gray-100 bg-white mb-8">
+      <div className="p-5 rounded-2xl border border-line bg-card mb-8">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-surface text-ink-faint flex items-center justify-center shrink-0">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
           </div>
           <div className="flex-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Роль</p>
-            <p className="text-sm font-semibold text-gray-900 mt-0.5">
+            <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">Роль</p>
+            <p className="text-sm font-semibold text-ink mt-0.5">
               {user?.role === 'buyer' ? 'Покупатель' : user?.role === 'seller' ? 'Продавец' : 'Администратор'}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">Роль нельзя изменить самостоятельно</p>
+            <p className="text-xs text-ink-faint mt-0.5">Роль нельзя изменить самостоятельно</p>
           </div>
         </div>
       </div>
 
       {/* Параметры фигуры */}
-      <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
-        <h3 className="text-base font-bold text-gray-900 mb-1">Параметры фигуры</h3>
-        <p className="text-xs text-gray-400 mb-5">Поможем подобрать размер. Необязательно.</p>
+      <section className="bg-card rounded-2xl border border-line p-6 mb-8">
+        <h3 className="text-base font-bold text-ink mb-1">Параметры фигуры</h3>
+        <p className="text-xs text-ink-faint mb-5">Поможем подобрать размер. Необязательно.</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
           {BODY_FIELDS.map((f) => (
             <div key={f.key}>
-              <label className="block text-xs font-medium text-gray-500 mb-1">{f.label}</label>
+              <label className="block text-xs font-medium text-ink-faint mb-1">{f.label}</label>
               <input
                 type={f.type}
                 value={body[f.key]}
@@ -137,20 +137,20 @@ export default function MyDataTab() {
             </div>
           ))}
         </div>
-        <button onClick={saveBody} disabled={bodySaving} className="text-xs font-semibold bg-[#111] text-white px-5 py-2.5 rounded-xl hover:bg-gray-800 transition disabled:opacity-50">
+        <button onClick={saveBody} disabled={bodySaving} className="text-xs font-semibold bg-ink text-white px-5 py-2.5 rounded-xl hover:bg-ink/90 transition disabled:opacity-50">
           {bodySaving ? 'Сохранение...' : 'Сохранить параметры'}
         </button>
       </section>
 
       {/* Смена пароля */}
-      <section className="bg-white rounded-2xl border border-gray-100 p-6">
-        <h3 className="text-base font-bold text-gray-900 mb-5">Сменить пароль</h3>
+      <section className="bg-card rounded-2xl border border-line p-6">
+        <h3 className="text-base font-bold text-ink mb-5">Сменить пароль</h3>
         <form onSubmit={savePassword} className="flex flex-col gap-3 max-w-sm">
           <input type="password" required placeholder="Текущий пароль" value={pwd.old_password} onChange={(e) => setPwd((p) => ({ ...p, old_password: e.target.value }))} className={inputCls} autoComplete="current-password" />
           <input type="password" required placeholder="Новый пароль" value={pwd.new_password} onChange={(e) => setPwd((p) => ({ ...p, new_password: e.target.value }))} className={inputCls} autoComplete="new-password" />
           <input type="password" required placeholder="Повторите новый пароль" value={pwd.new_password_confirm} onChange={(e) => setPwd((p) => ({ ...p, new_password_confirm: e.target.value }))} className={inputCls} autoComplete="new-password" />
-          <p className="text-xs text-gray-400">Минимум 8 символов, заглавная буква, цифра и спецсимвол.</p>
-          <button type="submit" disabled={pwdSaving} className="self-start text-xs font-semibold bg-[#111] text-white px-5 py-2.5 rounded-xl hover:bg-gray-800 transition disabled:opacity-50">
+          <p className="text-xs text-ink-faint">Минимум 8 символов, заглавная буква, цифра и спецсимвол.</p>
+          <button type="submit" disabled={pwdSaving} className="self-start text-xs font-semibold bg-ink text-white px-5 py-2.5 rounded-xl hover:bg-ink/90 transition disabled:opacity-50">
             {pwdSaving ? 'Сохранение...' : 'Сменить пароль'}
           </button>
         </form>

@@ -70,14 +70,14 @@ export default function ProfilePage() {
   // засеялись бы пустыми из ещё не загруженного user (при заходе по прямой ссылке).
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gray-200 border-t-[#111] rounded-full animate-spin" />
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-line-strong border-t-ink rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-surface">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           <ProfileSidebar user={user} tabs={TABS} active={activeTab} onSelect={selectTab} />

@@ -1,7 +1,7 @@
 // Характеристики товара ключ-значение (Ф12, узел 2.3). Контракт attributes.specs
 // - словарь { 'Состав': 'хлопок 100%', ... }, который читает Ф4 (SpecsTable).
 // Редактируем как список пар (порядок предсказуем), в словарь собираем при сабмите.
-const INPUT = 'border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white'
+const INPUT = 'border border-line-strong rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition bg-surface focus:bg-card'
 
 // Подсказки по типовым характеристикам одежды (узел 2.3: состав/уход/страна/сезон/крой).
 const SUGGESTED_KEYS = ['Состав', 'Уход', 'Страна', 'Сезон', 'Крой']
@@ -35,7 +35,7 @@ export default function SpecsEditor({ value, onChange }) {
           <button
             type="button"
             onClick={() => remove(i)}
-            className="shrink-0 w-9 h-9 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition flex items-center justify-center"
+            className="shrink-0 w-9 h-9 rounded-xl text-danger hover:bg-danger/10 transition flex items-center justify-center"
             aria-label="Удалить характеристику"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,7 +50,7 @@ export default function SpecsEditor({ value, onChange }) {
       <button
         type="button"
         onClick={() => add()}
-        className="self-start text-sm text-indigo-600 font-semibold hover:underline"
+        className="self-start text-sm text-accent font-semibold hover:underline"
       >
         + Добавить характеристику
       </button>

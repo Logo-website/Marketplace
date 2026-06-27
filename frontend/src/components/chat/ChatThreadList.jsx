@@ -44,21 +44,21 @@ export default function ChatThreadList({ role, emptyTitle, emptySubtitle }) {
         <li key={c.id}>
           <Link
             to={`/chats/${c.id}`}
-            className="block bg-white rounded-2xl border border-gray-100 px-4 py-3 hover:border-gray-300 transition"
+            className="block bg-card rounded-2xl border border-line px-4 py-3 hover:border-line-strong transition"
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-sm text-gray-900 truncate">{c.title}</span>
+              <span className="font-semibold text-sm text-ink truncate">{c.title}</span>
               {c.unread_count > 0 && (
-                <span className="shrink-0 bg-indigo-600 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                <span className="shrink-0 bg-accent text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
                   {c.unread_count}
                 </span>
               )}
             </div>
             {c.product_title && (
-              <p className="text-xs text-gray-400 truncate mt-0.5">{c.product_title}</p>
+              <p className="text-xs text-ink-faint truncate mt-0.5">{c.product_title}</p>
             )}
             {c.last_message && (
-              <p className="text-xs text-gray-500 truncate mt-0.5">
+              <p className="text-xs text-ink-faint truncate mt-0.5">
                 {c.last_message.is_from_bot ? '🤖 ' : ''}{c.last_message.body}
               </p>
             )}

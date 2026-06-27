@@ -88,7 +88,7 @@ export default function ImageUploader({ productId, pending = [], onPendingChange
     }
   }
 
-  const thumb = 'relative w-24 h-24 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 group'
+  const thumb = 'relative w-24 h-24 rounded-xl overflow-hidden border border-line-strong bg-surface group'
   const delBtn = 'absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition'
 
   return (
@@ -126,7 +126,7 @@ export default function ImageUploader({ productId, pending = [], onPendingChange
         </div>
       ))}
       {total < MAX_FILES && (
-        <label className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:border-indigo-400 hover:text-indigo-500 transition cursor-pointer">
+        <label className="w-24 h-24 rounded-xl border-2 border-dashed border-line-strong flex flex-col items-center justify-center text-ink-faint hover:border-accent hover:text-accent transition cursor-pointer">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>

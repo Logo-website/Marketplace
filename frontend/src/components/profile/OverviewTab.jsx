@@ -42,10 +42,10 @@ export default function OverviewTab() {
       className="flex flex-col gap-6"
     >
       {recentlyViewed.length > 0 && (
-        <section className="bg-white rounded-2xl p-6 border border-gray-100">
+        <section className="bg-card rounded-2xl p-6 border border-line">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold text-gray-900">Вы смотрели</h2>
-            <span className="text-xs text-gray-400">{recentlyViewed.length} товаров</span>
+            <h2 className="text-base font-bold text-ink">Вы смотрели</h2>
+            <span className="text-xs text-ink-faint">{recentlyViewed.length} товаров</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {recentlyViewed.slice(0, 8).map((product, i) => (
@@ -58,8 +58,8 @@ export default function OverviewTab() {
       )}
 
       {recommendations.length > 0 && (
-        <section className="bg-white rounded-2xl p-6 border border-gray-100">
-          <h2 className="text-base font-bold text-gray-900 mb-5">Подобрали для вас</h2>
+        <section className="bg-card rounded-2xl p-6 border border-line">
+          <h2 className="text-base font-bold text-ink mb-5">Подобрали для вас</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {recommendations.map((product, i) => (
               <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>

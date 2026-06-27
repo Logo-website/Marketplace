@@ -29,15 +29,15 @@ export default function ProductTable({ products, onEdit, onToggleVisibility, onD
   return (
     <>
       {/* Desktop: таблица */}
-      <div className="hidden md:block bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="hidden md:block bg-card rounded-2xl border border-line overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-100">
-              <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Товар</th>
-              <th className="text-right px-4 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Цена</th>
-              <th className="text-right px-4 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Остаток</th>
-              <th className="text-left px-4 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Статус</th>
-              <th className="text-right px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">Действия</th>
+            <tr className="border-b border-line">
+              <th className="text-left px-6 py-4 text-xs font-semibold text-ink-faint uppercase tracking-wide">Товар</th>
+              <th className="text-right px-4 py-4 text-xs font-semibold text-ink-faint uppercase tracking-wide">Цена</th>
+              <th className="text-right px-4 py-4 text-xs font-semibold text-ink-faint uppercase tracking-wide">Остаток</th>
+              <th className="text-left px-4 py-4 text-xs font-semibold text-ink-faint uppercase tracking-wide">Статус</th>
+              <th className="text-right px-6 py-4 text-xs font-semibold text-ink-faint uppercase tracking-wide">Действия</th>
             </tr>
           </thead>
           <tbody>
@@ -47,16 +47,16 @@ export default function ProductTable({ products, onEdit, onToggleVisibility, onD
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.03 }}
-                className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition"
+                className="border-b border-line last:border-0 hover:bg-surface transition"
               >
                 <td className="px-6 py-3">
                   <div className="flex items-center gap-3">
                     <Thumb product={p} className="w-11 h-11" />
-                    <span className="text-sm font-medium text-gray-800 line-clamp-2 max-w-xs">{p.name}</span>
+                    <span className="text-sm font-medium text-ink line-clamp-2 max-w-xs">{p.name}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm text-right font-bold text-gray-900 whitespace-nowrap">{formatPrice(p.price)}</td>
-                <td className="px-4 py-3 text-sm text-right text-gray-500">{p.stock} шт.</td>
+                <td className="px-4 py-3 text-sm text-right font-bold text-ink whitespace-nowrap">{formatPrice(p.price)}</td>
+                <td className="px-4 py-3 text-sm text-right text-ink-faint">{p.stock} шт.</td>
                 <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                 <td className="px-6 py-3">
                   <div className="flex items-center justify-end gap-2">
@@ -83,15 +83,15 @@ export default function ProductTable({ products, onEdit, onToggleVisibility, onD
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.03 }}
-            className="bg-white rounded-2xl border border-gray-100 p-4"
+            className="bg-card rounded-2xl border border-line p-4"
           >
             <div className="flex items-start gap-3">
               <Thumb product={p} className="w-16 h-16 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug mb-1.5">{p.name}</p>
+                <p className="text-sm font-semibold text-ink line-clamp-2 leading-snug mb-1.5">{p.name}</p>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-black text-gray-900">{formatPrice(p.price)}</span>
-                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-lg">{p.stock} шт.</span>
+                  <span className="text-sm font-black text-ink">{formatPrice(p.price)}</span>
+                  <span className="text-xs text-ink-faint bg-surface px-2 py-0.5 rounded-lg">{p.stock} шт.</span>
                   <StatusBadge status={p.status} />
                 </div>
               </div>
@@ -116,11 +116,11 @@ export default function ProductTable({ products, onEdit, onToggleVisibility, onD
 function Thumb({ product, className = '' }) {
   const src = thumb(product)
   return (
-    <div className={`bg-gray-50 rounded-xl flex items-center justify-center overflow-hidden ${className}`}>
+    <div className={`bg-surface rounded-xl flex items-center justify-center overflow-hidden ${className}`}>
       {src ? (
         <img src={src} alt={product.name} className="w-full h-full object-cover" />
       ) : (
-        <svg className="w-1/2 h-1/2 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-1/2 h-1/2 text-line-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
         </svg>
       )}
@@ -136,7 +136,7 @@ function RowActions({ product, onEdit, onToggleVisibility, onDelete, busyId, ful
     <>
       <button
         onClick={() => onEdit(product.id)}
-        className={btn('text-gray-600 border-gray-200 hover:bg-gray-100')}
+        className={btn('text-ink-soft border-line-strong hover:bg-surface')}
       >
         Изменить
       </button>
@@ -144,14 +144,14 @@ function RowActions({ product, onEdit, onToggleVisibility, onDelete, busyId, ful
         <button
           onClick={() => onToggleVisibility(product)}
           disabled={busy}
-          className={btn('text-indigo-600 border-indigo-100 hover:bg-indigo-50 disabled:opacity-50')}
+          className={btn('text-accent border-accent/30 hover:bg-accent-soft disabled:opacity-50')}
         >
           {product.status === 'active' ? 'Скрыть' : 'Показать'}
         </button>
       )}
       <button
         onClick={() => onDelete(product)}
-        className={btn('text-red-400 border-transparent hover:bg-red-50 hover:text-red-600 hover:border-red-100')}
+        className={btn('text-danger border-transparent hover:bg-danger/10 hover:text-danger hover:border-danger/30')}
       >
         Удалить
       </button>

@@ -2,16 +2,16 @@
 // видит покупатель в профиле, - единый визуальный язык статуса заказа.
 // Незнакомый статус рисуем нейтрально (data-driven, не падаем).
 export const ORDER_STATUS_CONFIG = {
-  created:    { label: 'Новый',       color: 'bg-gray-100 text-gray-600',       icon: '🕐' },
-  paid:       { label: 'Принят',      color: 'bg-blue-100 text-blue-600',       icon: '✔️' },
-  processing: { label: 'Собирается',  color: 'bg-amber-100 text-amber-600',     icon: '📦' },
-  shipped:    { label: 'В доставке',  color: 'bg-purple-100 text-purple-600',   icon: '🚚' },
-  delivered:  { label: 'Доставлен',   color: 'bg-emerald-100 text-emerald-600', icon: '✅' },
-  cancelled:  { label: 'Отменён',     color: 'bg-red-100 text-red-600',         icon: '❌' },
+  created:    { label: 'Новый',       color: 'bg-surface text-ink-soft',        icon: '🕐' },
+  paid:       { label: 'Принят',      color: 'bg-accent-soft text-accent',      icon: '✔️' },
+  processing: { label: 'Собирается',  color: 'bg-warning/10 text-warning',      icon: '📦' },
+  shipped:    { label: 'В доставке',  color: 'bg-accent-soft text-accent',      icon: '🚚' },
+  delivered:  { label: 'Доставлен',   color: 'bg-success/10 text-success',      icon: '✅' },
+  cancelled:  { label: 'Отменён',     color: 'bg-danger/10 text-danger',        icon: '❌' },
 }
 
 export function orderStatusInfo(status) {
-  return ORDER_STATUS_CONFIG[status] || { label: status || '—', color: 'bg-gray-100 text-gray-500', icon: '•' }
+  return ORDER_STATUS_CONFIG[status] || { label: status || '—', color: 'bg-surface text-ink-faint', icon: '•' }
 }
 
 // Кнопки смены статуса по текущему статусу (план 4.3). Маппинг на существующую

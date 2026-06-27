@@ -18,18 +18,18 @@ export default function SellerOrderCard({ order, expanded, onToggle, busy, onSta
   const itemsCount = (order.items || []).length
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100">
+    <div className="bg-card rounded-2xl overflow-hidden border border-line">
       <button
         onClick={() => onToggle(order.id)}
-        className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-gray-50 transition gap-3 text-left"
+        className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-surface transition gap-3 text-left"
       >
         <div className="flex items-center gap-4 min-w-0">
-          <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-lg border border-gray-100 shrink-0">
+          <div className="w-10 h-10 bg-surface rounded-xl flex items-center justify-center text-lg border border-line shrink-0">
             {st.icon}
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-gray-800">Заказ #{order.id}</p>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="font-bold text-ink">Заказ #{order.id}</p>
+            <p className="text-xs text-ink-faint mt-0.5">
               {new Date(order.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
               {' · '}{itemsCount} поз.
             </p>
@@ -37,8 +37,8 @@ export default function SellerOrderCard({ order, expanded, onToggle, busy, onSta
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className={`px-3 py-1.5 rounded-xl text-xs font-semibold ${st.color} hidden sm:inline`}>{st.label}</span>
-          <span className="font-black text-gray-900 whitespace-nowrap">{rub(order.seller_total)}</span>
-          <svg className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span className="font-black text-ink whitespace-nowrap">{rub(order.seller_total)}</span>
+          <svg className={`w-4 h-4 text-ink-faint transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </div>

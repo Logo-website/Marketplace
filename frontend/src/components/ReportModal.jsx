@@ -82,7 +82,7 @@ export default function ReportModal({ targetType, targetId, targetLabel = 'ко�
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="w-full md:max-w-md bg-white rounded-t-2xl md:rounded-2xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="w-full md:max-w-md bg-card rounded-t-2xl md:rounded-2xl max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         initial={{ y: '100%', opacity: 0.5 }}
         animate={{ y: 0, opacity: 1 }}
@@ -90,12 +90,12 @@ export default function ReportModal({ targetType, targetId, targetLabel = 'ко�
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
       >
         {/* Шапка */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          <h2 className="text-lg font-black text-gray-900">Пожаловаться на {targetLabel}</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line shrink-0">
+          <h2 className="text-lg font-black text-ink">Пожаловаться на {targetLabel}</h2>
           <button
             onClick={onClose}
             aria-label="Закрыть"
-            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition text-gray-500"
+            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface transition text-ink-faint"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -107,25 +107,25 @@ export default function ReportModal({ targetType, targetId, targetLabel = 'ко�
         <div className="overflow-y-auto px-5 py-5">
           {!isAuthenticated ? (
             <div className="flex flex-col items-start gap-3">
-              <p className="text-sm text-gray-500">Войдите, чтобы пожаловаться на {targetLabel}.</p>
+              <p className="text-sm text-ink-faint">Войдите, чтобы пожаловаться на {targetLabel}.</p>
               <button
                 onClick={onLoginRequired}
-                className="text-sm text-indigo-600 font-semibold hover:underline"
+                className="text-sm text-accent font-semibold hover:underline"
               >
                 Войти →
               </button>
             </div>
           ) : (
             <>
-              <p className="text-sm font-semibold text-gray-700 mb-3">Причина жалобы</p>
+              <p className="text-sm font-semibold text-ink-soft mb-3">Причина жалобы</p>
               <div className="flex flex-col gap-2 mb-4">
                 {REASONS.map((r) => (
                   <label
                     key={r.key}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition ${
                       reason === r.key
-                        ? 'border-[#111] bg-gray-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-ink bg-surface'
+                        : 'border-line-strong hover:border-line-strong'
                     }`}
                   >
                     <input
@@ -134,9 +134,9 @@ export default function ReportModal({ targetType, targetId, targetLabel = 'ко�
                       value={r.key}
                       checked={reason === r.key}
                       onChange={() => { setReason(r.key); setError('') }}
-                      className="accent-[#111]"
+                      className="accent-ink"
                     />
-                    <span className="text-sm text-gray-800">{r.label}</span>
+                    <span className="text-sm text-ink">{r.label}</span>
                   </label>
                 ))}
               </div>
@@ -147,23 +147,23 @@ export default function ReportModal({ targetType, targetId, targetLabel = 'ко�
                 maxLength={COMMENT_MAX}
                 placeholder="Комментарий (необязательно) — что именно нарушает правила"
                 rows={3}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition resize-none mb-3"
+                className="w-full border border-line-strong rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition resize-none mb-3"
               />
 
-              {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+              {error && <p className="text-danger text-xs mb-3">{error}</p>}
 
               <div className="flex items-center gap-2">
                 <motion.button
                   onClick={submit}
                   disabled={submitting}
-                  className="bg-[#111] text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-gray-800 transition disabled:opacity-50"
+                  className="bg-ink text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-ink/90 transition disabled:opacity-50"
                   whileTap={{ scale: 0.98 }}
                 >
                   {submitting ? 'Отправляем…' : 'Отправить жалобу'}
                 </motion.button>
                 <button
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl font-semibold text-sm text-gray-500 hover:text-gray-900 transition"
+                  className="px-4 py-2.5 rounded-xl font-semibold text-sm text-ink-faint hover:text-ink transition"
                 >
                   Отмена
                 </button>

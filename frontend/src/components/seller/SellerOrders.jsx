@@ -95,7 +95,7 @@ export default function SellerOrders() {
               key={f.id}
               onClick={() => setStatusFilter(f.id)}
               className={`px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${
-                active ? 'bg-[#111] text-white shadow-sm' : 'bg-white text-gray-500 hover:text-gray-900 border border-gray-100'
+                active ? 'bg-ink text-white shadow-sm' : 'bg-card text-ink-faint hover:text-ink border border-line'
               }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -108,18 +108,18 @@ export default function SellerOrders() {
 
       {loading ? (
         <div className="flex flex-col gap-3">
-          {[...Array(4)].map((_, i) => <div key={i} className="bg-white rounded-2xl h-20 skeleton" />)}
+          {[...Array(4)].map((_, i) => <div key={i} className="bg-card rounded-2xl h-20 skeleton" />)}
         </div>
       ) : listError ? (
         <ErrorState title="Не удалось загрузить заказы" onRetry={() => fetchOrders()} />
       ) : orders.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center py-20 bg-card rounded-2xl border border-line">
+          <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
-          <p className="text-gray-400">{emptyText}</p>
+          <p className="text-ink-faint">{emptyText}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">

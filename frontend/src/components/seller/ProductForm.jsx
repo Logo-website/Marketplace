@@ -15,8 +15,8 @@ import ImageUploader from './ImageUploader'
 // недоступен ни в форме, ни на сервере (план 9). Бренд/сетка/маркировка -
 // честные forward-заглушки (Ф20/Ф5), помечены в подписях.
 
-const INPUT = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white'
-const LABEL = 'block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5'
+const INPUT = 'w-full border border-line-strong rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition bg-surface focus:bg-card'
+const LABEL = 'block text-xs font-semibold text-ink-faint uppercase tracking-wide mb-1.5'
 
 const EMPTY = { name: '', description: '', category: '', price: '', old_price: '', stock: '', brand: '', marking: '' }
 
@@ -173,20 +173,20 @@ export default function ProductForm({ productId = null, categories = [], onDone,
   }
 
   if (loading) {
-    return <div className="bg-white rounded-2xl border border-gray-100 h-96 skeleton" />
+    return <div className="bg-card rounded-2xl border border-line h-96 skeleton" />
   }
   if (loadError) {
     return <ErrorState title="Не удалось загрузить товар" onRetry={loadProduct} />
   }
 
-  const err = (field) => errors[field] && <p className="text-xs text-red-500 mt-1">{errors[field]}</p>
+  const err = (field) => errors[field] && <p className="text-xs text-danger mt-1">{errors[field]}</p>
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-6">
+    <div className="bg-card rounded-2xl border border-line p-6">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-base font-bold text-gray-900">{isEdit ? 'Редактирование товара' : 'Новый товар'}</h2>
+        <h2 className="text-base font-bold text-ink">{isEdit ? 'Редактирование товара' : 'Новый товар'}</h2>
         {onCancel && (
-          <button type="button" onClick={onCancel} className="text-sm text-gray-400 hover:text-gray-700 font-medium">
+          <button type="button" onClick={onCancel} className="text-sm text-ink-faint hover:text-ink-soft font-medium">
             Отмена
           </button>
         )}
@@ -212,7 +212,7 @@ export default function ProductForm({ productId = null, categories = [], onDone,
         <div>
           <label className={LABEL}>Бренд</label>
           <input name="brand" className={INPUT} placeholder="Название бренда" value={form.brand} onChange={change} />
-          <p className="text-[11px] text-gray-400 mt-1">Текстом - каталог брендов появится позже (Ф20)</p>
+          <p className="text-[11px] text-ink-faint mt-1">Текстом - каталог брендов появится позже (Ф20)</p>
         </div>
 
         <div>
@@ -267,7 +267,7 @@ export default function ProductForm({ productId = null, categories = [], onDone,
             onExistingChange={reloadImages}
           />
           {!isEdit && (
-            <p className="text-[11px] text-gray-400 mt-2">Фото загрузятся после сохранения товара</p>
+            <p className="text-[11px] text-ink-faint mt-2">Фото загрузятся после сохранения товара</p>
           )}
         </div>
 
@@ -279,7 +279,7 @@ export default function ProductForm({ productId = null, categories = [], onDone,
         <div>
           <label className={LABEL}>Маркировка «Честный знак»</label>
           <input name="marking" className={INPUT} placeholder="Код маркировки" value={form.marking} onChange={change} />
-          <p className="text-[11px] text-gray-400 mt-1">Учебная заглушка - без интеграции с системой</p>
+          <p className="text-[11px] text-ink-faint mt-1">Учебная заглушка - без интеграции с системой</p>
         </div>
       </div>
 
@@ -289,7 +289,7 @@ export default function ProductForm({ productId = null, categories = [], onDone,
           type="button"
           disabled={submitting}
           onClick={() => submit('draft')}
-          className="flex-1 py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+          className="flex-1 py-3 rounded-xl font-semibold text-sm border border-line-strong text-ink-soft hover:bg-surface transition disabled:opacity-50"
         >
           Сохранить черновик
         </button>
@@ -297,7 +297,7 @@ export default function ProductForm({ productId = null, categories = [], onDone,
           type="button"
           disabled={submitting}
           onClick={() => submit('moderation')}
-          className="flex-1 bg-[#111] text-white py-3 rounded-xl font-semibold text-sm hover:bg-gray-800 transition disabled:opacity-50"
+          className="flex-1 bg-ink text-white py-3 rounded-xl font-semibold text-sm hover:bg-ink/90 transition disabled:opacity-50"
         >
           На модерацию
         </button>
@@ -313,7 +313,7 @@ function ColorsEditor({ value, onChange }) {
   const update = (i, patch) => onChange(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
   const add = () => onChange([...rows, { label: '', code: '#000000' }])
   const remove = (i) => onChange(rows.filter((_, idx) => idx !== i))
-  const input = 'border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white'
+  const input = 'border border-line-strong rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition bg-surface focus:bg-card'
 
   return (
     <div className="flex flex-col gap-2">
@@ -327,14 +327,14 @@ function ColorsEditor({ value, onChange }) {
           />
           <input
             type="color"
-            className="w-10 h-10 rounded-lg border border-gray-200 bg-white cursor-pointer"
+            className="w-10 h-10 rounded-lg border border-line-strong bg-card cursor-pointer"
             value={row.code || '#000000'}
             onChange={(e) => update(i, { code: e.target.value })}
           />
           <button
             type="button"
             onClick={() => remove(i)}
-            className="shrink-0 w-9 h-9 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition flex items-center justify-center"
+            className="shrink-0 w-9 h-9 rounded-xl text-danger hover:bg-danger/10 transition flex items-center justify-center"
             aria-label="Удалить цвет"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -343,7 +343,7 @@ function ColorsEditor({ value, onChange }) {
           </button>
         </div>
       ))}
-      <button type="button" onClick={add} className="self-start text-sm text-indigo-600 font-semibold hover:underline">
+      <button type="button" onClick={add} className="self-start text-sm text-accent font-semibold hover:underline">
         + Добавить цвет
       </button>
     </div>

@@ -59,13 +59,13 @@ export default function Dashboard({ onNavigate }) {
   return (
     <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       {/* Переключатель периода */}
-      <div className="flex items-center bg-white border border-gray-100 rounded-2xl p-1 gap-1 mb-6 w-fit">
+      <div className="flex items-center bg-card border border-line rounded-2xl p-1 gap-1 mb-6 w-fit">
         {PERIODS.map(p => (
           <button
             key={p.id}
             onClick={() => setPeriod(p.id)}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-              period === p.id ? 'bg-[#111] text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+              period === p.id ? 'bg-ink text-white shadow-sm' : 'text-ink-faint hover:text-ink hover:bg-surface'
             }`}
           >
             {p.label}
@@ -79,9 +79,9 @@ export default function Dashboard({ onNavigate }) {
         // Skeleton сводки + графика (состояния Ф0).
         <div className="flex flex-col gap-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => <div key={i} className="bg-white rounded-2xl h-28 skeleton" />)}
+            {[...Array(4)].map((_, i) => <div key={i} className="bg-card rounded-2xl h-28 skeleton" />)}
           </div>
-          <div className="bg-white rounded-2xl h-72 skeleton" />
+          <div className="bg-card rounded-2xl h-72 skeleton" />
         </div>
       ) : (
         <div className="flex flex-col gap-6">
@@ -93,11 +93,11 @@ export default function Dashboard({ onNavigate }) {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.06 }}
-                className="bg-white rounded-2xl p-5 border border-gray-100"
+                className="bg-card rounded-2xl p-5 border border-line"
               >
-                <p className="text-sm text-gray-400 mb-1">{c.label}</p>
-                <p className="text-2xl font-black text-gray-900">{c.value}</p>
-                {c.hint && <p className="text-[11px] text-gray-300 mt-1">{c.hint}</p>}
+                <p className="text-sm text-ink-faint mb-1">{c.label}</p>
+                <p className="text-2xl font-black text-ink">{c.value}</p>
+                {c.hint && <p className="text-[11px] text-ink-faint mt-1">{c.hint}</p>}
               </motion.div>
             ))}
           </div>
