@@ -42,8 +42,7 @@ export default function Pagination({
         <motion.button
           onClick={onLoadMore}
           disabled={loadingMore}
-          className="px-6 py-3 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40 transition"
-          whileHover={{ scale: 1.02 }}
+          className="px-6 py-3 rounded-xl bg-card border border-line text-sm font-semibold text-ink-soft hover:bg-surface hover:border-line-strong disabled:opacity-40 transition-colors"
           whileTap={{ scale: 0.98 }}
         >
           {loadingMore ? 'Загрузка…' : 'Показать ещё'}
@@ -64,8 +63,7 @@ export default function Pagination({
       <motion.button
         onClick={() => go(Math.max(1, page - 1))}
         disabled={page === 1}
-        className="px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition"
-        whileHover={{ scale: 1.02 }}
+        className="px-4 py-2.5 rounded-xl bg-card border border-line text-sm font-semibold text-ink-soft hover:bg-surface hover:border-line-strong disabled:opacity-40 transition-colors"
         whileTap={{ scale: 0.98 }}
         aria-label="Предыдущая страница"
       >
@@ -77,7 +75,7 @@ export default function Pagination({
           p === '...' ? (
             <span
               key={`dots-${i}`}
-              className="w-10 h-10 flex items-center justify-center text-gray-400 text-sm"
+              className="w-10 h-10 flex items-center justify-center text-ink-faint text-sm"
             >
               ...
             </span>
@@ -85,12 +83,11 @@ export default function Pagination({
             <motion.button
               key={p}
               onClick={() => go(p)}
-              className={`w-10 h-10 rounded-xl text-sm font-bold transition ${
+              className={`w-10 h-10 rounded-xl text-sm font-bold transition-colors ${
                 page === p
-                  ? 'bg-[#111] text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                  ? 'bg-ink text-white'
+                  : 'bg-card text-ink-soft hover:bg-surface border border-line hover:border-line-strong'
               }`}
-              whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
               {p}
@@ -102,8 +99,7 @@ export default function Pagination({
       <motion.button
         onClick={() => go(Math.min(totalPages, page + 1))}
         disabled={page >= totalPages}
-        className="px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition"
-        whileHover={{ scale: 1.02 }}
+        className="px-4 py-2.5 rounded-xl bg-card border border-line text-sm font-semibold text-ink-soft hover:bg-surface hover:border-line-strong disabled:opacity-40 transition-colors"
         whileTap={{ scale: 0.98 }}
         aria-label="Следующая страница"
       >

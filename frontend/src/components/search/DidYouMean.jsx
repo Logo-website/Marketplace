@@ -9,12 +9,12 @@ export default function DidYouMean({ suggestion, onSelect }) {
     <motion.p
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="text-sm text-gray-500"
+      className="text-sm text-ink-soft"
     >
       Возможно, вы искали:{' '}
       <button
         onClick={() => onSelect(suggestion)}
-        className="text-indigo-600 font-semibold hover:underline"
+        className="text-accent font-semibold hover:underline"
       >
         {suggestion}
       </button>

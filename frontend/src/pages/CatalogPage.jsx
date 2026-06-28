@@ -201,18 +201,18 @@ export default function CatalogPage() {
     : undefined
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-7xl mx-auto px-4 py-6">
         <Breadcrumbs trail={trail} />
 
         {/* Заголовок + сортировка */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-black text-[#111]">
+            <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
               {categoryNotFound ? 'Категория не найдена' : title}
             </h1>
             {status === 'ready' && !categoryNotFound && (
-              <p className="text-sm text-gray-400 mt-0.5">{totalCount.toLocaleString()} товаров</p>
+              <p className="text-sm text-ink-faint mt-0.5">{totalCount.toLocaleString()} товаров</p>
             )}
           </div>
           <SortDropdown value={sort} onChange={handleSort} />
@@ -232,14 +232,14 @@ export default function CatalogPage() {
             {/* Кнопка фильтров - только на мобильном */}
             <button
               onClick={() => setMobileFiltersOpen(true)}
-              className="md:hidden mb-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700"
+              className="md:hidden mb-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-line text-sm font-semibold text-ink-soft hover:border-line-strong transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M6 12h12M10 20h4" />
               </svg>
               Фильтры
               {activeFilterCount > 0 && (
-                <span className="bg-[#111] text-white text-xs px-1.5 py-0.5 rounded-full">
+                <span className="bg-ink text-white text-xs px-1.5 py-0.5 rounded-full">
                   {activeFilterCount}
                 </span>
               )}

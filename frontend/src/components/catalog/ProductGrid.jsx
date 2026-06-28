@@ -14,6 +14,14 @@ import ErrorState from '../states/ErrorState'
 const DEFAULT_GRID =
   'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'
 
+// Line-иконка поиска по умолчанию для пустого состояния (бренд-гайд §4: иконки,
+// не emoji). Переопределяется пропом emptyIcon.
+const DefaultEmptyIcon = (
+  <svg className="w-7 h-7 text-ink-faint" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+  </svg>
+)
+
 export default function ProductGrid({
   products = [],
   status,
@@ -21,7 +29,7 @@ export default function ProductGrid({
   emptyTitle = 'Товаров не найдено',
   emptySubtitle = 'Попробуйте другую категорию или сбросьте фильтры',
   emptyAction,
-  emptyIcon = '🔍',
+  emptyIcon = DefaultEmptyIcon,
   skeletonCount = 10,
   gridClassName = DEFAULT_GRID,
   animationKey,

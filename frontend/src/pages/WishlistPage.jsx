@@ -9,14 +9,14 @@ export default function WishlistPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-black text-gray-900">Избранное</h1>
+            <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Избранное</h1>
             {items.length > 0 && (
-              <p className="text-sm text-gray-400 mt-0.5">{items.length} товаров</p>
+              <p className="text-sm text-ink-faint mt-0.5">{items.length} товаров</p>
             )}
           </div>
         </div>
@@ -24,7 +24,7 @@ export default function WishlistPage() {
         {items.length === 0 ? (
           <EmptyState
             icon={
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             }

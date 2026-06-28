@@ -100,7 +100,7 @@ function FilterBody({ facets, value, handlers, status }) {
           {brands.length > BRAND_VISIBLE && (
             <button
               onClick={() => setShowAllBrands((s) => !s)}
-              className="text-xs text-indigo-600 font-semibold hover:underline px-3 py-1 text-left"
+              className="text-xs text-accent font-semibold hover:underline px-3 py-1 text-left"
             >
               {showAllBrands ? 'Свернуть' : `Показать ещё (${brands.length - BRAND_VISIBLE})`}
             </button>
@@ -134,7 +134,7 @@ function FilterBody({ facets, value, handlers, status }) {
       )}
 
       {!hasAny && status === 'ready' && (
-        <p className="text-sm text-gray-400">Нет доступных фильтров</p>
+        <p className="text-sm text-ink-faint">Нет доступных фильтров</p>
       )}
     </>
   )
@@ -158,7 +158,7 @@ export default function FilterSidebar({
   const resetButton = hasActive && (
     <button
       onClick={handlers.onReset}
-      className="text-xs text-indigo-600 font-semibold hover:underline"
+      className="text-xs text-accent font-semibold hover:underline"
     >
       Сбросить
     </button>
@@ -168,9 +168,9 @@ export default function FilterSidebar({
     <>
       {/* Десктоп: липкий сайдбар */}
       <aside className="hidden md:block md:w-64 shrink-0">
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 md:sticky md:top-24">
+        <div className="bg-card rounded-2xl border border-line p-5 md:sticky md:top-24">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-gray-900">Фильтры</h2>
+            <h2 className="text-sm font-bold text-ink">Фильтры</h2>
             {resetButton}
           </div>
           <FilterBody facets={facets} value={value} handlers={handlers} status={status} />
@@ -182,33 +182,35 @@ export default function FilterSidebar({
         {mobileOpen && (
           <div className="md:hidden">
             <motion.div
-              className="fixed inset-0 bg-black/40 z-50"
+              className="fixed inset-0 bg-ink/40 z-50"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onMobileClose}
             />
             <motion.div
-              className="fixed inset-y-0 left-0 w-[85vw] max-w-sm bg-white z-50 overflow-y-auto p-5"
+              className="fixed inset-y-0 left-0 w-[85vw] max-w-sm bg-card z-50 overflow-y-auto p-5"
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'tween', duration: 0.25 }}
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold text-gray-900">Фильтры</h2>
+                <h2 className="text-base font-bold text-ink">Фильтры</h2>
                 <button
                   onClick={onMobileClose}
                   aria-label="Закрыть фильтры"
-                  className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600"
+                  className="w-9 h-9 rounded-xl bg-surface flex items-center justify-center text-ink-soft hover:text-accent transition-colors"
                 >
-                  ✕
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
               {hasActive && (
                 <button
                   onClick={handlers.onReset}
-                  className="text-xs text-indigo-600 font-semibold hover:underline mb-4 block"
+                  className="text-xs text-accent font-semibold hover:underline mb-4 block"
                 >
                   Сбросить все
                 </button>
@@ -216,7 +218,7 @@ export default function FilterSidebar({
               <FilterBody facets={facets} value={value} handlers={handlers} status={status} />
               <button
                 onClick={onMobileClose}
-                className="mt-6 w-full px-4 py-3 rounded-xl bg-[#111] text-white text-sm font-semibold"
+                className="mt-6 w-full px-4 py-3 rounded-xl bg-ink text-white text-sm font-semibold"
               >
                 Показать результаты
               </button>

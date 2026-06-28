@@ -26,21 +26,21 @@ export default function Breadcrumbs({ trail = [] }) {
 
   return (
     <nav aria-label="Хлебные крошки" className="mb-4">
-      <ol className="flex flex-wrap items-center gap-1.5 text-sm text-gray-500">
+      <ol className="flex flex-wrap items-center gap-1.5 text-sm text-ink-soft">
         {display.map((node, i) => {
           const isLast = i === display.length - 1
           const isEllipsis = node.key === 'ellipsis'
           return (
             <li key={node.key} className="flex items-center gap-1.5">
-              {i > 0 && <span className="text-gray-300">/</span>}
+              {i > 0 && <span className="text-line-strong">/</span>}
               {isEllipsis ? (
-                <span className="text-gray-400">…</span>
+                <span className="text-ink-faint">…</span>
               ) : isLast ? (
-                <span className="font-semibold text-gray-900 truncate max-w-[12rem]">
+                <span className="font-semibold text-ink truncate max-w-[12rem]">
                   {node.name}
                 </span>
               ) : (
-                <Link to={node.to} className="hover:text-[#111] transition truncate max-w-[10rem]">
+                <Link to={node.to} className="hover:text-accent transition-colors truncate max-w-[10rem]">
                   {node.name}
                 </Link>
               )}
