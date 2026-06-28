@@ -18,8 +18,8 @@ function SectionBlock({ title, products, limit }) {
   if (!products.length) return null
   const list = limit ? products.slice(0, limit) : products
   return (
-    <div className="bg-white rounded-2xl p-6 border border-gray-100 mt-4">
-      <h2 className="text-base font-bold text-gray-900 mb-4">{title}</h2>
+    <div className="bg-card rounded-2xl p-6 border border-line mt-4">
+      <h2 className="text-base font-display font-bold text-ink mb-4">{title}</h2>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {list.map((product, i) => (
           <motion.div
@@ -184,11 +184,11 @@ export default function CartPage() {
   }
 
   if (items.length === 0) return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <EmptyState
           icon={
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
             </svg>
           }
@@ -204,16 +204,16 @@ export default function CartPage() {
   )
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         <motion.h1
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-2xl font-black text-gray-900 mb-6 flex items-baseline gap-3"
+          className="text-2xl font-display font-bold text-ink mb-6 flex items-baseline gap-3"
         >
           Корзина
-          <span className="text-base font-medium text-gray-400">{items.length} товара</span>
+          <span className="text-base font-medium text-ink-faint">{items.length} товара</span>
         </motion.h1>
 
         <div className="flex flex-col lg:flex-row gap-5">
@@ -222,19 +222,19 @@ export default function CartPage() {
           <div className="flex-1">
 
             {/* Выбрать все */}
-            <div className="bg-white rounded-2xl px-5 py-3.5 border border-gray-100 mb-3 flex items-center justify-between">
+            <div className="bg-card rounded-2xl px-5 py-3.5 border border-line mb-3 flex items-center justify-between">
               <label className="flex items-center gap-3 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={handleSelectAll}
-                  className="w-4 h-4 accent-indigo-600 rounded"
+                  className="w-4 h-4 accent-accent rounded"
                 />
-                <span className="text-sm font-semibold text-gray-700">
+                <span className="text-sm font-semibold text-ink-soft">
                   Выбрать все ({items.length})
                 </span>
               </label>
-              <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+              <div className="flex items-center gap-1.5 text-xs text-success font-medium">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>
@@ -249,10 +249,10 @@ export default function CartPage() {
                   {/* Заголовок-витрина продавца (видно, если продавцов больше одного) */}
                   {groups.length > 1 && (
                     <div className="flex items-center gap-2 px-1 pt-1">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h18v4H3V3zm0 4l1 13a1 1 0 001 1h12a1 1 0 001-1l1-13" />
                       </svg>
-                      <span className="text-sm font-bold text-gray-700 line-clamp-1">{group.sellerName}</span>
+                      <span className="text-sm font-bold text-ink-soft line-clamp-1">{group.sellerName}</span>
                     </div>
                   )}
 
@@ -266,7 +266,7 @@ export default function CartPage() {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 16, height: 0 }}
                           transition={{ delay: i * 0.04 }}
-                          className="bg-white rounded-2xl p-4 border border-gray-100"
+                          className="bg-card rounded-2xl p-4 border border-line"
                         >
                           <div className="flex items-start gap-4">
 
@@ -275,16 +275,16 @@ export default function CartPage() {
                               type="checkbox"
                               checked={!deselected.has(key)}
                               onChange={() => handleSelectItem(key)}
-                              className="w-4 h-4 accent-indigo-600 mt-3 shrink-0 rounded"
+                              className="w-4 h-4 accent-accent mt-3 shrink-0 rounded"
                             />
 
                             {/* Картинка */}
-                            <div className="w-24 h-24 bg-gray-50 rounded-xl shrink-0 overflow-hidden flex items-center justify-center border border-gray-100">
+                            <div className="w-24 h-24 bg-surface rounded-xl shrink-0 overflow-hidden flex items-center justify-center border border-line">
                               {item.image ? (
                                 <img src={item.image} alt={item.name} className="w-full h-full object-contain"
                                   onError={(e) => { e.target.style.display = 'none' }} />
                               ) : (
-                                <svg className="w-8 h-8 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-8 h-8 text-line-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
                                 </svg>
                               )}
@@ -292,39 +292,39 @@ export default function CartPage() {
 
                             {/* Инфо */}
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-gray-800 text-sm line-clamp-2 mb-1 leading-snug">{item.name}</p>
+                              <p className="font-semibold text-ink text-sm line-clamp-2 mb-1 leading-snug">{item.name}</p>
 
                               {/* Вариант: размер / цвет (если у товара есть) */}
                               {(item.size || item.color) && (
-                                <p className="text-xs text-gray-400 mb-2">
-                                  {item.size && <span>Размер: <span className="text-gray-600 font-medium">{item.size}</span></span>}
+                                <p className="text-xs text-ink-faint mb-2">
+                                  {item.size && <span>Размер: <span className="text-ink-soft font-medium">{item.size}</span></span>}
                                   {item.size && item.color && <span className="mx-1.5">·</span>}
-                                  {item.color && <span>Цвет: <span className="text-gray-600 font-medium">{item.color}</span></span>}
+                                  {item.color && <span>Цвет: <span className="text-ink-soft font-medium">{item.color}</span></span>}
                                 </p>
                               )}
 
-                              <p className="text-xl font-black text-gray-900 mb-1">
+                              <p className="text-xl font-display font-bold text-ink mb-1">
                                 {(Number(item.price) * item.quantity).toLocaleString()} ₽
                               </p>
-                              <p className="text-xs text-gray-400 mb-3">
+                              <p className="text-xs text-ink-faint mb-3">
                                 {Number(item.price).toLocaleString()} ₽ × {item.quantity} шт.
-                                {item.stock <= 5 && <span className="text-amber-600 ml-2">осталось {item.stock}</span>}
+                                {item.stock <= 5 && <span className="text-warning ml-2">осталось {item.stock}</span>}
                               </p>
 
                               {/* Количество */}
                               <div className="flex items-center gap-3 mb-3">
-                                <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden w-fit">
+                                <div className="flex items-center border border-line rounded-xl overflow-hidden w-fit">
                                   <motion.button
                                     onClick={() => handleQuantityChange(item, -1)}
                                     disabled={item.quantity <= 1}
-                                    className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 transition text-gray-600 font-bold disabled:opacity-30"
+                                    className="w-9 h-9 flex items-center justify-center hover:bg-surface transition text-ink-soft font-bold disabled:opacity-30"
                                     whileTap={{ scale: 0.85 }}
                                   >−</motion.button>
-                                  <span className="w-9 text-center text-sm font-bold text-gray-800">{item.quantity}</span>
+                                  <span className="w-9 text-center text-sm font-bold text-ink">{item.quantity}</span>
                                   <motion.button
                                     onClick={() => handleQuantityChange(item, 1)}
                                     disabled={item.quantity >= item.stock}
-                                    className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 transition text-gray-600 font-bold disabled:opacity-30"
+                                    className="w-9 h-9 flex items-center justify-center hover:bg-surface transition text-ink-soft font-bold disabled:opacity-30"
                                     whileTap={{ scale: 0.85 }}
                                   >+</motion.button>
                                 </div>
@@ -334,7 +334,7 @@ export default function CartPage() {
                               <div className="flex items-center gap-3">
                                 <motion.button
                                   onClick={() => moveToWishlist(item)}
-                                  className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-red-500 transition"
+                                  className="flex items-center gap-1.5 text-xs font-medium text-ink-faint hover:text-accent transition"
                                   whileTap={{ scale: 0.9 }}
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,10 +342,10 @@ export default function CartPage() {
                                   </svg>
                                   В избранное
                                 </motion.button>
-                                <span className="text-gray-200">·</span>
+                                <span className="text-line-strong">·</span>
                                 <motion.button
                                   onClick={() => handleRemove(item)}
-                                  className="text-xs text-gray-400 hover:text-red-500 transition font-medium"
+                                  className="text-xs text-ink-faint hover:text-danger transition font-medium"
                                   whileTap={{ scale: 0.9 }}
                                 >
                                   Удалить
@@ -368,9 +368,9 @@ export default function CartPage() {
             animate={{ opacity: 1, x: 0 }}
             className="lg:w-80 shrink-0"
           >
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 sticky top-24">
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Ваш заказ</h2>
-              <p className="text-xs text-gray-400 mb-4">
+            <div className="bg-card rounded-2xl p-6 border border-line sticky top-24">
+              <h2 className="text-sm font-bold text-ink uppercase tracking-wide mb-4">Ваш заказ</h2>
+              <p className="text-xs text-ink-faint mb-4">
                 Выбрано {selectedKeys.length} из {items.length} товаров
               </p>
 
@@ -381,19 +381,19 @@ export default function CartPage() {
                   value={promo}
                   onChange={(e) => setPromo(e.target.value)}
                   placeholder="Промокод"
-                  className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                  className="flex-1 min-w-0 border border-line rounded-xl px-3 py-2.5 text-sm transition bg-surface focus:bg-card focus:border-line-strong"
                 />
                 <button
                   onClick={applyPromo}
-                  className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm font-semibold hover:bg-gray-200 transition shrink-0"
+                  className="px-4 py-2.5 rounded-xl bg-surface text-ink-soft text-sm font-semibold hover:bg-line transition shrink-0"
                 >
                   Применить
                 </button>
               </div>
 
               <div className="flex justify-between items-baseline mb-5">
-                <span className="text-gray-500 text-sm">Итого</span>
-                <span className="text-2xl font-black text-gray-900">
+                <span className="text-ink-soft text-sm">Итого</span>
+                <span className="text-2xl font-display font-bold text-ink">
                   {selectedTotal.toLocaleString()} ₽
                 </span>
               </div>
@@ -401,15 +401,15 @@ export default function CartPage() {
               <motion.button
                 onClick={handleCheckout}
                 disabled={selectedKeys.length === 0}
-                className="w-full bg-[#111] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition disabled:opacity-40 mb-4"
+                className="w-full bg-ink text-white py-3.5 rounded-xl font-bold text-sm hover:bg-ink/90 transition disabled:opacity-40 mb-4"
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
               >
                 Перейти к оформлению →
               </motion.button>
 
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center gap-2 text-xs text-ink-faint">
+                <svg className="w-4 h-4 text-success shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
                 Безопасная оплата и возврат

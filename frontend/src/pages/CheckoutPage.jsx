@@ -84,6 +84,34 @@ const GUARANTEES = [
   },
 ]
 
+// «Что дальше» на экране «спасибо». Line-иконки вместо emoji (бренд-гайд §4).
+const NEXT_STEPS = [
+  {
+    text: 'Подтверждение отправлено на вашу почту',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
+    text: 'Следите за статусом в личном кабинете',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
+      </svg>
+    ),
+  },
+  {
+    text: 'При вопросах — напишите в поддержку',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.3-3.9A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+    ),
+  },
+]
+
 export default function CheckoutPage() {
   const { items, fetchCart } = useCartStore()
   const { user } = useAuthStore()
@@ -197,51 +225,51 @@ export default function CheckoutPage() {
   }
 
   if (success) return (
-    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl border border-gray-100 shadow-sm max-w-md w-full p-8"
+        className="bg-card rounded-2xl border border-line shadow-card max-w-md w-full p-8"
       >
         {/* Иконка */}
         <motion.div
-          className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6"
+          className="w-16 h-16 bg-success/10 rounded-2xl flex items-center justify-center mx-auto mb-6"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', delay: 0.15 }}
         >
-          <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </motion.div>
 
         {/* Заголовок */}
-        <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Заказ оформлен!</h2>
-        <p className="text-gray-400 text-sm text-center mb-6">Спасибо за покупку в Marketplace</p>
+        <h2 className="text-2xl font-display font-bold text-ink text-center mb-1">Заказ оформлен!</h2>
+        <p className="text-ink-faint text-sm text-center mb-6">Спасибо за покупку в Marketplace</p>
 
         {/* Детали заказа */}
-        <div className="bg-gray-50 rounded-xl p-4 mb-6 flex flex-col gap-3">
+        <div className="bg-surface rounded-xl p-4 mb-6 flex flex-col gap-3">
           {orderSummary.id ? (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Номер заказа</span>
-              <span className="font-black text-gray-900">#{orderSummary.id}</span>
+              <span className="text-ink-soft">Номер заказа</span>
+              <span className="font-display font-bold text-ink">#{orderSummary.id}</span>
             </div>
           ) : null}
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Статус</span>
-            <span className="font-semibold text-indigo-600">{STATUS_LABELS[orderSummary.status] ?? 'Создан'}</span>
+            <span className="text-ink-soft">Статус</span>
+            <span className="font-semibold text-accent">{STATUS_LABELS[orderSummary.status] ?? 'Создан'}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Товаров</span>
-            <span className="font-semibold text-gray-900">{orderSummary.count} шт.</span>
+            <span className="text-ink-soft">Товаров</span>
+            <span className="font-semibold text-ink">{orderSummary.count} шт.</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Сумма</span>
-            <span className="font-black text-gray-900">{Number(orderSummary.total).toLocaleString()} ₽</span>
+            <span className="text-ink-soft">Сумма</span>
+            <span className="font-display font-bold text-ink">{Number(orderSummary.total).toLocaleString()} ₽</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Доставка</span>
-            <span className="font-semibold text-emerald-600">
+            <span className="text-ink-soft">Доставка</span>
+            <span className="font-semibold text-success">
               {orderSummary.method === 'pickup' ? 'Бесплатно' : 'от 299 ₽'}
             </span>
           </div>
@@ -256,19 +284,15 @@ export default function CheckoutPage() {
 
         {/* Что дальше */}
         <div className="flex flex-col gap-2 mb-6">
-          {[
-            { icon: '📧', text: 'Подтверждение отправлено на вашу почту' },
-            { icon: '📦', text: 'Следите за статусом в личном кабинете' },
-            { icon: '💬', text: 'При вопросах — напишите в поддержку' },
-          ].map((item, i) => (
+          {NEXT_STEPS.map((item, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 + i * 0.08 }}
-              className="flex items-center gap-3 text-sm text-gray-500"
+              className="flex items-center gap-3 text-sm text-ink-soft"
             >
-              <span className="text-base">{item.icon}</span>
+              <span className="text-accent shrink-0">{item.icon}</span>
               {item.text}
             </motion.div>
           ))}
@@ -276,12 +300,12 @@ export default function CheckoutPage() {
 
         {/* Таймер */}
         <div className="text-center">
-          <p className="text-xs text-gray-400 mb-3">
+          <p className="text-xs text-ink-faint mb-3">
             Переход в личный кабинет через {countdown} сек.
           </p>
           <motion.button
             onClick={() => navigate('/profile')}
-            className="w-full bg-[#111] text-white py-3 rounded-xl font-semibold text-sm hover:bg-gray-800 transition"
+            className="w-full bg-ink text-white py-3 rounded-xl font-semibold text-sm hover:bg-ink/90 transition"
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -293,13 +317,13 @@ export default function CheckoutPage() {
   )
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-6xl mx-auto px-4 py-8">
 
         {/* Назад */}
         <motion.button
           onClick={() => navigate('/cart')}
-          className="flex items-center gap-2 text-gray-400 hover:text-gray-700 transition mb-6 text-sm font-medium"
+          className="flex items-center gap-2 text-ink-faint hover:text-ink-soft transition mb-6 text-sm font-medium"
           initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
           whileTap={{ scale: 0.97 }}
@@ -313,7 +337,7 @@ export default function CheckoutPage() {
         <motion.h1
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-3xl font-black text-gray-900 mb-8"
+          className="text-3xl font-display font-bold text-ink mb-8"
         >
           Оформление заказа
         </motion.h1>
@@ -328,27 +352,27 @@ export default function CheckoutPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="bg-white rounded-2xl p-6 border border-gray-100"
+              className="bg-card rounded-2xl p-6 border border-line"
             >
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Получатель</h2>
+              <h2 className="text-sm font-bold text-ink uppercase tracking-wide mb-4">Получатель</h2>
               <div className="flex flex-col gap-3">
                 {/* maxLength совпадает с капами модели (стресс-тест F4):
                     defense-in-depth, бэкенд валидирует длину независимо. */}
                 <input
                   type="text" placeholder="Имя и фамилия *" value={recipientName}
                   onChange={(e) => setRecipientName(e.target.value)} maxLength={200}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                  className="w-full border border-line rounded-xl px-4 py-3 text-sm transition bg-surface focus:bg-card focus:border-line-strong"
                 />
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="tel" placeholder="Телефон *" value={recipientPhone}
                     onChange={(e) => setRecipientPhone(e.target.value)} maxLength={20}
-                    className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                    className="flex-1 border border-line rounded-xl px-4 py-3 text-sm transition bg-surface focus:bg-card focus:border-line-strong"
                   />
                   <input
                     type="email" placeholder="E-mail" value={recipientEmail}
                     onChange={(e) => setRecipientEmail(e.target.value)} maxLength={254}
-                    className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                    className="flex-1 border border-line rounded-xl px-4 py-3 text-sm transition bg-surface focus:bg-card focus:border-line-strong"
                   />
                 </div>
               </div>
@@ -359,9 +383,9 @@ export default function CheckoutPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white rounded-2xl p-6 border border-gray-100"
+              className="bg-card rounded-2xl p-6 border border-line"
             >
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Способ доставки</h2>
+              <h2 className="text-sm font-bold text-ink uppercase tracking-wide mb-4">Способ доставки</h2>
               <div className="flex gap-3">
                 {DELIVERY_METHODS.map(method => (
                   <motion.button
@@ -369,17 +393,17 @@ export default function CheckoutPage() {
                     onClick={() => setDeliveryMethod(method.id)}
                     className={`flex-1 p-4 rounded-2xl border-2 text-left transition-all ${
                       deliveryMethod === method.id
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-accent bg-accent-soft'
+                        : 'border-line hover:border-line-strong'
                     }`}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <div className={`mb-2 ${deliveryMethod === method.id ? 'text-indigo-600' : 'text-gray-400'}`}>
+                    <div className={`mb-2 ${deliveryMethod === method.id ? 'text-accent' : 'text-ink-faint'}`}>
                       {method.icon}
                     </div>
-                    <div className="font-semibold text-sm text-gray-800">{method.label}</div>
-                    <div className={`text-xs font-medium mt-0.5 ${deliveryMethod === method.id ? 'text-indigo-500' : 'text-gray-400'}`}>
+                    <div className="font-semibold text-sm text-ink">{method.label}</div>
+                    <div className={`text-xs font-medium mt-0.5 ${deliveryMethod === method.id ? 'text-accent' : 'text-ink-faint'}`}>
                       {method.desc}
                     </div>
                   </motion.button>
@@ -394,9 +418,9 @@ export default function CheckoutPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-white rounded-2xl p-6 border border-gray-100 overflow-hidden"
+                  className="bg-card rounded-2xl p-6 border border-line overflow-hidden"
                 >
-                  <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Пункт выдачи</h2>
+                  <h2 className="text-sm font-bold text-ink uppercase tracking-wide mb-4">Пункт выдачи</h2>
                   <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1">
                     {PICKUP_POINTS.map(point => (
                       <motion.button
@@ -404,23 +428,25 @@ export default function CheckoutPage() {
                         onClick={() => setSelectedPoint(point.id)}
                         className={`p-4 rounded-xl border-2 text-left transition-all ${
                           selectedPoint === point.id
-                            ? 'border-indigo-500 bg-indigo-50'
-                            : 'border-gray-100 hover:border-gray-200 bg-gray-50'
+                            ? 'border-accent bg-accent-soft'
+                            : 'border-line hover:border-line-strong bg-surface'
                         }`}
                         whileHover={{ scale: 1.005 }}
                         whileTap={{ scale: 0.998 }}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="font-semibold text-sm text-gray-800">{point.address}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{point.metro}</p>
+                            <p className="font-semibold text-sm text-ink">{point.address}</p>
+                            <p className="text-xs text-ink-faint mt-0.5">{point.metro}</p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className={`text-xs font-semibold ${selectedPoint === point.id ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                            <p className={`text-xs font-semibold ${selectedPoint === point.id ? 'text-accent' : 'text-success'}`}>
                               {point.time}
                             </p>
                             {selectedPoint === point.id && (
-                              <span className="text-indigo-500 text-xs">✓</span>
+                              <svg className="w-3.5 h-3.5 text-accent inline-block mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
                             )}
                           </div>
                         </div>
@@ -435,12 +461,12 @@ export default function CheckoutPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-white rounded-2xl p-6 border border-gray-100 overflow-hidden"
+                  className="bg-card rounded-2xl p-6 border border-line overflow-hidden"
                 >
-                  <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Адрес доставки</h2>
+                  <h2 className="text-sm font-bold text-ink uppercase tracking-wide mb-4">Адрес доставки</h2>
                   <input
                     type="text" placeholder="Введите адрес *" value={address} onChange={(e) => setAddress(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white"
+                    className="w-full border border-line rounded-xl px-4 py-3 text-sm transition bg-surface focus:bg-card focus:border-line-strong"
                   />
                 </motion.div>
               )}
@@ -451,11 +477,11 @@ export default function CheckoutPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.13 }}
-              className="bg-white rounded-2xl p-6 border border-gray-100"
+              className="bg-card rounded-2xl p-6 border border-line"
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Оплата</h2>
-                <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">демо</span>
+                <h2 className="text-sm font-bold text-ink uppercase tracking-wide">Оплата</h2>
+                <span className="text-[11px] font-medium text-warning bg-warning/10 px-2 py-0.5 rounded-full">демо</span>
               </div>
               <div className="flex flex-col gap-2">
                 {PAYMENT_METHODS.map(method => (
@@ -464,17 +490,17 @@ export default function CheckoutPage() {
                     onClick={() => setPaymentMethod(method.id)}
                     className={`flex items-center justify-between p-4 rounded-xl border-2 text-left transition-all ${
                       paymentMethod === method.id
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-100 hover:border-gray-200 bg-gray-50'
+                        ? 'border-accent bg-accent-soft'
+                        : 'border-line hover:border-line-strong bg-surface'
                     }`}
                     whileTap={{ scale: 0.99 }}
                   >
                     <div>
-                      <div className="font-semibold text-sm text-gray-800">{method.label}</div>
-                      <div className="text-xs text-gray-400 mt-0.5">{method.desc}</div>
+                      <div className="font-semibold text-sm text-ink">{method.label}</div>
+                      <div className="text-xs text-ink-faint mt-0.5">{method.desc}</div>
                     </div>
                     <span className={`w-4 h-4 rounded-full border-2 shrink-0 ${
-                      paymentMethod === method.id ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'
+                      paymentMethod === method.id ? 'border-accent bg-accent' : 'border-line-strong'
                     }`} />
                   </motion.button>
                 ))}
@@ -486,12 +512,12 @@ export default function CheckoutPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="bg-white rounded-2xl p-6 border border-gray-100"
+              className="bg-card rounded-2xl p-6 border border-line"
             >
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Комментарий</h2>
+              <h2 className="text-sm font-bold text-ink uppercase tracking-wide mb-4">Комментарий</h2>
               <textarea
                 placeholder="Необязательно" value={comment} onChange={(e) => setComment(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-gray-50 focus:bg-white resize-none"
+                className="w-full border border-line rounded-xl px-4 py-3 text-sm transition bg-surface focus:bg-card focus:border-line-strong resize-none"
                 rows={3}
               />
             </motion.div>
@@ -503,27 +529,27 @@ export default function CheckoutPage() {
             animate={{ opacity: 1, x: 0 }}
             className="lg:w-80 shrink-0"
           >
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 sticky top-24">
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">Ваш заказ</h2>
+            <div className="bg-card rounded-2xl p-6 border border-line sticky top-24">
+              <h2 className="text-sm font-bold text-ink uppercase tracking-wide mb-4">Ваш заказ</h2>
 
               {/* Товары */}
               <div className="flex flex-col gap-3 mb-4 max-h-48 overflow-y-auto">
                 {orderItems.map(item => (
                   <div key={itemKey(item)} className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg shrink-0 overflow-hidden flex items-center justify-center">
+                    <div className="w-10 h-10 bg-surface rounded-lg shrink-0 overflow-hidden flex items-center justify-center">
                       {item.image ? (
                         <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
                       ) : (
-                        <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-line-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
                         </svg>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-700 font-medium line-clamp-1">{item.name}</p>
-                      <p className="text-xs text-gray-400">{item.quantity} шт.</p>
+                      <p className="text-xs text-ink-soft font-medium line-clamp-1">{item.name}</p>
+                      <p className="text-xs text-ink-faint">{item.quantity} шт.</p>
                     </div>
-                    <p className="text-xs font-bold text-gray-900 shrink-0">
+                    <p className="text-xs font-bold text-ink shrink-0">
                       {(Number(item.price) * item.quantity).toLocaleString()} ₽
                     </p>
                   </div>
@@ -531,27 +557,27 @@ export default function CheckoutPage() {
               </div>
 
               {/* Итого */}
-              <div className="border-t border-gray-100 pt-4 mb-5 flex flex-col gap-2">
+              <div className="border-t border-line pt-4 mb-5 flex flex-col gap-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Товары ({orderItems.length})</span>
-                  <span className="font-medium text-gray-800">{orderTotal.toLocaleString()} ₽</span>
+                  <span className="text-ink-soft">Товары ({orderItems.length})</span>
+                  <span className="font-medium text-ink">{orderTotal.toLocaleString()} ₽</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Доставка</span>
-                  <span className="font-medium text-emerald-600">
+                  <span className="text-ink-soft">Доставка</span>
+                  <span className="font-medium text-success">
                     {deliveryMethod === 'pickup' ? 'Бесплатно' : 'от 299 ₽'}
                   </span>
                 </div>
-                <div className="flex justify-between text-base font-black pt-2 border-t border-gray-100">
-                  <span className="text-gray-900">Итого</span>
-                  <span className="text-emerald-600">{orderTotal.toLocaleString()} ₽</span>
+                <div className="flex justify-between text-base font-display font-bold pt-2 border-t border-line">
+                  <span className="text-ink">Итого</span>
+                  <span className="text-ink">{orderTotal.toLocaleString()} ₽</span>
                 </div>
               </div>
 
               {/* Промокод/баллы - вход-подсказка (Ф9 решение 3.6). Логика - Ф27,
                   итог здесь не меняется; второй ввод не плодим. */}
-              <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 rounded-xl px-3 py-2.5 mb-4">
-                <svg className="w-4 h-4 shrink-0 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center gap-2 text-xs text-ink-faint bg-surface rounded-xl px-3 py-2.5 mb-4">
+                <svg className="w-4 h-4 shrink-0 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
                 </svg>
                 Промокод и баллы — на шаге оформления, скоро
@@ -561,20 +587,20 @@ export default function CheckoutPage() {
               <label className="flex items-start gap-2.5 cursor-pointer select-none mb-4">
                 <input
                   type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400 shrink-0"
+                  className="mt-0.5 w-4 h-4 rounded accent-accent shrink-0"
                 />
-                <span className="text-xs text-gray-500 leading-relaxed">
+                <span className="text-xs text-ink-soft leading-relaxed">
                   Подтверждаю согласие с{' '}
-                  <Link to="/legal/oferta" target="_blank" className="text-indigo-600 hover:underline">офертой</Link>
+                  <Link to="/legal/oferta" target="_blank" className="text-accent hover:underline">офертой</Link>
                   {' '}и{' '}
-                  <Link to="/legal/privacy" target="_blank" className="text-indigo-600 hover:underline">политикой конфиденциальности</Link>
+                  <Link to="/legal/privacy" target="_blank" className="text-accent hover:underline">политикой конфиденциальности</Link>
                 </span>
               </label>
 
               <motion.button
                 onClick={handleOrder}
                 disabled={loading || orderItems.length === 0 || !agreed}
-                className="w-full bg-[#111] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition disabled:opacity-50 flex items-center justify-center gap-2 mb-4"
+                className="w-full bg-ink text-white py-3.5 rounded-xl font-bold text-sm hover:bg-ink/90 transition disabled:opacity-50 flex items-center justify-center gap-2 mb-4"
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -588,8 +614,8 @@ export default function CheckoutPage() {
 
               <div className="flex flex-col gap-2">
                 {GUARANTEES.map(g => (
-                  <div key={g.label} className="flex items-center gap-2 text-xs text-gray-400">
-                    <span className="text-emerald-500">{g.icon}</span>
+                  <div key={g.label} className="flex items-center gap-2 text-xs text-ink-faint">
+                    <span className="text-success">{g.icon}</span>
                     {g.label}
                   </div>
                 ))}
