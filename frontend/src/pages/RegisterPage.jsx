@@ -11,6 +11,16 @@ const passwordChecks = [
   { id: 'special', label: 'Хотя бы один спецсимвол',      test: (p) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p) },
 ]
 
+// Line-иконки ролей (бренд-гайд §4: иконки, не emoji).
+const ROLE_ICONS = {
+  buyer: (
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+  ),
+  seller: (
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M3 9l1-4h16l1 4M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M3 9h18M9 13h6" />
+  ),
+}
+
 export default function RegisterPage() {
   const [step, setStep] = useState(1) // 1 = форма, 2 = ввод кода
   const [form, setForm] = useState({ email: '', username: '', password: '', role: 'buyer' })
@@ -118,31 +128,34 @@ export default function RegisterPage() {
   const passStrength = passwordChecks.filter(c => c.test(form.password)).length
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-surface flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-lg">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
-          {/* Лого */}
+          {/* Вордмарк (бренд-гайд §4) */}
           <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-2">
-              <div className="w-10 h-10 bg-[#111] rounded-xl flex items-center justify-center">
-                <span className="text-white font-black text-base">M</span>
+            <Link to="/" className="inline-flex items-center gap-2.5">
+              <div className="w-10 h-10 bg-accent rounded-[10px] flex items-center justify-center">
+                <span className="text-white font-display font-extrabold text-lg leading-none">М</span>
               </div>
-              <span className="text-[#111] font-bold text-xl">Market<span className="text-gray-400 font-normal">place</span></span>
+              <span className="font-display font-extrabold text-xl tracking-tight text-ink">маркет</span>
             </Link>
-            <h1 className="text-2xl font-black text-[#111] mt-6">
+            <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink mt-6">
               {step === 1 ? 'Создать аккаунт' : 'Подтвердите email'}
             </h1>
-            <p className="text-gray-400 text-sm mt-1">
+            <p className="text-ink-faint text-sm mt-1">
               {step === 1 ? 'Присоединяйтесь к нам' : `Код отправлен на ${form.email}`}
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-10">
+          <div className="bg-card rounded-2xl shadow-lift border border-line p-10">
 
             {errors.general && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl mb-6 text-sm flex items-center gap-2">
-                ⚠️ {errors.general}
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-danger/10 border border-danger/20 text-danger px-4 py-3 rounded-xl mb-6 text-sm flex items-center gap-2">
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                {errors.general}
               </motion.div>
             )}
 
@@ -155,21 +168,23 @@ export default function RegisterPage() {
                   {/* Выбор роли */}
                   <div className="flex gap-3 mb-7">
                     {[
-                      { value: 'buyer',  label: 'Покупатель', desc: 'Покупаю товары', icon: '🛒' },
-                      { value: 'seller', label: 'Продавец',   desc: 'Продаю товары',  icon: '🏪' },
+                      { value: 'buyer',  label: 'Покупатель', desc: 'Покупаю товары' },
+                      { value: 'seller', label: 'Продавец',   desc: 'Продаю товары' },
                     ].map((role) => (
                       <motion.button
                         key={role.value}
                         type="button"
                         onClick={() => setForm({ ...form, role: role.value })}
                         className={`flex-1 p-4 rounded-2xl border-2 text-left transition-all ${
-                          form.role === role.value ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
+                          form.role === role.value ? 'border-accent bg-accent-soft' : 'border-line hover:border-line-strong'
                         }`}
                         whileTap={{ scale: 0.97 }}
                       >
-                        <div className="text-xl mb-1">{role.icon}</div>
-                        <div className="font-semibold text-sm text-gray-800">{role.label}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">{role.desc}</div>
+                        <svg className={`w-6 h-6 mb-2 ${form.role === role.value ? 'text-accent' : 'text-ink-faint'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          {ROLE_ICONS[role.value]}
+                        </svg>
+                        <div className="font-semibold text-sm text-ink">{role.label}</div>
+                        <div className="text-xs text-ink-faint mt-0.5">{role.desc}</div>
                       </motion.button>
                     ))}
                   </div>
@@ -178,49 +193,49 @@ export default function RegisterPage() {
 
                     {/* Логин */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Логин (Email)</label>
+                      <label className="block text-sm font-semibold text-ink-soft mb-2">Логин (Email)</label>
                       <input
                         type="email" name="email" value={form.email} onChange={handleChange}
                         placeholder="your@email.com"
-                        className={`w-full border rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 transition bg-gray-50 focus:bg-white ${
-                          errors.email ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-400 focus:ring-indigo-100'
+                        className={`w-full border rounded-xl px-4 py-3.5 text-sm text-ink placeholder:text-ink-faint transition bg-surface focus:bg-card ${
+                          errors.email ? 'border-danger' : 'border-line focus:border-line-strong'
                         }`}
                       />
-                      {errors.email && <p className="text-xs text-red-500 mt-1.5">{errors.email}</p>}
+                      {errors.email && <p className="text-xs text-danger mt-1.5">{errors.email}</p>}
                     </div>
 
                     {/* Имя */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <label className="text-sm font-semibold text-gray-700">Имя пользователя</label>
-                        <span className={`text-xs font-medium ${form.username.length > 12 ? 'text-amber-500' : 'text-gray-400'}`}>
+                        <label className="text-sm font-semibold text-ink-soft">Имя пользователя</label>
+                        <span className={`text-xs font-medium ${form.username.length > 12 ? 'text-warning' : 'text-ink-faint'}`}>
                           {form.username.length}/15
                         </span>
                       </div>
                       <input
                         type="text" name="username" value={form.username} onChange={handleChange}
                         placeholder="username" maxLength={15}
-                        className={`w-full border rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 transition bg-gray-50 focus:bg-white ${
-                          errors.username ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-400 focus:ring-indigo-100'
+                        className={`w-full border rounded-xl px-4 py-3.5 text-sm text-ink placeholder:text-ink-faint transition bg-surface focus:bg-card ${
+                          errors.username ? 'border-danger' : 'border-line focus:border-line-strong'
                         }`}
                       />
-                      {errors.username && <p className="text-xs text-red-500 mt-1.5">{errors.username}</p>}
+                      {errors.username && <p className="text-xs text-danger mt-1.5">{errors.username}</p>}
                     </div>
 
                     {/* Пароль */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Пароль</label>
+                      <label className="block text-sm font-semibold text-ink-soft mb-2">Пароль</label>
                       <div className="relative">
                         <input
                           type={showPassword ? 'text' : 'password'} name="password"
                           value={form.password} onChange={handleChange}
                           onFocus={() => setPasswordFocused(true)} onBlur={() => setPasswordFocused(false)}
                           placeholder="••••••••"
-                          className={`w-full border rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 transition bg-gray-50 focus:bg-white pr-24 ${
-                            errors.password ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-400 focus:ring-indigo-100'
+                          className={`w-full border rounded-xl px-4 py-3.5 text-sm text-ink placeholder:text-ink-faint transition bg-surface focus:bg-card pr-24 ${
+                            errors.password ? 'border-danger' : 'border-line focus:border-line-strong'
                           }`}
                         />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600 font-medium">
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink-faint hover:text-ink-soft font-medium">
                           {showPassword ? 'Скрыть' : 'Показать'}
                         </button>
                       </div>
@@ -231,8 +246,8 @@ export default function RegisterPage() {
                             {[0,1,2,3].map(i => (
                               <div key={i} className={`h-1.5 flex-1 rounded-full transition-all ${
                                 i < passStrength
-                                  ? passStrength === 1 ? 'bg-red-400' : passStrength === 2 ? 'bg-amber-400' : passStrength === 3 ? 'bg-yellow-400' : 'bg-emerald-500'
-                                  : 'bg-gray-200'
+                                  ? passStrength === 1 ? 'bg-danger' : passStrength <= 3 ? 'bg-warning' : 'bg-success'
+                                  : 'bg-line'
                               }`} />
                             ))}
                           </div>
@@ -240,7 +255,7 @@ export default function RegisterPage() {
                             {(passwordFocused || passStrength < 4) && (
                               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-2 gap-1.5">
                                 {passwordChecks.map(check => (
-                                  <div key={check.id} className={`flex items-center gap-1.5 text-sm transition-colors ${check.test(form.password) ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                  <div key={check.id} className={`flex items-center gap-1.5 text-sm transition-colors ${check.test(form.password) ? 'text-success' : 'text-ink-faint'}`}>
                                     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       {check.test(form.password)
                                         ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -255,7 +270,7 @@ export default function RegisterPage() {
                           </AnimatePresence>
                         </div>
                       )}
-                      {errors.password && <p className="text-sm text-red-500 mt-1.5">{errors.password}</p>}
+                      {errors.password && <p className="text-sm text-danger mt-1.5">{errors.password}</p>}
                     </div>
 
                     {/* Согласие с офертой/политикой (Ф26) - со ссылками на документы */}
@@ -267,21 +282,21 @@ export default function RegisterPage() {
                             setAgreed(e.target.checked)
                             if (errors.agreed) setErrors({ ...errors, agreed: '' })
                           }}
-                          className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400 shrink-0"
+                          className="mt-0.5 w-4 h-4 rounded border-line accent-accent focus:ring-accent shrink-0"
                         />
-                        <span className="text-xs text-gray-500 leading-relaxed">
+                        <span className="text-xs text-ink-soft leading-relaxed">
                           Я принимаю{' '}
-                          <Link to="/legal/oferta" target="_blank" className="text-indigo-600 hover:underline">оферту</Link>
+                          <Link to="/legal/oferta" target="_blank" className="text-accent hover:underline">оферту</Link>
                           {' '}и{' '}
-                          <Link to="/legal/privacy" target="_blank" className="text-indigo-600 hover:underline">политику конфиденциальности</Link>
+                          <Link to="/legal/privacy" target="_blank" className="text-accent hover:underline">политику конфиденциальности</Link>
                         </span>
                       </label>
-                      {errors.agreed && <p className="text-xs text-red-500 mt-1.5">{errors.agreed}</p>}
+                      {errors.agreed && <p className="text-xs text-danger mt-1.5">{errors.agreed}</p>}
                     </div>
 
                     <motion.button
                       type="submit" disabled={loading}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-xl font-bold text-base hover:from-indigo-700 hover:to-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2 mt-1 shadow-lg shadow-indigo-100"
+                      className="w-full bg-ink text-white py-4 rounded-xl font-bold text-base hover:bg-ink/90 transition disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
                       whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
                     >
                       {loading ? (
@@ -300,8 +315,12 @@ export default function RegisterPage() {
                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
 
                   <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">📧</div>
-                    <p className="text-gray-600 text-sm">Введите 6-значный код из письма</p>
+                    <div className="w-16 h-16 bg-accent-soft rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <p className="text-ink-soft text-sm">Введите 6-значный код из письма</p>
                   </div>
 
                   <form onSubmit={handleVerify} className="flex flex-col gap-5">
@@ -315,17 +334,17 @@ export default function RegisterPage() {
                         }}
                         placeholder="000000"
                         maxLength={6}
-                        className={`w-full border rounded-xl px-4 py-4 text-center text-3xl font-black tracking-[0.5em] focus:outline-none focus:ring-2 transition bg-gray-50 focus:bg-white ${
-                          errors.code ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-400 focus:ring-indigo-100'
+                        className={`w-full border rounded-xl px-4 py-4 text-center text-3xl font-display font-extrabold tracking-[0.5em] text-ink placeholder:text-ink-faint transition bg-surface focus:bg-card ${
+                          errors.code ? 'border-danger' : 'border-line focus:border-line-strong'
                         }`}
                         autoFocus
                       />
-                      {errors.code && <p className="text-sm text-red-500 mt-1.5 text-center">{errors.code}</p>}
+                      {errors.code && <p className="text-sm text-danger mt-1.5 text-center">{errors.code}</p>}
                     </div>
 
                     <motion.button
                       type="submit" disabled={loading || code.length !== 6}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-xl font-bold text-base hover:from-indigo-700 hover:to-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-indigo-100"
+                      className="w-full bg-ink text-white py-4 rounded-xl font-bold text-base hover:bg-ink/90 transition disabled:opacity-50 flex items-center justify-center gap-2"
                       whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
                     >
                       {loading ? (
@@ -339,13 +358,13 @@ export default function RegisterPage() {
                     <div className="text-center">
                       <button
                         type="button" onClick={handleResend} disabled={resendCooldown > 0 || loading}
-                        className="text-sm text-gray-400 hover:text-indigo-600 transition disabled:cursor-not-allowed"
+                        className="text-sm text-ink-faint hover:text-accent transition disabled:cursor-not-allowed"
                       >
                         {resendCooldown > 0 ? `Отправить снова через ${resendCooldown}с` : 'Отправить код повторно'}
                       </button>
                     </div>
 
-                    <button type="button" onClick={() => setStep(1)} className="text-sm text-gray-400 hover:text-gray-600 text-center transition">
+                    <button type="button" onClick={() => setStep(1)} className="text-sm text-ink-faint hover:text-ink-soft text-center transition">
                       ← Изменить данные
                     </button>
                   </form>
@@ -357,12 +376,12 @@ export default function RegisterPage() {
             {step === 1 && (
               <>
                 <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100" /></div>
-                  <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-gray-400">или</span></div>
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-line" /></div>
+                  <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-ink-faint">или</span></div>
                 </div>
-                <p className="text-center text-gray-500 text-sm">
+                <p className="text-center text-ink-soft text-sm">
                   Уже есть аккаунт?{' '}
-                  <Link to="/login" className="text-[#111] font-bold hover:underline">Войти</Link>
+                  <Link to="/login" className="text-ink font-bold hover:underline">Войти</Link>
                 </p>
               </>
             )}
