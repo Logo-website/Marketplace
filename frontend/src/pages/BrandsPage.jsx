@@ -21,6 +21,14 @@ import Pagination from '../components/catalog/Pagination'
 const PAGE_SIZE = 20 // = DRF PAGE_SIZE
 const BRANDS_GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
 
+// Line-иконка-бирка для пустого состояния (бренд-гайд §4: иконки, не emoji).
+const TagIcon = (
+  <svg className="w-7 h-7 text-ink-faint" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+  </svg>
+)
+
 export default function BrandsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const q = searchParams.get('q') || ''
@@ -106,26 +114,32 @@ export default function BrandsPage() {
   const groups = view === 'alpha' ? groupBrandsByLetter(brands) : null
   const tabClass = (active) =>
     `px-4 py-2 rounded-xl text-sm font-semibold transition ${
-      active ? 'bg-[#111] text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+      active ? 'bg-ink text-white' : 'bg-card text-ink-soft border border-line hover:border-line-strong'
     }`
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Промо «Локальные марки» - лейбл всего набора (наша фишка, §4.4) */}
+        {/* Промо «Локальные марки» - лейбл всего набора (наша фишка, §4.4).
+            Редакционная чернильная панель (стиль PromoBlock Ф3), не тёмный
+            «AI»-градиент: акцентный eyebrow + Bricolage-заголовок + декор-кольца. */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-gray-900 to-gray-700 rounded-2xl p-6 md:p-8 mb-6 text-white"
+          className="relative overflow-hidden bg-ink rounded-2xl p-6 md:p-10 mb-6 text-white"
         >
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-300 mb-1">
-            Локальные марки
-          </p>
-          <h1 className="text-2xl md:text-3xl font-black">Каталог брендов</h1>
-          <p className="text-sm text-gray-300 mt-1 max-w-2xl">
-            Все марки площадки в одном месте - выбирайте по имени или категории и
-            открывайте витрину бренда.
-          </p>
+          <div className="relative z-10">
+            <p className="text-xs font-bold uppercase tracking-widest text-accent-soft mb-2">
+              Локальные марки
+            </p>
+            <h1 className="font-display text-3xl md:text-4xl font-extrabold tracking-tight">Каталог брендов</h1>
+            <p className="text-sm text-white/70 mt-2 max-w-2xl">
+              Все марки площадки в одном месте - выбирайте по имени или категории и
+              открывайте витрину бренда.
+            </p>
+          </div>
+          <div className="pointer-events-none absolute -right-16 -top-16 w-56 h-56 rounded-full border border-white/5" />
+          <div className="pointer-events-none absolute -right-4 -bottom-24 w-44 h-44 rounded-full bg-accent/10" />
         </motion.div>
 
         {/* Поиск по бренду */}
@@ -136,14 +150,14 @@ export default function BrandsPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Поиск по бренду"
-              className="w-full bg-white rounded-xl pl-4 pr-12 py-3 text-sm border border-gray-200 focus:outline-none focus:border-gray-400 transition"
+              className="w-full bg-surface rounded-xl pl-4 pr-12 py-3 text-sm border border-line focus:outline-none focus:border-line-strong transition"
             />
             <button
               type="submit"
               aria-label="Найти"
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 transition"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-ink text-white hover:bg-accent transition"
             >
-              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
@@ -170,8 +184,8 @@ export default function BrandsPage() {
                 onClick={() => selectCategory(cat.id)}
                 className={`px-3 py-1.5 rounded-lg text-sm transition ${
                   String(cat.id) === category
-                    ? 'bg-[#111] text-white'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+                    ? 'bg-accent-soft text-accent border border-accent/30'
+                    : 'bg-card text-ink-soft border border-line hover:border-line-strong'
                 }`}
               >
                 {cat.name}
@@ -183,7 +197,7 @@ export default function BrandsPage() {
         {/* Подборка «Новые бренды» */}
         {showNew && newBrands.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-lg font-black text-[#111] mb-3">Новые бренды</h2>
+            <h2 className="font-display text-xl font-extrabold tracking-tight text-ink mb-3">Новые бренды</h2>
             <div className={BRANDS_GRID}>
               {newBrands.map((b) => (
                 <BrandCard key={b.id} brand={b} />
@@ -197,7 +211,7 @@ export default function BrandsPage() {
         {status === 'error' && <ErrorState onRetry={retry} />}
         {status === 'ready' && brands.length === 0 && (
           <EmptyState
-            icon="🏷️"
+            icon={TagIcon}
             title="Брендов не найдено"
             subtitle={
               q || category
@@ -224,7 +238,7 @@ export default function BrandsPage() {
               <div className="flex flex-col gap-8">
                 {groups.map((group) => (
                   <div key={group.letter}>
-                    <h2 className="text-lg font-black text-gray-300 mb-3">{group.letter}</h2>
+                    <h2 className="font-display text-2xl font-extrabold text-ink-faint mb-3">{group.letter}</h2>
                     <div className={BRANDS_GRID}>
                       {group.brands.map((b) => (
                         <BrandCard key={b.id} brand={b} />

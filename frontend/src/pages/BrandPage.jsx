@@ -11,6 +11,14 @@ import SortDropdown from '../components/catalog/SortDropdown'
 import Pagination from '../components/catalog/Pagination'
 import EmptyState from '../components/states/EmptyState'
 import ErrorState from '../components/states/ErrorState'
+import Card from '../components/ui/Card'
+
+// Line-иконка-витрина для пустого состояния «магазин не найден» (бренд-гайд §4).
+const StorefrontIcon = (
+  <svg className="w-7 h-7 text-ink-faint" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72M6.75 18h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
+  </svg>
+)
 
 // Витрина бренда (Ф20, узел 1.21) - публичный экран продавца глазами покупателя:
 // шапка (лого/баннер/описание/рейтинг), лента активных товаров с фильтрами/
@@ -33,11 +41,11 @@ function pluralizeLooks(n) {
 
 function Stars({ value }) {
   return (
-    <div className="flex items-center gap-1.5 bg-amber-50 px-2.5 py-1 rounded-lg">
-      <svg className="w-3.5 h-3.5 text-amber-400 fill-amber-400" viewBox="0 0 20 20">
+    <div className="flex items-center gap-1">
+      <svg className="w-3.5 h-3.5 text-star" fill="currentColor" viewBox="0 0 20 20">
         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
       </svg>
-      <span className="font-bold text-amber-700 text-sm">{value}</span>
+      <span className="font-semibold text-ink text-sm">{value}</span>
     </div>
   )
 }
@@ -89,11 +97,11 @@ function BrandReviews({ brandId, isAuthenticated, onProfileChange }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-6 md:p-8">
-      <h2 className="text-xl font-black text-gray-900 mb-4">Отзывы о продавце</h2>
+    <Card className="p-6 md:p-8">
+      <h2 className="font-display text-xl font-extrabold tracking-tight text-ink mb-4">Отзывы о продавце</h2>
 
       {/* Форма отзыва */}
-      <form onSubmit={submit} className="mb-6 bg-gray-50 rounded-xl p-4 border border-gray-100">
+      <form onSubmit={submit} className="mb-6 bg-surface rounded-xl p-4 border border-line">
         <div className="flex items-center gap-1 mb-3">
           {[1, 2, 3, 4, 5].map((s) => (
             <button
@@ -104,7 +112,8 @@ function BrandReviews({ brandId, isAuthenticated, onProfileChange }) {
               className="p-0.5"
             >
               <svg
-                className={`w-6 h-6 ${s <= rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300 fill-gray-300'}`}
+                className={`w-6 h-6 ${s <= rating ? 'text-star' : 'text-line-strong'}`}
+                fill="currentColor"
                 viewBox="0 0 20 20"
               >
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -118,12 +127,12 @@ function BrandReviews({ brandId, isAuthenticated, onProfileChange }) {
           placeholder="Как прошла покупка: скорость, упаковка, соответствие описанию"
           rows={3}
           maxLength={2000}
-          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#111]"
+          className="w-full rounded-xl border border-line bg-card px-3 py-2 text-sm resize-none focus:outline-none focus:border-line-strong transition"
         />
         <button
           type="submit"
           disabled={submitting}
-          className="mt-3 px-5 py-2.5 rounded-xl bg-[#111] text-white text-sm font-semibold hover:bg-gray-800 transition disabled:opacity-40"
+          className="mt-3 px-5 py-2.5 rounded-xl bg-ink text-white text-sm font-semibold hover:bg-ink/90 transition disabled:opacity-40"
         >
           {isAuthenticated ? 'Оставить отзыв' : 'Войти и оставить отзыв'}
         </button>
@@ -133,25 +142,25 @@ function BrandReviews({ brandId, isAuthenticated, onProfileChange }) {
       {status === 'loading' && <div className="skeleton h-20 rounded-xl" />}
       {status === 'error' && <ErrorState onRetry={retry} />}
       {status === 'ready' && reviews.length === 0 && (
-        <p className="text-sm text-gray-400">Пока нет отзывов о продавце. Будьте первым.</p>
+        <p className="text-sm text-ink-faint">Пока нет отзывов о продавце. Будьте первым.</p>
       )}
       {status === 'ready' && reviews.length > 0 && (
         <div className="flex flex-col gap-4">
           {reviews.map((rev) => (
-            <div key={rev.id} className="border-b border-gray-100 pb-4 last:border-0">
+            <div key={rev.id} className="border-b border-line pb-4 last:border-0">
               <div className="flex items-center gap-3 mb-1">
-                <span className="text-sm font-semibold text-gray-800">{rev.author}</span>
+                <span className="text-sm font-semibold text-ink">{rev.author}</span>
                 <Stars value={rev.rating} />
-                <span className="text-xs text-gray-300">
+                <span className="text-xs text-ink-faint">
                   {rev.created_at ? new Date(rev.created_at).toLocaleDateString('ru-RU') : ''}
                 </span>
               </div>
-              {rev.text && <p className="text-sm text-gray-600 whitespace-pre-line">{rev.text}</p>}
+              {rev.text && <p className="text-sm text-ink-soft whitespace-pre-line">{rev.text}</p>}
             </div>
           ))}
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -334,7 +343,7 @@ export default function BrandPage() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <EmptyState
-          icon="🏪"
+          icon={StorefrontIcon}
           title="Магазин не найден"
           subtitle="Возможно, бренд не существует или больше не работает на площадке"
           action={{ label: 'В каталог', onClick: () => navigate('/catalog') }}
@@ -356,51 +365,51 @@ export default function BrandPage() {
   const hasRating = brand.seller_reviews_count > 0
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Шапка бренда */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-6"
+          className="bg-card rounded-2xl border border-line overflow-hidden mb-6"
         >
-          {/* Баннер (или дефолтный градиент при пустом) */}
-          <div className="h-32 md:h-44 w-full bg-gradient-to-r from-gray-800 to-gray-600">
+          {/* Баннер (или галерейный wash при пустом, бренд §5 - градиент только в баннере) */}
+          <div className="h-32 md:h-44 w-full bg-linear-to-br from-accent-soft via-surface to-canvas">
             {brand.banner && (
               <img src={brand.banner} alt="" className="w-full h-full object-cover" />
             )}
           </div>
           <div className="p-5 md:p-6 flex flex-col sm:flex-row gap-4 sm:items-center">
             {/* Логотип (или плейсхолдер-инициал) */}
-            <div className="w-20 h-20 rounded-2xl bg-white border border-gray-200 -mt-12 shadow-sm flex items-center justify-center overflow-hidden shrink-0">
+            <div className="w-20 h-20 rounded-2xl bg-card border border-line -mt-12 shadow-card flex items-center justify-center overflow-hidden shrink-0">
               {brand.logo ? (
                 <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-2xl font-black text-gray-400">
+                <span className="font-display text-2xl font-extrabold text-ink-faint">
                   {brand.name?.[0]?.toUpperCase()}
                 </span>
               )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-black text-gray-900">{brand.name}</h1>
+                <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-ink">{brand.name}</h1>
                 {hasRating ? (
                   <div className="flex items-center gap-2">
                     <Stars value={brand.seller_rating} />
-                    <span className="text-sm text-gray-400">
+                    <span className="text-sm text-ink-faint">
                       {brand.seller_reviews_count} отзывов о продавце
                     </span>
                   </div>
                 ) : (
-                  <span className="text-sm text-gray-400">Нет оценок</span>
+                  <span className="text-sm text-ink-faint">Нет оценок</span>
                 )}
               </div>
               {brand.description && (
-                <p className="text-sm text-gray-500 mt-1 max-w-2xl whitespace-pre-line">
+                <p className="text-sm text-ink-soft mt-1 max-w-2xl whitespace-pre-line">
                   {brand.description}
                 </p>
               )}
-              <p className="text-xs text-gray-400 mt-1">{brand.products_count} товаров</p>
+              <p className="text-xs text-ink-faint mt-1">{brand.products_count} товаров</p>
             </div>
             {/* Подписка на бренд */}
             <button
@@ -408,8 +417,8 @@ export default function BrandPage() {
               disabled={followBusy}
               className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition shrink-0 disabled:opacity-40 ${
                 following
-                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  : 'bg-[#111] text-white hover:bg-gray-800'
+                  ? 'bg-surface text-ink-soft border border-line hover:bg-line'
+                  : 'bg-ink text-white hover:bg-ink/90'
               }`}
             >
               {following ? 'Вы подписаны' : 'Подписаться'}
@@ -420,20 +429,25 @@ export default function BrandPage() {
         {/* Образы бренда (узел 1.23, Ф22) - вход в лукбук этого бренда. Показываем,
             только если у бренда есть опубликованные образы (иначе блок скрыт). */}
         {looksCount > 0 && (
-          <Link
+          <Card
+            as={Link}
             to={`/looks?seller=${id}`}
-            className="w-full bg-white rounded-2xl border border-gray-100 p-4 mb-6 flex items-center justify-between hover:border-gray-300 transition text-left"
+            hover
+            className="group p-4 mb-6 flex items-center justify-between text-left"
           >
-            <span className="text-sm font-semibold text-gray-700">Образы бренда</span>
-            <span className="text-xs text-gray-400">
-              {looksCount} {pluralizeLooks(looksCount)} - смотреть →
+            <span className="text-sm font-semibold text-ink">Образы бренда</span>
+            <span className="flex items-center gap-1 text-xs font-semibold text-accent">
+              {looksCount} {pluralizeLooks(looksCount)} - смотреть
+              <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
             </span>
-          </Link>
+          </Card>
         )}
 
         {/* Лента товаров бренда: фильтры/сортировка как в каталоге Ф2 */}
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <h2 className="text-lg font-black text-[#111]">Товары бренда</h2>
+          <h2 className="font-display text-xl font-extrabold tracking-tight text-ink">Товары бренда</h2>
           <SortDropdown value={sort} onChange={handleSort} />
         </div>
 
@@ -450,7 +464,7 @@ export default function BrandPage() {
           <div className="flex-1 min-w-0">
             <button
               onClick={() => setMobileFiltersOpen(true)}
-              className="md:hidden mb-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700"
+              className="md:hidden mb-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-line text-sm font-semibold text-ink-soft"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M6 12h12M10 20h4" />

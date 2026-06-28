@@ -17,6 +17,14 @@ import ErrorState from '../components/states/ErrorState'
 //
 // Маршрут: /looks/:id.
 
+// Line-иконки (бренд-гайд §4): «образы» (sparkles) для пустого/404 состояния и
+// «нет обложки» (как в каталоге) для отсутствующего фото образа.
+const LooksIcon = (
+  <svg className="w-7 h-7 text-ink-faint" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+  </svg>
+)
+
 export default function LookPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -56,7 +64,7 @@ export default function LookPage() {
   if (status === 'loading') {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl p-8 flex flex-col md:flex-row gap-8">
+        <div className="bg-card rounded-2xl p-8 flex flex-col md:flex-row gap-8">
           <div className="skeleton w-full md:w-1/2 h-96 rounded-2xl" />
           <div className="flex-1 flex flex-col gap-4">
             <div className="skeleton h-8 rounded-full w-3/4" />
@@ -72,7 +80,7 @@ export default function LookPage() {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
         <EmptyState
-          icon="👗"
+          icon={LooksIcon}
           title="Образ не найден"
           subtitle="Возможно, образ снят с публикации или ссылка устарела"
           action={{ label: 'Все образы', onClick: () => navigate('/looks') }}
@@ -98,20 +106,24 @@ export default function LookPage() {
   const isBrand = look.source === 'brand' && look.seller_id
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl overflow-hidden border border-gray-100">
+        <div className="bg-card rounded-2xl overflow-hidden border border-line">
           <div className="flex flex-col md:flex-row">
             {/* Фото образа целиком */}
             <motion.div
               initial={{ opacity: 0, x: -24 }}
               animate={{ opacity: 1, x: 0 }}
-              className="w-full md:w-1/2 bg-gray-50"
+              className="w-full md:w-1/2 bg-surface"
             >
               {look.cover ? (
                 <img src={look.cover} alt={look.title} className="w-full h-full max-h-[560px] object-cover" />
               ) : (
-                <div className="h-96 flex items-center justify-center text-6xl text-gray-200">👗</div>
+                <div className="h-96 flex items-center justify-center text-line-strong">
+                  <svg className="w-14 h-14" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+                  </svg>
+                </div>
               )}
             </motion.div>
 
@@ -119,42 +131,42 @@ export default function LookPage() {
             <motion.div
               initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
-              className="w-full md:w-1/2 p-6 md:p-8 flex flex-col gap-4 border-t md:border-t-0 md:border-l border-gray-100"
+              className="w-full md:w-1/2 p-6 md:p-8 flex flex-col gap-4 border-t md:border-t-0 md:border-l border-line"
             >
-              <span className="text-xs font-bold text-indigo-500 uppercase tracking-widest">
+              <span className="text-xs font-bold text-accent uppercase tracking-widest">
                 {look.source === 'editorial' ? 'Подборка редакции' : 'Образ бренда'}
               </span>
-              <h1 className="text-2xl font-black text-gray-900 leading-tight">{look.title}</h1>
+              <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-ink leading-tight">{look.title}</h1>
 
               {isBrand && (
-                <Link to={`/brand/${look.seller_id}`} className="text-sm font-semibold text-gray-600 hover:text-[#111] hover:underline self-start">
+                <Link to={`/brand/${look.seller_id}`} className="text-sm font-semibold text-ink-soft hover:text-accent hover:underline self-start">
                   {look.source_name} →
                 </Link>
               )}
 
               {look.description && (
-                <p className="text-gray-500 text-sm leading-relaxed border-t border-gray-100 pt-4 whitespace-pre-line">
+                <p className="text-ink-soft text-sm leading-relaxed border-t border-line pt-4 whitespace-pre-line">
                   {look.description}
                 </p>
               )}
 
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-sm text-gray-500 mb-1">
+              <div className="border-t border-line pt-4">
+                <p className="text-sm text-ink-soft mb-1">
                   {hasActive ? 'Сумма комплекта' : 'Образ временно недоступен'}
                 </p>
                 {hasActive ? (
-                  <div className="text-3xl font-black text-emerald-600">
+                  <div className="font-display text-3xl font-bold text-ink">
                     {price.toLocaleString()} ₽
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400">Вещи этого образа сейчас не в продаже</p>
+                  <p className="text-sm text-ink-faint">Вещи этого образа сейчас не в продаже</p>
                 )}
               </div>
 
               <motion.button
                 onClick={handleAddLook}
                 disabled={!hasActive || adding}
-                className="py-3.5 rounded-xl font-bold text-sm bg-[#111] text-white hover:bg-gray-800 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                className="py-3.5 rounded-xl font-bold text-sm bg-ink text-white hover:bg-ink/90 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
                 whileHover={{ scale: hasActive ? 1.01 : 1 }}
                 whileTap={{ scale: hasActive ? 0.98 : 1 }}
               >
@@ -183,7 +195,7 @@ export default function LookPage() {
           transition={{ delay: 0.1 }}
           className="mt-6"
         >
-          <h2 className="text-xl font-black text-gray-900 mb-4">Вещи в образе</h2>
+          <h2 className="font-display text-xl font-extrabold tracking-tight text-ink mb-4">Вещи в образе</h2>
           {hasActive ? (
             <ProductGrid
               products={products}
@@ -191,7 +203,7 @@ export default function LookPage() {
               gridClassName="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
             />
           ) : (
-            <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+            <div className="bg-card rounded-2xl border border-line p-8 text-center text-sm text-ink-faint">
               Вещи этого образа сейчас недоступны.
             </div>
           )}

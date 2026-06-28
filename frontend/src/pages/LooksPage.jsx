@@ -23,6 +23,13 @@ const SOURCE_TABS = [
   { key: 'brand', label: 'Бренды' },
 ]
 
+// Line-иконка-«образы» (sparkles) для пустого состояния (бренд-гайд §4).
+const LooksIcon = (
+  <svg className="w-7 h-7 text-ink-faint" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+  </svg>
+)
+
 export default function LooksPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const source = searchParams.get('source') || ''
@@ -63,26 +70,31 @@ export default function LooksPage() {
 
   const tabClass = (active) =>
     `px-4 py-2 rounded-xl text-sm font-semibold transition ${
-      active ? 'bg-[#111] text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+      active ? 'bg-ink text-white' : 'bg-card text-ink-soft border border-line hover:border-line-strong'
     }`
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Промо-шапка лукбука */}
+        {/* Промо-шапка лукбука - редакционная чернильная панель (стиль PromoBlock
+            Ф3 / каталога брендов), не тёмный «AI»-градиент. */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-gray-900 to-gray-700 rounded-2xl p-6 md:p-8 mb-6 text-white"
+          className="relative overflow-hidden bg-ink rounded-2xl p-6 md:p-10 mb-6 text-white"
         >
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-300 mb-1">
-            Готовые образы
-          </p>
-          <h1 className="text-2xl md:text-3xl font-black">Лукбук</h1>
-          <p className="text-sm text-gray-300 mt-1 max-w-2xl">
-            Не отдельные вещи, а собранные образы от редакции и брендов. Понравился
-            комплект целиком - добавьте его в корзину одним нажатием.
-          </p>
+          <div className="relative z-10">
+            <p className="text-xs font-bold uppercase tracking-widest text-accent-soft mb-2">
+              Готовые образы
+            </p>
+            <h1 className="font-display text-3xl md:text-4xl font-extrabold tracking-tight">Лукбук</h1>
+            <p className="text-sm text-white/70 mt-2 max-w-2xl">
+              Не отдельные вещи, а собранные образы от редакции и брендов. Понравился
+              комплект целиком - добавьте его в корзину одним нажатием.
+            </p>
+          </div>
+          <div className="pointer-events-none absolute -right-16 -top-16 w-56 h-56 rounded-full border border-white/5" />
+          <div className="pointer-events-none absolute -right-4 -bottom-24 w-44 h-44 rounded-full bg-accent/10" />
         </motion.div>
 
         {/* Фильтр по источнику. Скрыт при входе «образы бренда» (?seller=) -
@@ -102,7 +114,7 @@ export default function LooksPage() {
         {status === 'error' && <ErrorState onRetry={retry} />}
         {status === 'ready' && looks.length === 0 && (
           <EmptyState
-            icon="👗"
+            icon={LooksIcon}
             title="Образов пока нет"
             subtitle={
               source || seller
