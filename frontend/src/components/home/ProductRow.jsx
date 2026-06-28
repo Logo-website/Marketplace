@@ -41,15 +41,18 @@ export default function ProductRow({
   return (
     <section className="mb-10">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-black text-[#111]">{title}</h2>
+        <h2 className="font-display text-xl md:text-2xl font-bold tracking-tight text-ink">{title}</h2>
 
         <div className="flex items-center gap-2">
           {seeAllTo && status === 'ready' && (
             <Link
               to={seeAllTo}
-              className="text-sm font-semibold text-gray-500 hover:text-[#111] transition shrink-0"
+              className="group inline-flex items-center gap-1 text-sm font-semibold text-ink-soft hover:text-accent transition-colors shrink-0"
             >
-              Все →
+              Все
+              <svg className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
+              </svg>
             </Link>
           )}
           {/* Стрелки - только десктоп, мобильный листает свайпом */}
@@ -59,17 +62,21 @@ export default function ProductRow({
                 type="button"
                 aria-label="Назад"
                 onClick={() => scrollBy(-1)}
-                className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-card text-ink-soft transition-colors hover:border-line-strong hover:text-accent"
               >
-                ←
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 12H5m6-6l-6 6 6 6" />
+                </svg>
               </button>
               <button
                 type="button"
                 aria-label="Вперёд"
                 onClick={() => scrollBy(1)}
-                className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-card text-ink-soft transition-colors hover:border-line-strong hover:text-accent"
               >
-                →
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
+                </svg>
               </button>
             </div>
           )}

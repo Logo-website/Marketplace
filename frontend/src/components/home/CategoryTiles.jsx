@@ -10,18 +10,16 @@ import CategoryIcon from './categoryIcons'
 // прямо в критерии «Готово, когда» карты. Грузит то же дерево /products/
 // categories/, что каталог-меню Ф1; клик ведёт в выдачу категории /catalog/<id>
 // (маршрут Ф2). У категории нет картинки в модели - плитка строится на
-// градиенте из палитры (по индексу) + line-иконка (categoryIcons по имени,
-// fallback - вешалка) + название, без фейковых фото товаров.
+// светлой галерейной карточке (бренд-гайд: спокойный грид, без тёмных
+// градиентов) + line-иконка-акцент (categoryIcons по имени, fallback -
+// вешалка) + название, без фейковых фото товаров.
 
-// Палитра фонов плиток - циклически по индексу, чтобы соседние различались.
-const TILE_GRADIENTS = [
-  'from-[#1a1a2e] to-[#0f3460]',
-  'from-[#2d1b69] to-[#1a1a2e]',
-  'from-[#0f3460] to-[#1a1a2e]',
-  'from-[#3a1c4d] to-[#1a1a2e]',
-  'from-[#16213e] to-[#0f3460]',
-  'from-[#1f1147] to-[#2d1b69]',
-]
+// Заголовок секции (Bricolage) - один на все состояния, чтобы не плодить дрейф.
+const HEADING = (
+  <h2 className="mb-4 font-display text-xl md:text-2xl font-bold tracking-tight text-ink">
+    Категории
+  </h2>
+)
 
 export default function CategoryTiles() {
   const { data, status, retry } = useAsyncData(
@@ -36,10 +34,10 @@ export default function CategoryTiles() {
   if (status === 'loading') {
     return (
       <section className="mb-10">
-        <h2 className="text-xl font-black text-[#111] mb-4">Категории</h2>
+        {HEADING}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-2xl" />
+            <Skeleton key={i} className="h-28 rounded-2xl" />
           ))}
         </div>
       </section>
@@ -49,7 +47,7 @@ export default function CategoryTiles() {
   if (status === 'error') {
     return (
       <section className="mb-10">
-        <h2 className="text-xl font-black text-[#111] mb-4">Категории</h2>
+        {HEADING}
         <ErrorState
           className="!py-12"
           subtitle="Не удалось загрузить категории."
@@ -64,7 +62,7 @@ export default function CategoryTiles() {
 
   return (
     <section className="mb-10">
-      <h2 className="text-xl font-black text-[#111] mb-4">Категории</h2>
+      {HEADING}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {categories.map((cat, i) => (
           <motion.div
@@ -75,15 +73,13 @@ export default function CategoryTiles() {
           >
             <Link
               to={`/catalog/${cat.id}`}
-              className={`block h-24 rounded-2xl p-4 bg-gradient-to-br ${
-                TILE_GRADIENTS[i % TILE_GRADIENTS.length]
-              } relative overflow-hidden hover:opacity-90 transition`}
+              className="group flex h-28 flex-col justify-between rounded-2xl border border-line bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-line-strong hover:shadow-lift"
             >
               <CategoryIcon
                 name={cat.name}
-                className="absolute -bottom-3 -right-2 w-20 h-20 text-white/15 pointer-events-none"
+                className="h-7 w-7 text-accent"
               />
-              <span className="relative text-white font-bold text-sm leading-snug line-clamp-2">
+              <span className="font-display text-sm font-bold leading-snug text-ink line-clamp-2 transition-colors group-hover:text-accent">
                 {cat.name}
               </span>
             </Link>

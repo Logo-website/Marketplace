@@ -132,3 +132,15 @@ button, a, input, select, textarea {
   transition-duration: 160ms;
   transition-timing-function: var(--ease-brand);
 }
+
+/* ─── Hero-карусель главной ──────────────────────────────────────
+   Точки пагинации Swiper в бренд-палитре (дефолтные - синие): неактивная -
+   приглушённая чернильная, активная - хвойный акцент. */
+.hero-carousel .swiper-pagination-bullet {
+  background: var(--color-ink-faint);
+  opacity: 0.45;
+}
+.hero-carousel .swiper-pagination-bullet-active {
+  background: var(--color-accent);
+  opacity: 1;
+}
