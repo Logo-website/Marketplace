@@ -25,7 +25,7 @@ export default function Gallery({ images = [], name = '', liked = false, onToggl
   return (
     <div className="w-full">
       <div
-        className="relative bg-gray-50 rounded-2xl overflow-hidden h-80 md:h-96 mb-3 group"
+        className="relative bg-surface rounded-2xl overflow-hidden h-80 md:h-96 mb-3 group"
         onMouseMove={handleMove}
         onMouseLeave={() => setZoom(null)}
       >
@@ -50,7 +50,7 @@ export default function Gallery({ images = [], name = '', liked = false, onToggl
         </AnimatePresence>
 
         {zoom && (
-          <span className="absolute bottom-3 left-3 bg-black/60 text-white text-[10px] px-2 py-1 rounded-md pointer-events-none">
+          <span className="absolute bottom-3 left-3 bg-ink/70 text-white text-[10px] px-2 py-1 rounded-md pointer-events-none">
             Наведите для увеличения
           </span>
         )}
@@ -58,11 +58,14 @@ export default function Gallery({ images = [], name = '', liked = false, onToggl
         <motion.button
           onClick={onToggleLike}
           aria-label={liked ? 'Убрать из избранного' : 'В избранное'}
-          className="absolute top-3 right-3 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 z-10"
+          aria-pressed={liked}
+          className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center shadow-card border transition-colors z-10 ${
+            liked ? 'bg-accent-soft border-accent/30' : 'bg-card border-line hover:border-line-strong'
+          }`}
           whileTap={{ scale: 0.8 }}
         >
           <svg
-            className={`w-5 h-5 transition-colors ${liked ? 'text-red-500 fill-red-500' : 'text-gray-300'}`}
+            className={`w-5 h-5 transition-colors ${liked ? 'text-accent' : 'text-ink-faint'}`}
             fill={liked ? 'currentColor' : 'none'}
             stroke="currentColor" viewBox="0 0 24 24"
           >
@@ -78,7 +81,7 @@ export default function Gallery({ images = [], name = '', liked = false, onToggl
               key={i}
               onClick={() => setSelected(i)}
               className={`shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${
-                selected === i ? 'border-indigo-500' : 'border-transparent hover:border-gray-200'
+                selected === i ? 'border-accent' : 'border-transparent hover:border-line-strong'
               }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

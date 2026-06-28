@@ -10,6 +10,7 @@ import useAsyncData from '../hooks/useAsyncData'
 import EmptyState from '../components/states/EmptyState'
 import ErrorState from '../components/states/ErrorState'
 import { toast } from '../store/toastStore'
+import Card from '../components/ui/Card'
 import Breadcrumbs from '../components/catalog/Breadcrumbs'
 import ProductGrid from '../components/catalog/ProductGrid'
 import LookCard from '../components/LookCard'
@@ -117,7 +118,7 @@ export default function ProductPage() {
 
   if (status === 'loading') return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="bg-white rounded-2xl p-8 flex flex-col md:flex-row gap-8">
+      <div className="bg-card rounded-2xl p-8 flex flex-col md:flex-row gap-8">
         <div className="skeleton w-full md:w-1/2 h-96 rounded-2xl" />
         <div className="flex-1 flex flex-col gap-4">
           <div className="skeleton h-5 rounded-full w-1/4" />
@@ -133,7 +134,7 @@ export default function ProductPage() {
     <div className="max-w-6xl mx-auto px-4 py-8">
       <EmptyState
         icon={
-          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-8 h-8 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         }
@@ -181,12 +182,12 @@ export default function ProductPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <Breadcrumbs trail={trail} />
 
         {/* Карточка */}
-        <div className="bg-white rounded-2xl overflow-hidden border border-gray-100">
+        <Card className="overflow-hidden">
           <div className="flex flex-col md:flex-row">
 
             {/* Галерея */}
@@ -207,34 +208,32 @@ export default function ProductPage() {
             <motion.div
               initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
-              className="w-full md:w-1/2 p-6 md:p-8 flex flex-col gap-4 border-t md:border-t-0 md:border-l border-gray-100"
+              className="w-full md:w-1/2 p-6 md:p-8 flex flex-col gap-4 border-t md:border-t-0 md:border-l border-line"
             >
               {brand && (
-                <span className="text-xs font-bold text-indigo-500 uppercase tracking-widest">{brand}</span>
+                <span className="text-xs font-bold text-ink-faint uppercase tracking-widest">{brand}</span>
               )}
-              <h1 className="text-2xl font-black text-gray-900 leading-tight">{product.name}</h1>
+              <h1 className="font-display text-2xl md:text-3xl font-bold text-ink leading-tight tracking-tight">{product.name}</h1>
 
               <div className="flex items-center gap-3 flex-wrap">
                 {product.reviews_count > 0 && (
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-xl">
-                      <svg className="w-3.5 h-3.5 text-amber-400 fill-amber-400" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                      <span className="font-bold text-amber-700 text-sm">{product.rating}</span>
-                    </div>
-                    <span className="text-sm text-gray-400">{product.reviews_count.toLocaleString()} отзывов</span>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-star" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    <span className="font-semibold text-ink text-sm">{product.rating}</span>
+                    <span className="text-sm text-ink-faint">· {product.reviews_count.toLocaleString()} отзывов</span>
                   </div>
                 )}
-                <span className="text-xs text-gray-300">Артикул: {sku}</span>
+                <span className="text-xs text-ink-faint">Артикул: {sku}</span>
               </div>
 
-              <div className="text-4xl font-black text-emerald-600">
+              <div className="font-display text-4xl font-bold text-ink">
                 {Number(product.price).toLocaleString()} ₽
               </div>
 
               {product.description && (
-                <p className="text-gray-500 text-sm leading-relaxed border-t border-gray-100 pt-4">
+                <p className="text-ink-soft text-sm leading-relaxed border-t border-line pt-4">
                   {product.description}
                 </p>
               )}
@@ -250,23 +249,23 @@ export default function ProductPage() {
                 onSizeGuide={hasSizeChart ? () => setSizeGuideOpen(true) : undefined}
               />
               {sizeHint && (
-                <p className="text-red-500 text-xs -mt-2">Выберите размер перед добавлением в корзину</p>
+                <p className="text-danger text-xs -mt-2">Выберите размер перед добавлением в корзину</p>
               )}
 
               {/* Параметры модели на фото - только при наличии данных */}
               {modelRows.length > 0 && (
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-wrap gap-x-4 gap-y-1">
+                <div className="bg-surface rounded-xl p-3 border border-line flex flex-wrap gap-x-4 gap-y-1">
                   {modelRows.map(([k, v]) => (
-                    <span key={k} className="text-xs text-gray-500">
-                      {k}: <span className="text-gray-800 font-medium">{String(v)}</span>
+                    <span key={k} className="text-xs text-ink-soft">
+                      {k}: <span className="text-ink font-medium">{String(v)}</span>
                     </span>
                   ))}
                 </div>
               )}
 
               <div className="flex items-center gap-2 text-sm">
-                <div className={`w-2 h-2 rounded-full ${product.stock > 0 ? 'bg-emerald-500' : 'bg-red-400'}`} />
-                <span className={product.stock > 0 ? 'text-emerald-600 font-medium' : 'text-red-500 font-medium'}>
+                <div className={`w-2 h-2 rounded-full ${product.stock > 0 ? 'bg-success' : 'bg-danger'}`} />
+                <span className={product.stock > 0 ? 'text-success font-medium' : 'text-danger font-medium'}>
                   {product.stock > 0 ? `В наличии: ${product.stock} шт.` : 'Нет в наличии'}
                 </span>
               </div>
@@ -276,7 +275,7 @@ export default function ProductPage() {
               {hasSizeChart && !hasSizes && (
                 <button
                   onClick={() => setSizeGuideOpen(true)}
-                  className="self-start flex items-center gap-1.5 text-sm text-indigo-600 font-semibold hover:underline"
+                  className="self-start flex items-center gap-1.5 text-sm text-accent font-semibold hover:underline"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h7M9 6v12" />
@@ -287,17 +286,17 @@ export default function ProductPage() {
 
               {product.stock > 0 && (
                 <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-500 font-medium">Количество:</span>
-                  <div className="flex items-center bg-gray-100 rounded-xl overflow-hidden">
+                  <span className="text-sm text-ink-soft font-medium">Количество:</span>
+                  <div className="flex items-center bg-surface rounded-xl overflow-hidden border border-line">
                     <motion.button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-gray-200 transition font-bold text-gray-600"
+                      className="w-10 h-10 flex items-center justify-center hover:bg-line-strong transition font-bold text-ink-soft"
                       whileTap={{ scale: 0.9 }}
                     >−</motion.button>
-                    <span className="w-10 text-center font-bold text-gray-800 text-sm">{quantity}</span>
+                    <span className="w-10 text-center font-bold text-ink text-sm">{quantity}</span>
                     <motion.button
                       onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-gray-200 transition font-bold text-gray-600"
+                      className="w-10 h-10 flex items-center justify-center hover:bg-line-strong transition font-bold text-ink-soft"
                       whileTap={{ scale: 0.9 }}
                     >+</motion.button>
                   </div>
@@ -308,7 +307,7 @@ export default function ProductPage() {
                 onClick={handleAddToCart}
                 disabled={product.stock === 0 || adding}
                 className={`py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                  added ? 'bg-emerald-500 text-white' : 'bg-[#111] text-white hover:bg-gray-800'
+                  added ? 'bg-success text-white' : 'bg-ink text-white hover:bg-ink/90'
                 } disabled:opacity-40`}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
@@ -339,7 +338,7 @@ export default function ProductPage() {
               <motion.button
                 onClick={handleBuyNow}
                 disabled={product.stock === 0 || buying}
-                className="py-3.5 rounded-xl font-bold text-sm border-2 border-[#111] text-[#111] hover:bg-[#111] hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                className="py-3.5 rounded-xl font-bold text-sm border-2 border-ink text-ink hover:bg-ink hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-40"
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -355,11 +354,11 @@ export default function ProductPage() {
               <SellerBlock sellerName={product.seller_name} sellerId={product.seller_id} productId={product.id} />
 
               {/* Доставка - честная заглушка до Ф9/Ф32 (без выдуманных сроков) */}
-              <div className="flex items-start gap-2.5 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                <svg className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-start gap-2.5 bg-surface rounded-xl p-3 border border-line">
+                <svg className="w-5 h-5 text-ink-faint shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
                 </svg>
-                <p className="text-xs text-gray-500 leading-relaxed">
+                <p className="text-xs text-ink-soft leading-relaxed">
                   Способы и сроки доставки уточняются при оформлении заказа.
                 </p>
               </div>
@@ -368,7 +367,7 @@ export default function ProductPage() {
                   в очередь, ничего сама не скрывает. */}
               <button
                 onClick={() => setReport({ type: 'product', id: product.id, label: 'товар' })}
-                className="self-start flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition"
+                className="self-start flex items-center gap-1.5 text-xs text-ink-faint hover:text-danger transition"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 2H21l-3 6 3 6h-8.5l-1-2H5a2 2 0 00-2 2z" />
@@ -377,7 +376,7 @@ export default function ProductPage() {
               </button>
             </motion.div>
           </div>
-        </div>
+        </Card>
 
         {/* Характеристики (data-driven) */}
         {specs && Object.keys(specs).length > 0 && (
@@ -385,9 +384,9 @@ export default function ProductPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-2xl border border-gray-100 mt-4 p-6 md:p-8"
+            className="bg-card rounded-2xl border border-line mt-4 p-6 md:p-8"
           >
-            <h2 className="text-xl font-black text-gray-900 mb-4">Характеристики</h2>
+            <h2 className="font-display text-xl font-bold text-ink mb-4">Характеристики</h2>
             <SpecsTable specs={specs} />
           </motion.div>
         )}
@@ -397,7 +396,7 @@ export default function ProductPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="bg-white rounded-2xl border border-gray-100 mt-4 overflow-hidden"
+          className="bg-card rounded-2xl border border-line mt-4 overflow-hidden"
         >
           <ReviewsSection
             productId={id}
@@ -415,7 +414,7 @@ export default function ProductPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.18 }}
-          className="bg-white rounded-2xl border border-gray-100 mt-4 overflow-hidden"
+          className="bg-card rounded-2xl border border-line mt-4 overflow-hidden"
         >
           <ProductQA
             productId={id}
@@ -434,8 +433,8 @@ export default function ProductPage() {
             className="mt-4"
           >
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h2 className="text-xl font-black text-gray-900">Собрать образ</h2>
-              <span className="text-sm text-gray-400">Этот товар - в готовых комплектах</span>
+              <h2 className="font-display text-xl font-bold text-ink">Собрать образ</h2>
+              <span className="text-sm text-ink-faint">Этот товар - в готовых комплектах</span>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {looks.slice(0, 4).map((look) => (
@@ -454,7 +453,7 @@ export default function ProductPage() {
             transition={{ delay: 0.2 }}
             className="mt-4"
           >
-            <h2 className="text-xl font-black text-gray-900 mb-4">С этим покупают</h2>
+            <h2 className="font-display text-xl font-bold text-ink mb-4">С этим покупают</h2>
             <ProductGrid
               products={recommendations.slice(0, 8)}
               status={recsStatus === 'loading' ? 'loading' : 'ready'}

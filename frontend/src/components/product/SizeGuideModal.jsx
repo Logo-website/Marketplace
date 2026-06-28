@@ -51,14 +51,14 @@ export default function SizeGuideModal({ productId, onClose, prefill }) {
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-ink/40"
       onClick={onClose}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="w-full md:max-w-2xl bg-white rounded-t-2xl md:rounded-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden"
+        className="w-full md:max-w-2xl bg-card rounded-t-2xl md:rounded-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         initial={{ y: '100%', opacity: 0.5 }}
         animate={{ y: 0, opacity: 1 }}
@@ -66,12 +66,12 @@ export default function SizeGuideModal({ productId, onClose, prefill }) {
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
       >
         {/* Шапка */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          <h2 className="text-lg font-black text-gray-900">Размерная сетка</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line shrink-0">
+          <h2 className="font-display text-lg font-bold text-ink">Размерная сетка</h2>
           <button
             onClick={onClose}
             aria-label="Закрыть"
-            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition text-gray-500"
+            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface transition text-ink-soft"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -82,7 +82,7 @@ export default function SizeGuideModal({ productId, onClose, prefill }) {
         {/* Тело */}
         <div className="overflow-y-auto px-5 py-5 flex flex-col gap-7">
           {status === 'loading' && (
-            <div className="flex justify-center py-12 text-gray-400">
+            <div className="flex justify-center py-12 text-ink-faint">
               <Spinner className="w-8 h-8" />
             </div>
           )}
@@ -96,7 +96,7 @@ export default function SizeGuideModal({ productId, onClose, prefill }) {
           )}
 
           {status === 'ready' && (!chart || !chart.group) && (
-            <p className="text-center text-gray-400 py-10 text-sm">
+            <p className="text-center text-ink-faint py-10 text-sm">
               Для этого товара размерная сетка недоступна.
             </p>
           )}
@@ -119,11 +119,11 @@ function MeasurementsTable({ chart }) {
   const axes = AXIS_ORDER.filter((a) => chart.measurements.some((r) => r[a] != null))
   return (
     <section>
-      <h3 className="text-sm font-bold text-gray-900 mb-3">Таблица размеров</h3>
+      <h3 className="font-display text-sm font-bold text-ink mb-3">Таблица размеров</h3>
       <div className="overflow-x-auto -mx-1 px-1">
         <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="text-gray-400 text-xs">
+            <tr className="text-ink-faint text-xs">
               <th className="text-left font-semibold py-2 pr-4">RU</th>
               {axes.map((a) => (
                 <th key={a} className="text-left font-semibold py-2 pr-4 whitespace-nowrap">{AXIS_SHORT[a]}</th>
@@ -132,10 +132,10 @@ function MeasurementsTable({ chart }) {
           </thead>
           <tbody>
             {chart.measurements.map((row) => (
-              <tr key={row.ru} className="border-t border-gray-100">
-                <td className="py-2 pr-4 font-bold text-gray-900">{row.ru}</td>
+              <tr key={row.ru} className="border-t border-line">
+                <td className="py-2 pr-4 font-bold text-ink">{row.ru}</td>
                 {axes.map((a) => (
-                  <td key={a} className="py-2 pr-4 text-gray-600">{row[a] != null ? row[a] : '—'}</td>
+                  <td key={a} className="py-2 pr-4 text-ink-soft">{row[a] != null ? row[a] : '—'}</td>
                 ))}
               </tr>
             ))}
@@ -151,11 +151,11 @@ function ConversionTable({ chart }) {
   const hasIntl = chart.conversion.some((r) => r.intl)
   return (
     <section>
-      <h3 className="text-sm font-bold text-gray-900 mb-3">Конвертация размеров</h3>
+      <h3 className="font-display text-sm font-bold text-ink mb-3">Конвертация размеров</h3>
       <div className="overflow-x-auto -mx-1 px-1">
         <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="text-gray-400 text-xs">
+            <tr className="text-ink-faint text-xs">
               <th className="text-left font-semibold py-2 pr-4">RU</th>
               <th className="text-left font-semibold py-2 pr-4">EU</th>
               <th className="text-left font-semibold py-2 pr-4">US</th>
@@ -164,11 +164,11 @@ function ConversionTable({ chart }) {
           </thead>
           <tbody>
             {chart.conversion.map((row) => (
-              <tr key={row.ru} className="border-t border-gray-100">
-                <td className="py-2 pr-4 font-bold text-gray-900">{row.ru}</td>
-                <td className="py-2 pr-4 text-gray-600">{row.eu || '—'}</td>
-                <td className="py-2 pr-4 text-gray-600">{row.us || '—'}</td>
-                {hasIntl && <td className="py-2 pr-4 text-gray-600">{row.intl || '—'}</td>}
+              <tr key={row.ru} className="border-t border-line">
+                <td className="py-2 pr-4 font-bold text-ink">{row.ru}</td>
+                <td className="py-2 pr-4 text-ink-soft">{row.eu || '—'}</td>
+                <td className="py-2 pr-4 text-ink-soft">{row.us || '—'}</td>
+                {hasIntl && <td className="py-2 pr-4 text-ink-soft">{row.intl || '—'}</td>}
               </tr>
             ))}
           </tbody>
@@ -203,15 +203,15 @@ function SizeMatcher({ chart, prefill }) {
 
   return (
     <section>
-      <h3 className="text-sm font-bold text-gray-900 mb-1">Подобрать размер</h3>
-      <p className="text-xs text-gray-400 mb-3">
+      <h3 className="font-display text-sm font-bold text-ink mb-1">Подобрать размер</h3>
+      <p className="text-xs text-ink-faint mb-3">
         Введите мерки тела в сантиметрах - подскажем размер. Данные остаются в браузере.
       </p>
       <form onSubmit={onSubmit} className="flex flex-col gap-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {axes.map((a) => (
             <label key={a} className="flex flex-col gap-1">
-              <span className="text-xs text-gray-500 font-medium">{AXIS_LABEL[a]}</span>
+              <span className="text-xs text-ink-soft font-medium">{AXIS_LABEL[a]}</span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -220,26 +220,26 @@ function SizeMatcher({ chart, prefill }) {
                 value={values[a]}
                 onChange={(e) => setValues((v) => ({ ...v, [a]: e.target.value }))}
                 placeholder="—"
-                className="h-11 px-3 rounded-xl border-2 border-gray-200 text-sm focus:border-indigo-400 outline-none"
+                className="h-11 px-3 rounded-xl border-2 border-line bg-surface text-sm text-ink focus:border-line-strong focus:bg-card"
               />
             </label>
           ))}
         </div>
         <button
           type="submit"
-          className="self-start px-5 py-2.5 rounded-xl bg-[#111] text-white text-sm font-bold hover:bg-gray-800 transition"
+          className="self-start px-5 py-2.5 rounded-xl bg-ink text-white text-sm font-bold hover:bg-ink/90 transition"
         >
           Подобрать размер
         </button>
       </form>
 
       {touched && result && (
-        <div className="mt-4 bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-          <p className="text-sm text-gray-700">
+        <div className="mt-4 bg-success/10 border border-success/20 rounded-xl p-4">
+          <p className="text-sm text-ink-soft">
             Рекомендуем размер{' '}
-            <span className="font-black text-emerald-700">RU {result.ru}</span>
+            <span className="font-display font-bold text-success">RU {result.ru}</span>
             {result.conversion && (
-              <span className="text-gray-500">
+              <span className="text-ink-faint">
                 {' '}({[
                   result.conversion.eu && `EU ${result.conversion.eu}`,
                   result.conversion.us && `US ${result.conversion.us}`,
@@ -249,7 +249,7 @@ function SizeMatcher({ chart, prefill }) {
             )}
           </p>
           {result.nearest && (
-            <p className="text-xs text-amber-600 mt-1">
+            <p className="text-xs text-warning mt-1">
               Мерка за границами таблицы - показан ближайший размер.
             </p>
           )}
@@ -257,7 +257,7 @@ function SizeMatcher({ chart, prefill }) {
       )}
 
       {touched && !result && (
-        <p className="mt-4 text-xs text-red-500">
+        <p className="mt-4 text-xs text-danger">
           Введите хотя бы одну корректную мерку (число больше нуля).
         </p>
       )}

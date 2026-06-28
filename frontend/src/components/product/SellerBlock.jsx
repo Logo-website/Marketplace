@@ -26,21 +26,21 @@ export default function SellerBlock({ sellerName, sellerId, productId }) {
   }
 
   return (
-    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 flex items-center justify-between gap-3">
+    <div className="bg-surface rounded-xl p-4 border border-line flex items-center justify-between gap-3">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 shrink-0">
+        <div className="w-10 h-10 rounded-full bg-card border border-line flex items-center justify-center text-sm font-bold text-ink-soft shrink-0">
           {sellerName[0]?.toUpperCase()}
         </div>
         <div className="min-w-0">
-          <p className="text-xs text-gray-400">Продаёт</p>
-          <p className="text-sm font-semibold text-gray-800 truncate">{sellerName}</p>
+          <p className="text-xs text-ink-faint">Продаёт</p>
+          <p className="text-sm font-semibold text-ink truncate">{sellerName}</p>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {sellerId && (
           <Link
             to={`/brand/${sellerId}`}
-            className="text-xs font-semibold text-gray-600 hover:text-[#111] border border-gray-200 rounded-lg px-3 py-1.5 transition"
+            className="text-xs font-semibold text-ink-soft hover:text-ink border border-line hover:border-line-strong rounded-lg px-3 py-1.5 transition"
           >
             Витрина
           </Link>
@@ -48,7 +48,7 @@ export default function SellerBlock({ sellerName, sellerId, productId }) {
         {sellerId && (
           <button
             onClick={writeToSeller}
-            className="text-xs font-semibold text-white bg-[#111] hover:bg-gray-800 rounded-lg px-3 py-1.5 transition"
+            className="text-xs font-semibold text-white bg-ink hover:bg-ink/90 rounded-lg px-3 py-1.5 transition"
           >
             Написать
           </button>

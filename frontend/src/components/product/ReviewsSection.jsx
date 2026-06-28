@@ -21,7 +21,7 @@ function Stars({ value }) {
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((s) => (
-        <span key={s} className={`text-sm ${value >= s ? 'text-amber-400' : 'text-gray-200'}`}>★</span>
+        <span key={s} className={`text-sm ${value >= s ? 'text-star' : 'text-line-strong'}`}>★</span>
       ))}
     </div>
   )
@@ -85,9 +85,9 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
   return (
     <div className="p-6 md:p-8">
       <div className="flex items-center gap-3 mb-6">
-        <h2 className="text-xl font-black text-gray-900">Отзывы</h2>
+        <h2 className="font-display text-xl font-bold text-ink">Отзывы</h2>
         {totalCount > 0 && (
-          <span className="bg-gray-100 text-gray-500 text-xs font-bold px-2.5 py-1 rounded-lg">
+          <span className="bg-surface text-ink-soft text-xs font-bold px-2.5 py-1 rounded-lg">
             {totalCount}
           </span>
         )}
@@ -95,13 +95,13 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
 
       {/* Сводка: средняя + распределение по звёздам */}
       {totalCount > 0 && (
-        <div className="flex flex-col sm:flex-row gap-6 mb-6 pb-6 border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row gap-6 mb-6 pb-6 border-b border-line">
           <div className="flex flex-col items-center justify-center sm:w-40 shrink-0">
-            <span className="text-5xl font-black text-gray-900">
+            <span className="font-display text-5xl font-bold text-ink">
               {Number(productRating).toFixed(1)}
             </span>
             <Stars value={Math.round(productRating)} />
-            <span className="text-xs text-gray-400 mt-1">{totalCount} отзывов</span>
+            <span className="text-xs text-ink-faint mt-1">{totalCount} отзывов</span>
           </div>
           <div className="flex-1 flex flex-col gap-1.5 justify-center">
             {[5, 4, 3, 2, 1].map((star) => {
@@ -114,22 +114,22 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
                   onClick={() => setRatingFilter(active ? null : star)}
                   className={`flex items-center gap-2 group ${active ? 'opacity-100' : 'opacity-90 hover:opacity-100'}`}
                 >
-                  <span className="text-xs text-gray-500 w-3 text-right">{star}</span>
-                  <span className="text-amber-400 text-xs">★</span>
-                  <span className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <span className="text-xs text-ink-soft w-3 text-right">{star}</span>
+                  <span className="text-star text-xs">★</span>
+                  <span className="flex-1 h-2 bg-surface rounded-full overflow-hidden">
                     <span
-                      className={`block h-full rounded-full ${active ? 'bg-[#111]' : 'bg-amber-400'}`}
+                      className={`block h-full rounded-full ${active ? 'bg-ink' : 'bg-star'}`}
                       style={{ width: `${pct}%` }}
                     />
                   </span>
-                  <span className="text-xs text-gray-400 w-7 text-right">{count}</span>
+                  <span className="text-xs text-ink-faint w-7 text-right">{count}</span>
                 </button>
               )
             })}
             {ratingFilter && (
               <button
                 onClick={() => setRatingFilter(null)}
-                className="text-xs text-indigo-600 font-semibold hover:underline mt-1 self-start"
+                className="text-xs text-accent font-semibold hover:underline mt-1 self-start"
               >
                 Сбросить фильтр ({ratingFilter}★)
               </button>
@@ -147,8 +147,8 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
               onClick={() => setSort(s.key)}
               className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${
                 sort === s.key
-                  ? 'bg-[#111] text-white border-[#111]'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                  ? 'bg-ink text-white border-ink'
+                  : 'bg-card text-ink-soft border-line hover:border-line-strong'
               }`}
             >
               {s.label}
@@ -159,11 +159,11 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
 
       {/* Гость */}
       {!isAuthenticated && (
-        <div className="bg-gray-50 rounded-xl p-5 mb-6 border border-gray-100 flex items-center justify-between">
-          <p className="text-gray-500 text-sm">Войдите, чтобы оставить отзыв</p>
+        <div className="bg-surface rounded-xl p-5 mb-6 border border-line flex items-center justify-between">
+          <p className="text-ink-soft text-sm">Войдите, чтобы оставить отзыв</p>
           <button
             onClick={onLoginRequired}
-            className="text-sm text-indigo-600 font-semibold hover:underline shrink-0 ml-4"
+            className="text-sm text-accent font-semibold hover:underline shrink-0 ml-4"
           >
             Войти →
           </button>
@@ -172,8 +172,8 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
 
       {/* Форма (право проверяет сервер при отправке) */}
       {isAuthenticated && (
-        <div className="bg-gray-50 rounded-xl p-5 mb-6 border border-gray-100">
-          <p className="text-sm font-semibold text-gray-700 mb-3">Оставить отзыв</p>
+        <div className="bg-surface rounded-xl p-5 mb-6 border border-line">
+          <p className="text-sm font-semibold text-ink mb-3">Оставить отзыв</p>
           <div className="flex gap-0.5 mb-3">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
@@ -181,7 +181,7 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
                 onClick={() => setNewRating(star)}
                 aria-label={`Оценка ${star}`}
                 className={`text-2xl leading-none transition ${
-                  newRating >= star ? 'text-amber-400' : 'text-gray-200 hover:text-amber-200'
+                  newRating >= star ? 'text-star' : 'text-line-strong hover:text-star/60'
                 }`}
               >★</button>
             ))}
@@ -190,14 +190,14 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             placeholder="Напишите ваш отзыв..."
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition resize-none mb-3 bg-white"
+            className="w-full border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder:text-ink-faint focus:border-line-strong transition resize-none mb-3 bg-card"
             rows={4}
           />
-          {reviewError && <p className="text-red-500 text-xs mb-2">{reviewError}</p>}
+          {reviewError && <p className="text-danger text-xs mb-2">{reviewError}</p>}
           <motion.button
             onClick={handleSubmit}
             disabled={submitting}
-            className="bg-[#111] text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-gray-800 transition disabled:opacity-50"
+            className="bg-ink text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-ink/90 transition disabled:opacity-50"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -208,11 +208,11 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
 
       {/* Список */}
       {reviews.length === 0 ? (
-        <p className="text-gray-400 text-sm text-center py-8">
+        <p className="text-ink-faint text-sm text-center py-8">
           {ratingFilter ? `Нет отзывов с оценкой ${ratingFilter}★` : 'Отзывов пока нет — будьте первым!'}
         </p>
       ) : (
-        <div className="flex flex-col divide-y divide-gray-100">
+        <div className="flex flex-col divide-y divide-line">
           {reviews.map((review, i) => (
             <motion.div
               key={review.id}
@@ -223,23 +223,23 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
+                  <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-xs font-bold text-ink-soft">
                     {review.username?.[0]?.toUpperCase()}
                   </div>
-                  <span className="font-semibold text-sm text-gray-800">{review.username}</span>
+                  <span className="font-semibold text-sm text-ink">{review.username}</span>
                 </div>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-ink-faint">
                   {review.created_at ? new Date(review.created_at).toLocaleDateString('ru-RU') : ''}
                 </span>
               </div>
               <div className="ml-10 mb-2"><Stars value={review.rating} /></div>
-              <p className="text-sm text-gray-600 leading-relaxed ml-10">{review.text}</p>
+              <p className="text-sm text-ink-soft leading-relaxed ml-10">{review.text}</p>
 
               {/* Пожаловаться на отзыв (Ф18). Уходит модератору в очередь. */}
               {onReport && (
                 <button
                   onClick={() => onReport(review.id)}
-                  className="ml-10 mt-2 text-xs text-gray-400 hover:text-red-500 transition"
+                  className="ml-10 mt-2 text-xs text-ink-faint hover:text-danger transition"
                 >
                   Пожаловаться
                 </button>
@@ -249,17 +249,17 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
                   отзывом. Имя - sellerName (shop_name, S17), не email. Текст как
                   текст (React экранирует) - без dangerouslySetInnerHTML (XSS). */}
               {review.seller_reply && (
-                <div className="ml-10 mt-3 bg-gray-50 border-l-2 border-[#111] rounded-r-xl p-3.5">
+                <div className="ml-10 mt-3 bg-surface border-l-2 border-ink rounded-r-xl p-3.5">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-bold text-gray-800">{sellerName || 'Ответ продавца'}</span>
-                    <span className="bg-[#111] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">Продавец</span>
+                    <span className="text-xs font-bold text-ink">{sellerName || 'Ответ продавца'}</span>
+                    <span className="bg-ink text-white text-[10px] font-bold px-1.5 py-0.5 rounded">Продавец</span>
                     {review.seller_reply_at && (
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-ink-faint">
                         {new Date(review.seller_reply_at).toLocaleDateString('ru-RU')}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 leading-relaxed">{review.seller_reply}</p>
+                  <p className="text-sm text-ink-soft leading-relaxed">{review.seller_reply}</p>
                 </div>
               )}
             </motion.div>

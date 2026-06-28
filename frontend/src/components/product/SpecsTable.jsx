@@ -11,11 +11,11 @@ export default function SpecsTable({ specs }) {
   if (rows.length === 0) return null
 
   return (
-    <dl className="divide-y divide-gray-100">
+    <dl className="divide-y divide-line">
       {rows.map(([key, value]) => (
         <div key={key} className="flex justify-between gap-4 py-3 text-sm">
-          <dt className="text-gray-400 shrink-0">{key}</dt>
-          <dd className="text-gray-800 font-medium text-right">{String(value)}</dd>
+          <dt className="text-ink-faint shrink-0">{key}</dt>
+          <dd className="text-ink font-medium text-right">{String(value)}</dd>
         </div>
       ))}
     </dl>

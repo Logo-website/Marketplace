@@ -25,7 +25,7 @@ export default function VariantPicker({
     <div className="flex flex-col gap-4">
       {hasColors && (
         <div>
-          <span className="text-sm text-gray-500 font-medium block mb-2">
+          <span className="text-sm text-ink-soft font-medium block mb-2">
             Цвет{selectedColor ? `: ${selectedColor.label}` : ''}
           </span>
           <div className="flex flex-wrap gap-2">
@@ -39,9 +39,9 @@ export default function VariantPicker({
                   aria-label={color.label}
                   aria-pressed={active}
                   className={`w-9 h-9 rounded-full border-2 transition-all ${
-                    active ? 'border-indigo-500 scale-110' : 'border-gray-200 hover:border-gray-300'
+                    active ? 'border-accent scale-110' : 'border-line hover:border-line-strong'
                   }`}
-                  style={{ backgroundColor: color.code || '#e5e7eb' }}
+                  style={{ backgroundColor: color.code || 'var(--color-line-strong)' }}
                 />
               )
             })}
@@ -52,13 +52,13 @@ export default function VariantPicker({
       {hasSizes && (
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 font-medium">
+            <span className="text-sm text-ink-soft font-medium">
               Размер{selectedSize ? `: ${selectedSize}` : ''}
             </span>
             {onSizeGuide && (
               <button
                 onClick={onSizeGuide}
-                className="text-xs text-indigo-600 font-semibold hover:underline"
+                className="text-xs text-accent font-semibold hover:underline"
               >
                 Таблица размеров
               </button>
@@ -76,10 +76,10 @@ export default function VariantPicker({
                   disabled={!available}
                   className={`min-w-[3rem] h-11 px-3 rounded-xl border-2 text-sm font-semibold transition-all ${
                     active
-                      ? 'border-[#111] bg-[#111] text-white'
+                      ? 'border-ink bg-ink text-white'
                       : available
-                        ? 'border-gray-200 text-gray-700 hover:border-gray-400'
-                        : 'border-gray-100 text-gray-300 line-through cursor-not-allowed'
+                        ? 'border-line text-ink-soft hover:border-line-strong'
+                        : 'border-line text-ink-faint line-through cursor-not-allowed'
                   }`}
                 >
                   {size.label}
