@@ -133,6 +133,8 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Auth | POST | `/api/auth/password-reset/` | Public |
 | Auth | POST | `/api/auth/password-reset/verify/` | Public |
 | Auth | POST | `/api/auth/password-change/` | Authenticated (old → new, no OTP) |
+| Auth | POST | `/api/auth/email-change/` | Authenticated — password + OTP to new address |
+| Auth | POST | `/api/auth/email-change/verify/` | Authenticated — confirm OTP, alert sent to old address |
 | Auth | GET/POST | `/api/auth/addresses/` | Authenticated (own delivery addresses) |
 | Auth | GET/PUT/PATCH/DELETE | `/api/auth/addresses/{id}/` | Authenticated (own; one default) |
 | Auth | POST | `/api/auth/seller/onboarding/` | Authenticated (become seller; full set activates, flips role buyer → seller) |

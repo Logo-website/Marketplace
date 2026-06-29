@@ -32,11 +32,6 @@ export default function MyDataTab() {
 
   const PROFILE_FIELDS = [
     {
-      fieldKey: 'email', label: 'Email', value: user?.email, type: 'email', readOnly: true,
-      description: 'Используется для входа. Сменить email пока нельзя',
-      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
-    },
-    {
       fieldKey: 'username', label: 'Имя пользователя', value: user?.username, type: 'text',
       description: 'Отображается на сайте',
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
@@ -91,6 +86,54 @@ export default function MyDataTab() {
     }
   }
 
+  // --- Смена email (двухшаговый OTP, контракт Фазы 1 плана) ---
+  // Шаг 1: новый email + текущий пароль -> код на новый адрес. Шаг 2: код.
+  // Email = логин, поэтому НЕ через ProfileField (он PATCHит read_only поле).
+  const [emailStep, setEmailStep] = useState('request') // 'request' | 'verify'
+  const [emailForm, setEmailForm] = useState({ new_email: '', password: '', code: '' })
+  const [emailSaving, setEmailSaving] = useState(false)
+
+  const requestEmailChange = async (e) => {
+    e.preventDefault()
+    setEmailSaving(true)
+    try {
+      await api.post('/auth/email-change/', {
+        new_email: emailForm.new_email,
+        password: emailForm.password,
+      })
+      setEmailStep('verify')
+      toast.success('Код отправлен на новый адрес')
+    } catch (err) {
+      toast.error(firstError(err.response?.data, 'Не удалось отправить код'))
+    } finally {
+      setEmailSaving(false)
+    }
+  }
+
+  const verifyEmailChange = async (e) => {
+    e.preventDefault()
+    setEmailSaving(true)
+    try {
+      await api.post('/auth/email-change/verify/', {
+        new_email: emailForm.new_email,
+        code: emailForm.code,
+      })
+      await fetchProfile()
+      toast.success('Email изменён')
+      setEmailStep('request')
+      setEmailForm({ new_email: '', password: '', code: '' })
+    } catch (err) {
+      toast.error(firstError(err.response?.data, 'Не удалось подтвердить код'))
+    } finally {
+      setEmailSaving(false)
+    }
+  }
+
+  const cancelEmailChange = () => {
+    setEmailStep('request')
+    setEmailForm({ new_email: '', password: '', code: '' })
+  }
+
   const inputCls = 'w-full border border-line-strong rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-soft bg-card'
 
   return (
@@ -102,6 +145,57 @@ export default function MyDataTab() {
       <div className="flex flex-col gap-3 mb-8">
         {PROFILE_FIELDS.map((f) => <ProfileField key={f.fieldKey} {...f} />)}
       </div>
+
+      {/* Смена email (логин). Двухшаговый OTP: пароль + код на новый адрес. */}
+      <section className="bg-card rounded-2xl border border-line p-6 mb-8">
+        <h3 className="font-display text-base font-bold text-ink mb-1">Email для входа</h3>
+        <p className="text-xs text-ink-faint mb-5">
+          Текущий: <span className="font-semibold text-ink-soft">{user?.email}</span>
+        </p>
+
+        {emailStep === 'request' ? (
+          <form onSubmit={requestEmailChange} className="flex flex-col gap-3 max-w-sm">
+            <input
+              type="email" required placeholder="Новый email"
+              value={emailForm.new_email}
+              onChange={(e) => setEmailForm((p) => ({ ...p, new_email: e.target.value }))}
+              className={inputCls} autoComplete="email"
+            />
+            <input
+              type="password" required placeholder="Текущий пароль"
+              value={emailForm.password}
+              onChange={(e) => setEmailForm((p) => ({ ...p, password: e.target.value }))}
+              className={inputCls} autoComplete="current-password"
+            />
+            <p className="text-xs text-ink-faint">
+              Пароль подтверждает, что это вы. На новый адрес придёт код.
+            </p>
+            <button type="submit" disabled={emailSaving} className="self-start text-xs font-semibold bg-ink text-white px-5 py-2.5 rounded-xl hover:bg-ink/90 transition disabled:opacity-50">
+              {emailSaving ? 'Отправка...' : 'Отправить код'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={verifyEmailChange} className="flex flex-col gap-3 max-w-sm">
+            <p className="text-xs text-ink-faint">
+              Код отправлен на <span className="font-semibold text-ink-soft">{emailForm.new_email}</span>
+            </p>
+            <input
+              type="text" required placeholder="Код из письма" inputMode="numeric"
+              value={emailForm.code}
+              onChange={(e) => setEmailForm((p) => ({ ...p, code: e.target.value }))}
+              className={inputCls} autoComplete="one-time-code" autoFocus
+            />
+            <div className="flex gap-2">
+              <button type="submit" disabled={emailSaving} className="text-xs font-semibold bg-ink text-white px-5 py-2.5 rounded-xl hover:bg-ink/90 transition disabled:opacity-50">
+                {emailSaving ? 'Подтверждение...' : 'Подтвердить и сменить'}
+              </button>
+              <button type="button" onClick={cancelEmailChange} className="text-xs text-ink-faint hover:text-ink-soft px-3 py-2.5 rounded-xl hover:bg-surface transition font-medium">
+                Отмена
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
 
       {/* Роль */}
       <div className="p-5 rounded-2xl border border-line bg-card mb-8">

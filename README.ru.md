@@ -133,6 +133,8 @@
 | Auth | POST | `/api/auth/password-reset/` | Публичный |
 | Auth | POST | `/api/auth/password-reset/verify/` | Публичный |
 | Auth | POST | `/api/auth/password-change/` | Авторизованный (старый → новый, без OTP) |
+| Auth | POST | `/api/auth/email-change/` | Авторизованный — пароль + OTP на новый адрес |
+| Auth | POST | `/api/auth/email-change/verify/` | Авторизованный — подтверждение OTP, алерт на старый адрес |
 | Auth | GET/POST | `/api/auth/addresses/` | Авторизованный (свои адреса доставки) |
 | Auth | GET/PUT/PATCH/DELETE | `/api/auth/addresses/{id}/` | Авторизованный (свои; один по умолчанию) |
 | Auth | POST | `/api/auth/seller/onboarding/` | Авторизованный (стать продавцом; полный комплект активирует, меняет роль buyer → seller) |
