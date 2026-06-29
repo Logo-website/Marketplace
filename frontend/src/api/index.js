@@ -1,7 +1,11 @@
 import axios from 'axios'
 
+// Локально VITE_API_URL не задан -> относительный '/api' (прокси Vite на :8001).
+// На проде фронт и бэк на разных доменах: при сборке подставляем полный URL бэка.
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
 })
 
 // Автоматически добавляем JWT токен к каждому запросу
@@ -22,7 +26,7 @@ async function doRefresh() {
   const refresh = localStorage.getItem('refresh_token')
   // Голый axios, а не api: на самом refresh не должен срабатывать этот же
   // response-интерсептор, иначе 401 на refresh зациклит обновление.
-  const res = await axios.post('/api/auth/token/refresh/', { refresh })
+  const res = await axios.post(`${API_BASE}/auth/token/refresh/`, { refresh })
   localStorage.setItem('access_token', res.data.access)
   // F1: при ROTATE_REFRESH_TOKENS + BLACKLIST_AFTER_ROTATION бэк возвращает
   // новый refresh, а старый блэклистит. Обязаны сохранить новый, иначе
