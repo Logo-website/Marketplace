@@ -19,11 +19,18 @@ function loadCity() {
 export default function CitySelector({ onNavigate }) {
   const { open, toggle, setOpen, ref } = useDropdown()
   const [city, setCity] = useState(loadCity)
+  const [query, setQuery] = useState('')
 
   // Если в localStorage не было города - зафиксируем дефолт при первом заходе.
   useEffect(() => {
     if (!localStorage.getItem(STORAGE_KEY)) localStorage.setItem(STORAGE_KEY, city)
   }, [city])
+
+  // Закрыли список - сбрасываем строку поиска, чтобы при следующем открытии
+  // показать весь справочник заново.
+  useEffect(() => {
+    if (!open) setQuery('')
+  }, [open])
 
   const select = (c) => {
     setCity(c)
@@ -31,6 +38,9 @@ export default function CitySelector({ onNavigate }) {
     setOpen(false)
     onNavigate?.()
   }
+
+  const q = query.trim().toLowerCase()
+  const filtered = q ? CITIES.filter((c) => c.toLowerCase().includes(q)) : CITIES
 
   return (
     <div className="relative" ref={ref}>
@@ -56,21 +66,38 @@ export default function CitySelector({ onNavigate }) {
             transition={MOTION_FAST}
             className="absolute top-full right-0 mt-2 w-56 bg-card rounded-2xl shadow-lift border border-line overflow-hidden z-50 max-h-[60vh] overflow-y-auto"
           >
-            <p className="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-widest text-ink-faint">
-              Ваш город
-            </p>
-            {CITIES.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => select(c)}
-                className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-surface ${
-                  c === city ? 'font-bold text-ink' : 'text-ink-soft'
-                }`}
-              >
-                {c}
-              </button>
-            ))}
+            <div className="sticky top-0 bg-card border-b border-line">
+              <p className="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-widest text-ink-faint">
+                Ваш город
+              </p>
+              <div className="px-3 pt-1 pb-2">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Поиск города"
+                  aria-label="Поиск города"
+                  autoFocus
+                  className="w-full px-3 py-2 text-sm rounded-lg bg-surface border border-line text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
+                />
+              </div>
+            </div>
+            {filtered.length === 0 ? (
+              <p className="px-4 py-3 text-sm text-ink-faint">Ничего не найдено</p>
+            ) : (
+              filtered.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => select(c)}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-surface ${
+                    c === city ? 'font-bold text-ink' : 'text-ink-soft'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))
+            )}
           </motion.div>
         )}
       </AnimatePresence>
