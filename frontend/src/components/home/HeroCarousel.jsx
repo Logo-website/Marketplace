@@ -17,7 +17,7 @@ function Banner({ banner }) {
   return (
     <Link
       to={banner.to}
-      className="group relative block overflow-hidden rounded-3xl border border-line bg-linear-to-br from-accent-soft via-surface to-canvas px-8 py-10 md:px-14 md:py-16 h-60 md:h-72"
+      className="group relative block overflow-hidden rounded-3xl border border-line bg-linear-to-br from-accent-soft via-surface to-canvas px-8 py-10 md:px-14 md:py-16 h-full min-h-60 md:min-h-72"
     >
       <div
         aria-hidden
@@ -70,7 +70,7 @@ export default function HeroCarousel() {
         pagination={{ clickable: true }}
       >
         {banners.map((banner) => (
-          <SwiperSlide key={banner.id}>
+          <SwiperSlide key={banner.id} className="h-auto">
             <Banner banner={banner} />
           </SwiperSlide>
         ))}
