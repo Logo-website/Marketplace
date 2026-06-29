@@ -27,10 +27,14 @@ export default function CitySelector({ onNavigate }) {
   }, [city])
 
   // Закрыли список - сбрасываем строку поиска, чтобы при следующем открытии
-  // показать весь справочник заново.
-  useEffect(() => {
+  // показать весь справочник заново. Делаем при рендере (паттерн React
+  // "adjust state on change"), а не в эффекте: setState в эффекте ругает линтер
+  // и даёт лишний ререндер.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
     if (!open) setQuery('')
-  }, [open])
+  }
 
   const select = (c) => {
     setCity(c)
