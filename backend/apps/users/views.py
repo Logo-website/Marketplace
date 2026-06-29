@@ -6,11 +6,15 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from django.utils.html import escape
 from django.conf import settings
 from django.utils import timezone
+from apps.notifications.tasks import send_notification_email
 from .serializers import (
     RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer,
     AddressSerializer, PasswordChangeSerializer, SellerProfileSerializer,
@@ -22,6 +26,7 @@ from .validators import (
 from .throttling import (
     LoginRateThrottle, RegisterRateThrottle,
     VerifyRateThrottle, PasswordResetRequestThrottle,
+    EmailChangeRequestThrottle, EmailChangeVerifyThrottle,
 )
 
 logger = logging.getLogger(__name__)
@@ -459,3 +464,112 @@ class PasswordResetVerifyView(APIView):
             return Response({'error': 'Ошибка сброса пароля'}, status=400)
 
         return Response({'detail': 'Пароль успешно изменён'})
+
+
+def _email_change_alert_html(new_email):
+    """HTML security-алерта старому владельцу. new_email экранируем: validate_email
+    пропускает quoted-local-part (`"<script>"@x.com`) с `<`/`>`, а адрес уходит
+    наружу письмом - без escape это XSS в почтовом клиенте получателя."""
+    return f'''
+        <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+            <h2 style="color: #111;">Email вашего аккаунта изменён</h2>
+            <p>Новый адрес входа: <strong>{escape(new_email)}</strong>.</p>
+            <p style="color: #666;">Если это были не вы - срочно восстановите доступ
+            через сброс пароля и обратитесь в поддержку.</p>
+            <hr style="border: none; border-top: 1px solid #eee;">
+            <p style="color: #999; font-size: 12px;">Marketplace</p>
+        </div>
+    '''
+
+
+class EmailChangeRequestView(APIView):
+    """Шаг 1 смены email - пароль + новый адрес, OTP летит на новый адрес.
+
+    Email = USERNAME_FIELD, смена email = смена логина. Личность подтверждаем
+    паролём (защита от угона JWT из localStorage), владение новым адресом - OTP."""
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [EmailChangeRequestThrottle]
+
+    def post(self, request):
+        password = request.data.get('password', '')
+        new_email = request.data.get('new_email', '')
+        if not password or not new_email:  # R11
+            return Response({'error': 'Укажите новый email и пароль'}, status=400)
+
+        new_email = new_email.strip().lower()  # R1: регрессия исходного бага регистра
+
+        try:
+            validate_email(new_email)  # R12: голый APIView, авто-валидации формата нет
+        except ValidationError:
+            return Response({'error': 'Некорректный email'}, status=400)
+
+        # Личность - паролём текущего пользователя (защита от угона токена)
+        if not authenticate(request, email=request.user.email, password=password):
+            return Response({'error': 'Неверный пароль'}, status=400)
+
+        if new_email == request.user.email.lower():  # R3
+            return Response({'error': 'Это ваш текущий email'}, status=400)
+
+        if User.objects.filter(email__iexact=new_email).exists():  # R2: регистронезависимо
+            return Response({'error': 'Этот email уже занят'}, status=400)
+
+        otp = OTPCode.generate(new_email, {
+            'action': 'change_email',
+            'user_id': request.user.id,
+            'new_email': new_email,
+        })
+
+        try:
+            send_otp_email(
+                new_email, otp.code,
+                'Подтверждение нового email — Marketplace',
+                'Подтвердите смену email',
+            )
+        except Exception as e:
+            logger.error(f'Resend error (email change): {e}')
+            return Response({'error': 'Ошибка отправки кода. Попробуйте позже.'}, status=500)
+
+        return Response({'detail': 'Код отправлен на новый адрес', 'new_email': new_email})
+
+
+class EmailChangeVerifyView(APIView):
+    """Шаг 2 смены email - проверяем OTP с нового адреса и записываем новый email."""
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [EmailChangeVerifyThrottle]
+
+    def post(self, request):
+        new_email = request.data.get('new_email', '').strip().lower()
+        code = request.data.get('code', '').strip()
+        if not new_email or not code:
+            return Response({'error': 'Укажите email и код'}, status=400)
+
+        otp, error = consume_otp(new_email, code, action='change_email')
+        if error:
+            return error
+
+        # R7: код мог быть выписан другому пользователю - анти-IDOR
+        if otp.data.get('user_id') != request.user.id:
+            return Response({'error': 'Доступ запрещён'}, status=403)
+
+        # R2: email мог занять кто-то между шагом 1 и verify - дружелюбный 400
+        if User.objects.filter(email__iexact=new_email).exists():
+            return Response({'error': 'Этот email уже занят'}, status=400)
+
+        old_email = request.user.email  # R10: захватить ДО присвоения нового
+
+        request.user.email = otp.data['new_email']  # уже lower
+        try:
+            request.user.save()
+        except IntegrityError:  # R4: unique=True закрывает гонку до конца -> 400, не 500
+            return Response({'error': 'Этот email уже занят'}, status=400)
+
+        # R10: security-алерт старому владельцу. Не notify()/channels.send_email (берут
+        # адрес из user.email) и не send_otp_email (код-шейпнутый). send_notification_email
+        # принимает явный адрес, произвольный HTML, async и глотает сбой Resend.
+        send_notification_email.delay(
+            old_email,
+            'Email вашего аккаунта изменён — Marketplace',
+            _email_change_alert_html(new_email),
+        )
+
+        return Response({'detail': 'Email изменён', 'email': new_email})

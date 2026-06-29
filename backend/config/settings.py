@@ -178,6 +178,7 @@ REST_FRAMEWORK = {
         'register': '5/minute',
         'verify': '5/minute',
         'password_reset': '5/minute',
+        'email_change': '3/hour',
         'chat': '30/minute',
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
