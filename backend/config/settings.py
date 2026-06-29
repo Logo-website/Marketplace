@@ -81,6 +81,13 @@ DATABASES = {
         'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
         'HOST': os.getenv('POSTGRES_HOST'),
         'PORT': os.getenv('POSTGRES_PORT'),
+        # SSL для managed-БД (Neon требует sslmode=require). Локально переменная
+        # не задана -> режим psycopg2 по умолчанию (prefer), Docker-Postgres без
+        # SSL подключается без ошибок.
+        'OPTIONS': (
+            {'sslmode': os.getenv('POSTGRES_SSLMODE')}
+            if os.getenv('POSTGRES_SSLMODE') else {}
+        ),
     }
 }
 
