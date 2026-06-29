@@ -5,6 +5,7 @@ import api from '../../api'
 import { toast } from '../../store/toastStore'
 import ErrorState from '../../components/states/ErrorState'
 import EmptyState from '../../components/states/EmptyState'
+import Icon from '../../components/ui/Icon'
 
 // Очередь модерации товаров (Ф17, узел 3.2). Админ видит, что прислал продавец,
 // и принимает решение: одобрить (-> active, попадает в каталог) или отклонить с
@@ -46,7 +47,7 @@ function ModerationCard({ product, busy, onApprove, onReject }) {
               onError={(e) => { e.target.style.display = 'none' }}
             />
           ) : (
-            <span className="text-2xl">📦</span>
+            <Icon name="orders" className="w-7 h-7 text-line-strong" />
           )}
         </div>
 
@@ -59,7 +60,7 @@ function ModerationCard({ product, busy, onApprove, onReject }) {
             >
               {product.name}
             </Link>
-            <span className="text-base font-black text-ink shrink-0">
+            <span className="font-display text-base font-bold text-ink shrink-0">
               {Number(product.price).toLocaleString()} ₽
             </span>
           </div>
@@ -196,7 +197,7 @@ export default function ModerationPage() {
           className="bg-ink rounded-2xl p-6 mb-6"
         >
           <p className="text-xs font-semibold text-accent-soft uppercase tracking-widest mb-1">Администрирование</p>
-          <h1 className="text-2xl font-black text-white">Модерация товаров</h1>
+          <h1 className="font-display text-2xl font-bold text-white">Модерация товаров</h1>
           <p className="text-ink-faint text-sm mt-1">
             Одобрите товар для публикации в каталоге или отклоните с причиной
           </p>
@@ -209,7 +210,7 @@ export default function ModerationPage() {
         ) : listError ? (
           <ErrorState title="Не удалось загрузить очередь модерации" onRetry={fetchQueue} />
         ) : items.length === 0 ? (
-          <EmptyState icon="✓" title="Очередь пуста" subtitle="Нет товаров, ожидающих модерации" />
+          <EmptyState icon={<Icon name="check" className="w-7 h-7 text-ink-faint" />} title="Очередь пуста" subtitle="Нет товаров, ожидающих модерации" />
         ) : (
           <div className="flex flex-col gap-3">
             <AnimatePresence initial={false}>

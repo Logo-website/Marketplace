@@ -116,7 +116,7 @@ export default function ActionFeed({ data, onNavigate }) {
 
   return (
     <div className="bg-card rounded-2xl border border-line p-5">
-      <h3 className="text-sm font-semibold text-ink mb-1">Что требует действия</h3>
+      <h3 className="font-display text-sm font-semibold text-ink mb-1">Что требует действия</h3>
       <p className="text-xs text-ink-faint mb-4">Сигналы по вашему магазину</p>
 
       {rows.length === 0 ? (

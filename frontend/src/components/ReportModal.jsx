@@ -75,7 +75,7 @@ export default function ReportModal({ targetType, targetId, targetLabel = 'ко�
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-ink/40"
       onClick={onClose}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -91,7 +91,7 @@ export default function ReportModal({ targetType, targetId, targetLabel = 'ко�
       >
         {/* Шапка */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-line shrink-0">
-          <h2 className="text-lg font-black text-ink">Пожаловаться на {targetLabel}</h2>
+          <h2 className="font-display text-lg font-bold text-ink">Пожаловаться на {targetLabel}</h2>
           <button
             onClick={onClose}
             aria-label="Закрыть"

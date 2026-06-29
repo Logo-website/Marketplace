@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../../api'
 import EmptyState from '../states/EmptyState'
 import ErrorState from '../states/ErrorState'
+import Icon from '../ui/Icon'
 import useAsyncData from '../../hooks/useAsyncData'
 import { toast } from '../../store/toastStore'
 
@@ -56,10 +57,10 @@ export default function ReturnsTab() {
 
   return (
     <motion.div key="returns" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <h2 className="text-xl font-black text-ink mb-5">Возвраты</h2>
+      <h2 className="font-display text-xl font-bold text-ink mb-5">Возвраты</h2>
       {returns.length === 0 ? (
         <EmptyState
-          icon="↩️"
+          icon={<Icon name="returns" className="w-7 h-7 text-ink-faint" />}
           title="Возвратов пока нет"
           subtitle="Оформить возврат можно из доставленного заказа на вкладке «Заказы»"
           action={{ label: 'К заказам', onClick: () => navigate('/profile?tab=orders') }}
@@ -208,7 +209,7 @@ function ReturnForm({ orderId, onCancel, onDone }) {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-line p-5 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-black text-ink">Возврат заказа #{orderId}</h2>
+        <h2 className="font-display text-lg font-bold text-ink">Возврат заказа #{orderId}</h2>
         <button onClick={onCancel} className="text-sm text-ink-faint hover:text-ink-soft">Отмена</button>
       </div>
 

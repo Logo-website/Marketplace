@@ -30,7 +30,7 @@ export default function SalesChart({ data }) {
   if (points.length === 0 || max === 0) {
     return (
       <div className="bg-card rounded-2xl border border-line p-6">
-        <h3 className="text-sm font-semibold text-ink mb-1">Продажи по дням</h3>
+        <h3 className="font-display text-sm font-semibold text-ink mb-1">Продажи по дням</h3>
         <p className="text-xs text-ink-faint mb-6">Выручка за выбранный период</p>
         <div className="h-48 flex flex-col items-center justify-center text-center">
           <div className="w-12 h-12 bg-surface rounded-xl flex items-center justify-center mb-3">
@@ -50,7 +50,7 @@ export default function SalesChart({ data }) {
 
   return (
     <div className="bg-card rounded-2xl border border-line p-6">
-      <h3 className="text-sm font-semibold text-ink mb-1">Продажи по дням</h3>
+      <h3 className="font-display text-sm font-semibold text-ink mb-1">Продажи по дням</h3>
       <p className="text-xs text-ink-faint mb-6">Выручка за выбранный период</p>
 
       <div className="flex items-end gap-1 h-48">

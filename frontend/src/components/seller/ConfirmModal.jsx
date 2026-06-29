@@ -35,7 +35,7 @@ export default function ConfirmModal({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink/40 p-0 sm:p-4"
       onClick={() => !loading && onCancel()}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -49,7 +49,7 @@ export default function ConfirmModal({
         exit={{ y: '100%', opacity: 0 }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
       >
-        <h2 className="text-lg font-black text-ink mb-1">{title}</h2>
+        <h2 className="font-display text-lg font-bold text-ink mb-1">{title}</h2>
         {message && <p className="text-sm text-ink-faint mb-5">{message}</p>}
         <div className="flex gap-2">
           <button

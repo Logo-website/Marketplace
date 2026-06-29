@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import api from '../../api'
 import { toast } from '../../store/toastStore'
 import ErrorState from '../states/ErrorState'
+import Icon from '../ui/Icon'
 
 // Возвраты продавца (Ф23, узел 2.7): заявки на ЕГО товары (S4), проведение по
 // машине статусов - принять/отклонить, приёмка (восстановит сток), возврат денег.
@@ -93,7 +94,7 @@ export default function SellerReturns() {
         <ErrorState title="Не удалось загрузить возвраты" onRetry={() => fetchReturns()} />
       ) : returns.length === 0 ? (
         <div className="text-center py-20 bg-card rounded-2xl border border-line">
-          <p className="text-4xl mb-3">↩️</p>
+          <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-3 text-ink-faint"><Icon name="returns" className="w-7 h-7" /></div>
           <p className="text-ink-faint">{statusFilter === 'all' ? 'Возвратов пока нет' : 'Нет возвратов в этом статусе'}</p>
         </div>
       ) : (

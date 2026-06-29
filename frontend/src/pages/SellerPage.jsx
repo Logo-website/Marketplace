@@ -228,7 +228,7 @@ export default function SellerPage() {
           <div className="relative flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-accent-soft uppercase tracking-widest mb-1">Кабинет</p>
-              <h1 className="text-2xl font-black text-white">Управление магазином</h1>
+              <h1 className="font-display text-2xl font-bold text-white">Управление магазином</h1>
               <p className="text-ink-faint text-sm mt-1">Товары, аналитика и продажи</p>
             </div>
             <div className="flex items-center gap-2">
@@ -287,7 +287,7 @@ export default function SellerPage() {
                   {stat.icon}
                 </div>
               </div>
-              <p className="text-2xl font-black text-ink">{stat.value}</p>
+              <p className="font-display text-2xl font-bold text-ink">{stat.value}</p>
               <p className="text-sm text-ink-faint mt-0.5">{stat.label}</p>
             </motion.div>
           ))}

@@ -37,7 +37,7 @@ export default function SellerOrderCard({ order, expanded, onToggle, busy, onSta
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className={`px-3 py-1.5 rounded-xl text-xs font-semibold ${st.color} hidden sm:inline`}>{st.label}</span>
-          <span className="font-black text-ink whitespace-nowrap">{rub(order.seller_total)}</span>
+          <span className="font-display font-bold text-ink whitespace-nowrap">{rub(order.seller_total)}</span>
           <svg className={`w-4 h-4 text-ink-faint transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>

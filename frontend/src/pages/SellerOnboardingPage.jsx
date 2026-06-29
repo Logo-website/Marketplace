@@ -60,7 +60,7 @@ export default function SellerOnboardingPage() {
           />
           <div className="relative">
             <p className="text-xs font-semibold text-accent-soft uppercase tracking-widest mb-1">Продавцам</p>
-            <h1 className="text-2xl font-black text-white">Стать продавцом</h1>
+            <h1 className="font-display text-2xl font-bold text-white">Стать продавцом</h1>
             <p className="text-ink-faint text-sm mt-1">
               Заполните данные - и откроется кабинет для продажи товаров.
             </p>

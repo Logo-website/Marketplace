@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import useAddressStore from '../../store/addressStore'
 import EmptyState from '../states/EmptyState'
 import ErrorState from '../states/ErrorState'
+import Icon from '../ui/Icon'
 import { toast } from '../../store/toastStore'
 
 const EMPTY = { full_name: '', phone: '', city: '', street: '', house: '', apartment: '', postal_code: '', is_default: false }
@@ -69,7 +70,7 @@ export default function AddressesTab() {
   return (
     <motion.div key="addresses" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-black text-ink">Адреса доставки</h2>
+        <h2 className="font-display text-xl font-bold text-ink">Адреса доставки</h2>
         {!form && (
           <button onClick={openAdd} className="text-xs font-semibold bg-ink text-white px-4 py-2 rounded-xl hover:bg-ink/90 transition">
             + Добавить
@@ -126,7 +127,7 @@ export default function AddressesTab() {
         <ErrorState onRetry={fetch} />
       ) : items.length === 0 && !form ? (
         <EmptyState
-          icon="📍"
+          icon={<Icon name="pin" className="w-7 h-7 text-ink-faint" />}
           title="Адресов пока нет"
           subtitle="Добавьте адрес, чтобы оформлять доставку быстрее"
           action={{ label: 'Добавить адрес', onClick: openAdd }}

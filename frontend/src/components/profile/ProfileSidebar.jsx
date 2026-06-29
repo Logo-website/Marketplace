@@ -53,7 +53,7 @@ export default function ProfileSidebar({ user, tabs, active, onSelect }) {
         <div className="bg-ink rounded-2xl p-5 relative overflow-hidden">
           <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 20%, var(--color-accent) 0%, transparent 60%)' }} />
           <div className="relative flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-xl font-black text-white shrink-0">
+            <div className="font-display w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-xl font-bold text-white shrink-0">
               {user?.username?.[0]?.toUpperCase() ?? 'U'}
             </div>
             <div className="min-w-0">

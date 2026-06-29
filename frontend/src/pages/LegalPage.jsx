@@ -4,6 +4,7 @@ import api from '../api'
 import useAsyncData from '../hooks/useAsyncData'
 import { Skeleton } from '../components/states/Skeleton'
 import ErrorState from '../components/states/ErrorState'
+import Icon from '../components/ui/Icon'
 
 // Страница юридического документа (Ф26, узел 1.20). Одна страница на все 5
 // документов - рендер по slug из /legal/:slug. Контент управляемый (БД+админка),
@@ -37,8 +38,8 @@ export default function LegalPage() {
     if (error?.response?.status === 404) {
       return (
         <div className="max-w-3xl mx-auto px-4 py-20 text-center">
-          <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">📄</div>
-          <h1 className="text-2xl font-bold text-ink mb-2">Документ не найден</h1>
+          <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-4 text-ink-faint"><Icon name="document" className="w-7 h-7" /></div>
+          <h1 className="font-display text-2xl font-bold text-ink mb-2">Документ не найден</h1>
           <p className="text-ink-faint text-sm mb-6">Такого документа нет или он снят с публикации.</p>
           <Link to="/" className="inline-block px-6 py-2.5 rounded-xl bg-ink text-white text-sm font-semibold hover:bg-ink/90 transition">
             На главную
@@ -63,7 +64,7 @@ export default function LegalPage() {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-3xl mx-auto px-4 py-10"
     >
-      <h1 className="text-3xl font-bold text-ink mb-2">{data.title}</h1>
+      <h1 className="font-display text-3xl font-bold text-ink mb-2">{data.title}</h1>
       <p className="text-sm text-ink-faint mb-8">
         Редакция {data.version}
         {effective ? ` · действует с ${effective}` : ''}

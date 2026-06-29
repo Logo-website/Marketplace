@@ -10,23 +10,25 @@ import NotificationsTab from '../components/profile/NotificationsTab'
 import ReturnsTab from '../components/profile/ReturnsTab'
 import ChatsTab from '../components/profile/ChatsTab'
 import ForwardTab from '../components/profile/ForwardTab'
+import Icon from '../components/ui/Icon'
 
 // Оболочка-кабинет (Ф10, узел 1.13). ProfilePage держит только роутинг вкладок
 // через ?tab=; каждая вкладка - независимый компонент со своей загрузкой (Ф0),
 // упавшая вкладка не валит кабинет. Форвард-узлы - честные заглушки ForwardTab.
+// Иконки - штриховые (бренд-гайд §4), не emoji.
 const TABS = [
-  { id: 'overview', label: 'Обзор', icon: '🏠' },
-  { id: 'orders', label: 'Заказы', icon: '📦' },
-  { id: 'data', label: 'Мои данные', icon: '👤' },
-  { id: 'addresses', label: 'Адреса', icon: '📍' },
-  { id: 'reviews', label: 'Мои отзывы', icon: '⭐' },
-  { id: 'notifications', label: 'Уведомления', icon: '🔔' },
-  { id: 'wishlist', label: 'Избранное', icon: '❤️', link: '/wishlist' },
-  { id: 'returns', label: 'Возвраты', icon: '↩️' },
-  { id: 'questions', label: 'Мои вопросы', icon: '❓' },
-  { id: 'brands', label: 'Бренды', icon: '🏷️' },
-  { id: 'points', label: 'Баллы', icon: '🎁' },
-  { id: 'chats', label: 'Чаты', icon: '💬' },
+  { id: 'overview', label: 'Обзор', icon: <Icon name="home" /> },
+  { id: 'orders', label: 'Заказы', icon: <Icon name="orders" /> },
+  { id: 'data', label: 'Мои данные', icon: <Icon name="user" /> },
+  { id: 'addresses', label: 'Адреса', icon: <Icon name="pin" /> },
+  { id: 'reviews', label: 'Мои отзывы', icon: <Icon name="star" /> },
+  { id: 'notifications', label: 'Уведомления', icon: <Icon name="bell" /> },
+  { id: 'wishlist', label: 'Избранное', icon: <Icon name="heart" />, link: '/wishlist' },
+  { id: 'returns', label: 'Возвраты', icon: <Icon name="returns" /> },
+  { id: 'questions', label: 'Мои вопросы', icon: <Icon name="question" /> },
+  { id: 'brands', label: 'Бренды', icon: <Icon name="tag" /> },
+  { id: 'points', label: 'Баллы', icon: <Icon name="gift" /> },
+  { id: 'chats', label: 'Чаты', icon: <Icon name="chat" /> },
 ]
 // Только контент-вкладки (без ссылок вроде «Избранное»): прямой заход
 // ?tab=wishlist не должен попасть в контент-роутер и отрисовать пустую заглушку.
@@ -34,9 +36,9 @@ const CONTENT_IDS = TABS.filter((t) => !t.link).map((t) => t.id)
 
 // Форвард-заглушки: вкладка видна, ведёт в свою фазу, без битых ссылок.
 const FORWARD = {
-  questions: { icon: '❓', title: 'Мои вопросы', phase: 'Ф6', description: 'Ваши вопросы о товарах и ответы на них появятся здесь.' },
-  brands:    { icon: '🏷️', title: 'Избранные бренды', phase: 'Ф20', description: 'Подписки на бренды и магазины появятся здесь.' },
-  points:    { icon: '🎁', title: 'Баллы и бонусы', phase: 'Ф27', description: 'Баллы лояльности, промокоды и акции появятся здесь.' },
+  questions: { icon: <Icon name="question" className="w-7 h-7" />, title: 'Мои вопросы', phase: 'Ф6', description: 'Ваши вопросы о товарах и ответы на них появятся здесь.' },
+  brands:    { icon: <Icon name="tag" className="w-7 h-7" />, title: 'Избранные бренды', phase: 'Ф20', description: 'Подписки на бренды и магазины появятся здесь.' },
+  points:    { icon: <Icon name="gift" className="w-7 h-7" />, title: 'Баллы и бонусы', phase: 'Ф27', description: 'Баллы лояльности, промокоды и акции появятся здесь.' },
 }
 
 export default function ProfilePage() {

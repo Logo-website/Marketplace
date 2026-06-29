@@ -86,7 +86,7 @@ export default function SellerSettingsPage() {
           <div className="relative flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-accent-soft uppercase tracking-widest mb-1">Магазин</p>
-              <h1 className="text-2xl font-black text-white">Настройки магазина</h1>
+              <h1 className="font-display text-2xl font-bold text-white">Настройки магазина</h1>
               <p className="text-ink-faint text-sm mt-1">Юр-данные, реквизиты, витрина и тариф</p>
             </div>
             <Link

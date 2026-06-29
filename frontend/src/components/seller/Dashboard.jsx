@@ -96,7 +96,7 @@ export default function Dashboard({ onNavigate }) {
                 className="bg-card rounded-2xl p-5 border border-line"
               >
                 <p className="text-sm text-ink-faint mb-1">{c.label}</p>
-                <p className="text-2xl font-black text-ink">{c.value}</p>
+                <p className="font-display text-2xl font-bold text-ink">{c.value}</p>
                 {c.hint && <p className="text-[11px] text-ink-faint mt-1">{c.hint}</p>}
               </motion.div>
             ))}

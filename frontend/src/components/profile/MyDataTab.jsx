@@ -95,7 +95,7 @@ export default function MyDataTab() {
 
   return (
     <motion.div key="data" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <h2 className="text-xl font-black text-ink mb-1">Мои данные</h2>
+      <h2 className="font-display text-xl font-bold text-ink mb-1">Мои данные</h2>
       <p className="text-sm text-ink-faint mb-6">Управляйте личными данными и параметрами</p>
 
       {/* Контактные данные */}
@@ -121,7 +121,7 @@ export default function MyDataTab() {
 
       {/* Параметры фигуры */}
       <section className="bg-card rounded-2xl border border-line p-6 mb-8">
-        <h3 className="text-base font-bold text-ink mb-1">Параметры фигуры</h3>
+        <h3 className="font-display text-base font-bold text-ink mb-1">Параметры фигуры</h3>
         <p className="text-xs text-ink-faint mb-5">Поможем подобрать размер. Необязательно.</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
           {BODY_FIELDS.map((f) => (
@@ -144,7 +144,7 @@ export default function MyDataTab() {
 
       {/* Смена пароля */}
       <section className="bg-card rounded-2xl border border-line p-6">
-        <h3 className="text-base font-bold text-ink mb-5">Сменить пароль</h3>
+        <h3 className="font-display text-base font-bold text-ink mb-5">Сменить пароль</h3>
         <form onSubmit={savePassword} className="flex flex-col gap-3 max-w-sm">
           <input type="password" required placeholder="Текущий пароль" value={pwd.old_password} onChange={(e) => setPwd((p) => ({ ...p, old_password: e.target.value }))} className={inputCls} autoComplete="current-password" />
           <input type="password" required placeholder="Новый пароль" value={pwd.new_password} onChange={(e) => setPwd((p) => ({ ...p, new_password: e.target.value }))} className={inputCls} autoComplete="new-password" />

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import api from '../../api'
 import EmptyState from '../states/EmptyState'
 import ErrorState from '../states/ErrorState'
+import Icon from '../ui/Icon'
 import useAsyncData from '../../hooks/useAsyncData'
 
 // Мои отзывы (Ф10). Форма написания отзыва живёт в карточке товара (Ф4) - здесь
@@ -22,7 +23,7 @@ export default function MyReviewsTab() {
   if (reviews.length === 0) {
     return (
       <EmptyState
-        icon="✍️"
+        icon={<Icon name="pencil" className="w-7 h-7 text-ink-faint" />}
         title="Вы ещё не оставляли отзывов"
         subtitle="Отзыв можно оставить на странице купленного товара"
         action={{ label: 'В каталог', onClick: () => navigate('/catalog') }}
@@ -32,7 +33,7 @@ export default function MyReviewsTab() {
 
   return (
     <motion.div key="reviews" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <h2 className="text-xl font-black text-ink mb-5">Мои отзывы</h2>
+      <h2 className="font-display text-xl font-bold text-ink mb-5">Мои отзывы</h2>
       <div className="flex flex-col gap-3">
         {reviews.map((r) => (
           <Link
@@ -43,7 +44,7 @@ export default function MyReviewsTab() {
             <div className="w-16 h-16 bg-surface rounded-xl overflow-hidden flex items-center justify-center shrink-0">
               {r.product_image
                 ? <img src={r.product_image} alt={r.product_name} className="w-full h-full object-contain" onError={(e) => { e.target.style.display = 'none' }} />
-                : <span className="text-2xl">📦</span>}
+                : <Icon name="orders" className="w-6 h-6 text-line-strong" />}
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-ink truncate">{r.product_name}</p>

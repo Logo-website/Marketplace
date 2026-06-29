@@ -50,7 +50,7 @@ export default function HelpPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold text-ink mb-2">Помощь и частые вопросы</h1>
+      <h1 className="font-display text-3xl font-bold text-ink mb-2">Помощь и частые вопросы</h1>
       <p className="text-ink-faint mb-8">
         Не нашли ответ? Откройте чат с поддержкой - мы поможем.
       </p>

@@ -47,7 +47,7 @@ export default function NotificationsTab() {
 
   return (
     <motion.div key="notifications" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <h2 className="text-xl font-black text-ink mb-1">Уведомления</h2>
+      <h2 className="font-display text-xl font-bold text-ink mb-1">Уведомления</h2>
       <p className="text-sm text-ink-faint mb-5">Выберите, о чём вам сообщать. Уведомления о заказах приходят всегда.</p>
 
       <div className="bg-card rounded-2xl border border-line divide-y divide-line">

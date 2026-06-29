@@ -5,6 +5,7 @@ import useChatStore from '../store/chatStore'
 import { toast } from '../store/toastStore'
 import EmptyState from '../components/states/EmptyState'
 import ErrorState from '../components/states/ErrorState'
+import Icon from '../components/ui/Icon'
 
 // Экран чатов (Ф24, узлы 1.13-«чаты» и 2.9). Один экран на покупателя и продавца:
 // список диалогов + окно переписки. Адаптивно (4.2): на мобиле виден либо список,
@@ -37,7 +38,7 @@ export default function ChatsPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-ink">Чаты</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">Чаты</h1>
         <button
           onClick={startSupport}
           className="text-sm font-semibold text-accent hover:underline"
@@ -98,7 +99,7 @@ function ConversationList({ items, loading, error, activeId, onSelect, onRetry }
     return (
       <EmptyState
         className="border-0"
-        icon="💬"
+        icon={<Icon name="chat" className="w-7 h-7 text-ink-faint" />}
         title="Пока нет диалогов"
         subtitle="Напишите продавцу со страницы товара или обратитесь в поддержку."
       />
@@ -127,7 +128,7 @@ function ConversationList({ items, loading, error, activeId, onSelect, onRetry }
             )}
             {c.last_message && (
               <p className="text-xs text-ink-faint truncate mt-0.5">
-                {c.last_message.is_from_bot ? '🤖 ' : ''}{c.last_message.body}
+                {c.last_message.is_from_bot ? 'Бот: ' : ''}{c.last_message.body}
               </p>
             )}
           </button>
@@ -157,7 +158,9 @@ function ChatWindow({ conversationId, conversation, messages, loading, onBack })
       {/* Шапка диалога */}
       <header className="flex items-center gap-3 px-4 py-3 border-b border-line">
         <button onClick={onBack} className="lg:hidden text-ink-faint" aria-label="Назад">
-          ←
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
         </button>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm text-ink truncate">

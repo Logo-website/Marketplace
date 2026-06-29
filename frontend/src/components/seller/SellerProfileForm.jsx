@@ -42,7 +42,7 @@ export default function SellerProfileForm({
 
       {/* Юр-статус */}
       <section className="bg-card rounded-2xl border border-line p-6">
-        <h3 className="text-base font-bold text-ink mb-4">Юридический статус</h3>
+        <h3 className="font-display text-base font-bold text-ink mb-4">Юридический статус</h3>
 
         <div className="flex flex-wrap gap-2 mb-4">
           {LEGAL_OPTIONS.map((opt) => (
@@ -93,7 +93,7 @@ export default function SellerProfileForm({
 
       {/* Реквизиты выплат */}
       <section className="bg-card rounded-2xl border border-line p-6">
-        <h3 className="text-base font-bold text-ink mb-1">Реквизиты для выплат</h3>
+        <h3 className="font-display text-base font-bold text-ink mb-1">Реквизиты для выплат</h3>
         <p className="text-xs text-ink-faint mb-4">Куда перечислять деньги за продажи.</p>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
@@ -127,7 +127,7 @@ export default function SellerProfileForm({
 
       {/* Витрина */}
       <section className="bg-card rounded-2xl border border-line p-6">
-        <h3 className="text-base font-bold text-ink mb-4">Витрина магазина</h3>
+        <h3 className="font-display text-base font-bold text-ink mb-4">Витрина магазина</h3>
 
         <div className="mb-4">
           <label className="block text-xs font-semibold text-ink-faint uppercase tracking-wide mb-1.5">
@@ -176,7 +176,7 @@ export default function SellerProfileForm({
 
       {/* Тариф */}
       <section className="bg-card rounded-2xl border border-line p-6">
-        <h3 className="text-base font-bold text-ink mb-4">Тариф</h3>
+        <h3 className="font-display text-base font-bold text-ink mb-4">Тариф</h3>
         <div className="grid sm:grid-cols-2 gap-3">
           {TARIFF_OPTIONS.map((opt) => (
             <button

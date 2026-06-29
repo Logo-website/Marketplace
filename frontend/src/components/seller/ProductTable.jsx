@@ -55,7 +55,7 @@ export default function ProductTable({ products, onEdit, onToggleVisibility, onD
                     <span className="text-sm font-medium text-ink line-clamp-2 max-w-xs">{p.name}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm text-right font-bold text-ink whitespace-nowrap">{formatPrice(p.price)}</td>
+                <td className="px-4 py-3 font-display text-sm text-right font-bold text-ink whitespace-nowrap">{formatPrice(p.price)}</td>
                 <td className="px-4 py-3 text-sm text-right text-ink-faint">{p.stock} шт.</td>
                 <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                 <td className="px-6 py-3">
@@ -90,7 +90,7 @@ export default function ProductTable({ products, onEdit, onToggleVisibility, onD
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-ink line-clamp-2 leading-snug mb-1.5">{p.name}</p>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-black text-ink">{formatPrice(p.price)}</span>
+                  <span className="font-display text-sm font-bold text-ink">{formatPrice(p.price)}</span>
                   <span className="text-xs text-ink-faint bg-surface px-2 py-0.5 rounded-lg">{p.stock} шт.</span>
                   <StatusBadge status={p.status} />
                 </div>

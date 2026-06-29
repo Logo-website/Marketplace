@@ -89,7 +89,7 @@ export default function ImageUploader({ productId, pending = [], onPendingChange
   }
 
   const thumb = 'relative w-24 h-24 rounded-xl overflow-hidden border border-line-strong bg-surface group'
-  const delBtn = 'absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition'
+  const delBtn = 'absolute top-1 right-1 w-6 h-6 rounded-full bg-ink/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition'
 
   return (
     <div className="flex flex-wrap gap-3">
@@ -104,11 +104,11 @@ export default function ImageUploader({ productId, pending = [], onPendingChange
           {existing.length > 1 && (
             <div className="absolute bottom-1 inset-x-1 flex justify-between opacity-0 group-hover:opacity-100 transition">
               <button type="button" onClick={() => moveExisting(i, -1)} disabled={busy || i === 0}
-                className="w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center disabled:opacity-30" aria-label="Левее">
+                className="w-6 h-6 rounded-full bg-ink/60 text-white flex items-center justify-center disabled:opacity-30" aria-label="Левее">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
               </button>
               <button type="button" onClick={() => moveExisting(i, 1)} disabled={busy || i === existing.length - 1}
-                className="w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center disabled:opacity-30" aria-label="Правее">
+                className="w-6 h-6 rounded-full bg-ink/60 text-white flex items-center justify-center disabled:opacity-30" aria-label="Правее">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
               </button>
             </div>

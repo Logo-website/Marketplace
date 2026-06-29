@@ -3,6 +3,7 @@ import api from '../../api'
 import useAsyncData from '../../hooks/useAsyncData'
 import EmptyState from '../states/EmptyState'
 import ErrorState from '../states/ErrorState'
+import Icon from '../ui/Icon'
 
 // Переиспользуемый список диалогов для встраивания во вкладки (профиль покупателя,
 // кабинет продавца). Грузит /chat/conversations/?role=... сам (не трогает глобальный
@@ -35,7 +36,7 @@ export default function ChatThreadList({ role, emptyTitle, emptySubtitle }) {
   }
   const items = query.data || []
   if (items.length === 0) {
-    return <EmptyState icon="💬" title={emptyTitle} subtitle={emptySubtitle} />
+    return <EmptyState icon={<Icon name="chat" className="w-7 h-7 text-ink-faint" />} title={emptyTitle} subtitle={emptySubtitle} />
   }
 
   return (
@@ -59,7 +60,7 @@ export default function ChatThreadList({ role, emptyTitle, emptySubtitle }) {
             )}
             {c.last_message && (
               <p className="text-xs text-ink-faint truncate mt-0.5">
-                {c.last_message.is_from_bot ? '🤖 ' : ''}{c.last_message.body}
+                {c.last_message.is_from_bot ? 'Бот: ' : ''}{c.last_message.body}
               </p>
             )}
           </Link>

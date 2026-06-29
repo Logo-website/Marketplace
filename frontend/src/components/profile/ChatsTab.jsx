@@ -6,7 +6,7 @@ import ChatThreadList from '../chat/ChatThreadList'
 export default function ChatsTab() {
   return (
     <div className="bg-card rounded-2xl border border-line p-5">
-      <h2 className="text-lg font-bold text-ink mb-4">Чаты</h2>
+      <h2 className="font-display text-lg font-bold text-ink mb-4">Чаты</h2>
       <ChatThreadList
         role="buyer"
         emptyTitle="Пока нет диалогов"

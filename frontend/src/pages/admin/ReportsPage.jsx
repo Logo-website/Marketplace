@@ -5,6 +5,7 @@ import api from '../../api'
 import { toast } from '../../store/toastStore'
 import ErrorState from '../../components/states/ErrorState'
 import EmptyState from '../../components/states/EmptyState'
+import Icon from '../../components/ui/Icon'
 
 // Очередь жалоб (Ф18, узел 3.8). Модератор видит, на что пожаловались, и решает:
 // «Скрыть контент» (resolve - скрыть нарушающий UGC / снять товар) или «Отклонить
@@ -185,7 +186,7 @@ export default function ReportsPage() {
           className="bg-ink rounded-2xl p-6 mb-6"
         >
           <p className="text-xs font-semibold text-accent-soft uppercase tracking-widest mb-1">Администрирование</p>
-          <h1 className="text-2xl font-black text-white">Жалобы и модерация</h1>
+          <h1 className="font-display text-2xl font-bold text-white">Жалобы и модерация</h1>
           <p className="text-ink-faint text-sm mt-1">
             Скройте нарушающий контент или отклоните жалобу, если нарушения нет
           </p>
@@ -198,7 +199,7 @@ export default function ReportsPage() {
         ) : listError ? (
           <ErrorState title="Не удалось загрузить очередь жалоб" onRetry={fetchQueue} />
         ) : items.length === 0 ? (
-          <EmptyState icon="✓" title="Жалоб нет" subtitle="Очередь модерации пуста" />
+          <EmptyState icon={<Icon name="check" className="w-7 h-7 text-ink-faint" />} title="Жалоб нет" subtitle="Очередь модерации пуста" />
         ) : (
           <div className="flex flex-col gap-3">
             <AnimatePresence initial={false}>

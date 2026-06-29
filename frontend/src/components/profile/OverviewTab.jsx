@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../../api'
 import ProductCard from '../ProductCard'
 import EmptyState from '../states/EmptyState'
+import Icon from '../ui/Icon'
 import useRecentlyViewedStore from '../../store/recentlyViewedStore'
 import useAsyncData from '../../hooks/useAsyncData'
 
@@ -26,7 +27,7 @@ export default function OverviewTab() {
   if (status !== 'loading' && !recentlyViewed.length && !recommendations.length) {
     return (
       <EmptyState
-        icon="🛍️"
+        icon={<Icon name="bag" className="w-7 h-7 text-ink-faint" />}
         title="Здесь появятся ваши просмотры и рекомендации"
         subtitle="Загляните в каталог - подберём что-нибудь под вас"
         action={{ label: 'В каталог', onClick: () => navigate('/catalog') }}
@@ -44,7 +45,7 @@ export default function OverviewTab() {
       {recentlyViewed.length > 0 && (
         <section className="bg-card rounded-2xl p-6 border border-line">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold text-ink">Вы смотрели</h2>
+            <h2 className="font-display text-base font-bold text-ink">Вы смотрели</h2>
             <span className="text-xs text-ink-faint">{recentlyViewed.length} товаров</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -59,7 +60,7 @@ export default function OverviewTab() {
 
       {recommendations.length > 0 && (
         <section className="bg-card rounded-2xl p-6 border border-line">
-          <h2 className="text-base font-bold text-ink mb-5">Подобрали для вас</h2>
+          <h2 className="font-display text-base font-bold text-ink mb-5">Подобрали для вас</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {recommendations.map((product, i) => (
               <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>

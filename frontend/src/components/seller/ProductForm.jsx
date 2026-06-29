@@ -184,7 +184,7 @@ export default function ProductForm({ productId = null, categories = [], onDone,
   return (
     <div className="bg-card rounded-2xl border border-line p-6">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-base font-bold text-ink">{isEdit ? 'Редактирование товара' : 'Новый товар'}</h2>
+        <h2 className="font-display text-base font-bold text-ink">{isEdit ? 'Редактирование товара' : 'Новый товар'}</h2>
         {onCancel && (
           <button type="button" onClick={onCancel} className="text-sm text-ink-faint hover:text-ink-soft font-medium">
             Отмена
