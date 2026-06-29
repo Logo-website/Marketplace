@@ -84,7 +84,7 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 - OTP codes are generated with `secrets` (CSPRNG); the password is stored **hashed** (`make_password`) between request and verify steps, never in plaintext.
 - Anti-bruteforce: `verify` endpoints are throttled per email+IP (~5/min) and the code is invalidated after 5 wrong attempts (`OTPCode.attempts`); verify consumes the code atomically (no double-use race).
 - Password policy is a single source (`apps/users/validators.py`) reused by registration and reset; `AUTH_PASSWORD_VALIDATORS` enabled.
-- JWT access (60 min) + refresh (7 days), rotation and blacklist enabled.
+- JWT access (60 min) + refresh (7 days), rotation and blacklist enabled; changing email or password revokes all refresh sessions.
 - Endpoints: register/login verify, token refresh, profile, logout (blacklist refresh), password reset (OTP).
 
 > **Token storage (conscious tradeoff).** The frontend keeps the JWT in `localStorage` and sends it as `Authorization: Bearer`. This is vulnerable to token theft via XSS and is accepted as a study-stage simplification. CSRF does not apply to the Bearer-token API; `CSRF_COOKIE_SECURE`/`SESSION_COOKIE_SECURE` exist only for the Django admin / DRF browsable API. Migrating to an httpOnly cookie is a separate feature, not done pre-launch.
@@ -132,9 +132,9 @@ Django project package: `backend/config/`. Apps: `users`, `products`, `orders`, 
 | Auth | POST | `/api/auth/logout/` | Authenticated |
 | Auth | POST | `/api/auth/password-reset/` | Public |
 | Auth | POST | `/api/auth/password-reset/verify/` | Public |
-| Auth | POST | `/api/auth/password-change/` | Authenticated (old → new, no OTP) |
+| Auth | POST | `/api/auth/password-change/` | Authenticated (old → new, no OTP; revokes sessions) |
 | Auth | POST | `/api/auth/email-change/` | Authenticated — password + OTP to new address |
-| Auth | POST | `/api/auth/email-change/verify/` | Authenticated — confirm OTP, alert sent to old address |
+| Auth | POST | `/api/auth/email-change/verify/` | Authenticated — confirm OTP, alert sent to old address, revokes sessions |
 | Auth | GET/POST | `/api/auth/addresses/` | Authenticated (own delivery addresses) |
 | Auth | GET/PUT/PATCH/DELETE | `/api/auth/addresses/{id}/` | Authenticated (own; one default) |
 | Auth | POST | `/api/auth/seller/onboarding/` | Authenticated (become seller; full set activates, flips role buyer → seller) |

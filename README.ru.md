@@ -84,7 +84,7 @@
 - OTP-коды генерируются через `secrets` (CSPRNG); пароль между шагами request и verify хранится **в виде хеша** (`make_password`), не плейнтекстом.
 - Анти-брутфорс: verify-эндпоинты троттлятся по email+IP (~5/мин), после 5 неверных попыток код инвалидируется (`OTPCode.attempts`); verify гасит код атомарно (без гонки double-use).
 - Парольная политика в одном месте (`apps/users/validators.py`), переиспользуется при регистрации и сбросе; включены `AUTH_PASSWORD_VALIDATORS`.
-- JWT: access 60 мин, refresh 7 дней, ротация и blacklist.
+- JWT: access 60 мин, refresh 7 дней, ротация и blacklist; смена email или пароля отзывает все refresh-сессии.
 - Эндпоинты: verify для register/login, refresh, profile, logout, сброс пароля по OTP.
 
 > **Хранение токена (осознанное упрощение).** Фронт держит JWT в `localStorage` и шлёт как `Authorization: Bearer`. Это уязвимо к краже токена через XSS и принято как учебное упрощение. К API с Bearer-токеном CSRF не применим; `CSRF_COOKIE_SECURE`/`SESSION_COOKIE_SECURE` нужны только для Django admin / DRF browsable API. Миграция на httpOnly-cookie — отдельная фича, на pre-launch не делается.
@@ -132,9 +132,9 @@
 | Auth | POST | `/api/auth/logout/` | Авторизованный |
 | Auth | POST | `/api/auth/password-reset/` | Публичный |
 | Auth | POST | `/api/auth/password-reset/verify/` | Публичный |
-| Auth | POST | `/api/auth/password-change/` | Авторизованный (старый → новый, без OTP) |
+| Auth | POST | `/api/auth/password-change/` | Авторизованный (старый → новый, без OTP; отзыв сессий) |
 | Auth | POST | `/api/auth/email-change/` | Авторизованный — пароль + OTP на новый адрес |
-| Auth | POST | `/api/auth/email-change/verify/` | Авторизованный — подтверждение OTP, алерт на старый адрес |
+| Auth | POST | `/api/auth/email-change/verify/` | Авторизованный — подтверждение OTP, алерт на старый адрес, отзыв сессий |
 | Auth | GET/POST | `/api/auth/addresses/` | Авторизованный (свои адреса доставки) |
 | Auth | GET/PUT/PATCH/DELETE | `/api/auth/addresses/{id}/` | Авторизованный (свои; один по умолчанию) |
 | Auth | POST | `/api/auth/seller/onboarding/` | Авторизованный (стать продавцом; полный комплект активирует, меняет роль buyer → seller) |

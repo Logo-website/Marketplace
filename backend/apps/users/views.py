@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 from django.db import transaction, IntegrityError
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
@@ -32,7 +33,7 @@ from .throttling import (
 logger = logging.getLogger(__name__)
 
 
-def consume_otp(email, code, action=None):
+def consume_otp(email, code, action=None, expected_user_id=None):
     """Проверка и атомарное гашение OTP-кода (S3 + S10).
 
     Возвращает (otp, None) при успехе или (None, Response) с ошибкой.
@@ -40,6 +41,8 @@ def consume_otp(email, code, action=None):
       инвалидируется (анти-брутфорс).
     - Верный код гасится атомарным UPDATE с проверкой rowcount - два
       параллельных запроса с одним кодом не пройдут оба (защита от гонки).
+    - expected_user_id (L1): анти-IDOR проверяется ДО гашения, чтобы чужой
+      403 не сжигал ожидающий код владельца (griefing).
     """
     otp = OTPCode.objects.filter(email=email, is_used=False).order_by('-created_at').first()
     if not otp or not otp.is_valid():
@@ -55,12 +58,28 @@ def consume_otp(email, code, action=None):
     if action is not None and otp.data.get('action') != action:
         return None, Response({'error': 'Неверный код'}, status=400)
 
+    # L1: проверяем владельца ДО гашения - неверный user_id не должен сжигать код
+    if expected_user_id is not None and otp.data.get('user_id') != expected_user_id:
+        return None, Response({'error': 'Доступ запрещён'}, status=403)
+
     claimed = OTPCode.objects.filter(id=otp.id, is_used=False).update(is_used=True)
     if not claimed:
         # Код уже погашен параллельным запросом
         return None, Response({'error': 'Неверный или истёкший код'}, status=400)
 
     return otp, None
+
+
+def blacklist_user_tokens(user):
+    """M1: отозвать все активные refresh-токены пользователя.
+
+    Смена идентификатора входа (email) или пароля должна выкидывать ранее
+    выданные сессии. simplejwt кодирует user_id, а не email/пароль, поэтому без
+    блэклиста старые JWT остаются валидны (refresh - до 7 дней). Текущее
+    устройство дойдёт до 401 на следующем refresh -> повторный вход (вариант A).
+    """
+    for ot in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=ot)
 
 
 def send_otp_email(email, code, subject, heading):
@@ -246,7 +265,11 @@ class PasswordChangeView(APIView):
     def post(self, request):
         serializer = PasswordChangeSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        # M1: смена пароля тоже не отзывала сессии (simplejwt кодирует user_id) -
+        # тот же риск, что и при смене email. Пароль + отзов сессий в одной транзакции.
+        with transaction.atomic():
+            serializer.save()
+            blacklist_user_tokens(request.user)
         return Response({'detail': 'Пароль успешно изменён'})
 
 
@@ -482,6 +505,20 @@ def _email_change_alert_html(new_email):
     '''
 
 
+def _enqueue_email_change_alert(old_email, new_email):
+    """N1: ставим security-алерт в очередь best-effort. Сбой публикации в брокер
+    (RabbitMQ недоступен -> OperationalError) не должен ронять уже зафиксированную
+    смену email - смена необратима, алерт логируем и продолжаем."""
+    try:
+        send_notification_email.delay(
+            old_email,
+            'Email вашего аккаунта изменён — Marketplace',
+            _email_change_alert_html(new_email),
+        )
+    except Exception as e:
+        logger.error(f'email change alert enqueue failed: {e}')
+
+
 class EmailChangeRequestView(APIView):
     """Шаг 1 смены email - пароль + новый адрес, OTP летит на новый адрес.
 
@@ -503,6 +540,12 @@ class EmailChangeRequestView(APIView):
         except ValidationError:
             return Response({'error': 'Некорректный email'}, status=400)
 
+        # N2: validate_email не ограничивает длину. Формат-валидный, но длиннее
+        # колонки email (varchar 254) адрес иначе дойдёт до OTPCode.generate/User.save
+        # и упадёт 500 на уровне БД. Сверяемся с max_length модели, а не хардкодим.
+        if len(new_email) > User._meta.get_field('email').max_length:
+            return Response({'error': 'Слишком длинный email'}, status=400)
+
         # Личность - паролём текущего пользователя (защита от угона токена)
         if not authenticate(request, email=request.user.email, password=password):
             return Response({'error': 'Неверный пароль'}, status=400)
@@ -510,6 +553,11 @@ class EmailChangeRequestView(APIView):
         if new_email == request.user.email.lower():  # R3
             return Response({'error': 'Это ваш текущий email'}, status=400)
 
+        # L2 (осознанно принято): разный ответ «занят»/«код отправлен» теоретически
+        # энумерирует адреса, но ветка достижима только при ВЕРНОМ пароле текущего
+        # аккаунта (проверка выше) и под троттлом 3/час - энумерировать может лишь сам
+        # владелец. «Глухой» вариант (всегда «код отправлен») сломал бы UX: юзер ждал
+        # бы код на чужой адрес. Поведение сохраняем намеренно (план Фаза 3).
         if User.objects.filter(email__iexact=new_email).exists():  # R2: регистронезависимо
             return Response({'error': 'Этот email уже занят'}, status=400)
 
@@ -543,13 +591,13 @@ class EmailChangeVerifyView(APIView):
         if not new_email or not code:
             return Response({'error': 'Укажите email и код'}, status=400)
 
-        otp, error = consume_otp(new_email, code, action='change_email')
+        # R7 (анти-IDOR) проверяется ВНУТРИ consume_otp до гашения (L1): чужой
+        # user_id -> 403, ожидающий код владельца не сжигается.
+        otp, error = consume_otp(
+            new_email, code, action='change_email', expected_user_id=request.user.id
+        )
         if error:
             return error
-
-        # R7: код мог быть выписан другому пользователю - анти-IDOR
-        if otp.data.get('user_id') != request.user.id:
-            return Response({'error': 'Доступ запрещён'}, status=403)
 
         # R2: email мог занять кто-то между шагом 1 и verify - дружелюбный 400
         if User.objects.filter(email__iexact=new_email).exists():
@@ -559,17 +607,21 @@ class EmailChangeVerifyView(APIView):
 
         request.user.email = otp.data['new_email']  # уже lower
         try:
-            request.user.save()
+            # N3: смена email + отзыв сессий - в одной транзакции, иначе сбой
+            # между ними оставит «полусмену» (email сменён, а сессии живы).
+            with transaction.atomic():
+                request.user.save()
+                blacklist_user_tokens(request.user)  # M1: отзыв всех refresh-сессий
         except IntegrityError:  # R4: unique=True закрывает гонку до конца -> 400, не 500
             return Response({'error': 'Этот email уже занят'}, status=400)
 
         # R10: security-алерт старому владельцу. Не notify()/channels.send_email (берут
         # адрес из user.email) и не send_otp_email (код-шейпнутый). send_notification_email
         # принимает явный адрес, произвольный HTML, async и глотает сбой Resend.
-        send_notification_email.delay(
-            old_email,
-            'Email вашего аккаунта изменён — Marketplace',
-            _email_change_alert_html(new_email),
+        # N1/N3: ставим в on_commit (не уйдёт при откате транзакции) + глотаем сбой
+        # публикации в брокер, чтобы недоступный RabbitMQ не ронял уже сохранённую смену.
+        transaction.on_commit(
+            lambda: _enqueue_email_change_alert(old_email, new_email)
         )
 
         return Response({'detail': 'Email изменён', 'email': new_email})

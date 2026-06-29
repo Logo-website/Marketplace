@@ -1,5 +1,8 @@
+import logging
 import pytest
 from unittest import mock
+from kombu.exceptions import OperationalError
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.cache import cache
 from apps.users.models import User, Address, OTPCode
 
@@ -295,6 +298,8 @@ def test_email_change_foreign_user_id(auth_client, user, other_user):
     assert r.status_code == 403
     user.refresh_from_db()
     assert user.email == 'test@test.com'  # email не изменён
+    # L1: 403 по чужому user_id не должен сжигать ожидающий код владельца
+    assert OTPCode.objects.get(email='foreign@test.com').is_used is False
 
 
 @pytest.mark.django_db
@@ -306,10 +311,90 @@ def test_email_change_wrong_code(auth_client):
 
 
 @pytest.mark.django_db
-def test_email_change_alerts_old_email(auth_client, user, mock_alert):
-    # R10: на успехе security-алерт уходит на СТАРЫЙ адрес.
+def test_email_change_alerts_old_email(auth_client, user, mock_alert,
+                                       django_capture_on_commit_callbacks):
+    # R10: на успехе security-алерт уходит на СТАРЫЙ адрес. Алерт теперь ставится
+    # в transaction.on_commit (N1/N3) - исполняем колбэки явно через capture.
     request_change(auth_client, 'new@test.com')
-    r = verify_change(auth_client, 'new@test.com', latest_code('new@test.com'))
+    with django_capture_on_commit_callbacks(execute=True):
+        r = verify_change(auth_client, 'new@test.com', latest_code('new@test.com'))
     assert r.status_code == 200
     mock_alert.assert_called_once()
     assert mock_alert.call_args.args[0] == 'test@test.com'
+
+
+# --- Audit fixes (план 2026-06-29-email-change-audit-fixes) ---
+
+@pytest.mark.django_db
+def test_email_change_revokes_sessions(auth_client, user):
+    # M1: после смены email ранее выданный refresh-токен отозван -> refresh даёт 401.
+    refresh = str(RefreshToken.for_user(user))
+    request_change(auth_client, 'new@test.com')
+    r = verify_change(auth_client, 'new@test.com', latest_code('new@test.com'))
+    assert r.status_code == 200
+    resp = auth_client.post('/api/auth/token/refresh/', {'refresh': refresh}, format='json')
+    assert resp.status_code == 401
+
+
+@pytest.mark.django_db
+def test_password_change_revokes_sessions(auth_client, user):
+    # M1: смена пароля тоже отзывает ранее выданные refresh-сессии.
+    refresh = str(RefreshToken.for_user(user))
+    r = auth_client.post('/api/auth/password-change/', {
+        'old_password': 'testpass123',
+        'new_password': STRONG_PASSWORD,
+        'new_password_confirm': STRONG_PASSWORD,
+    }, format='json')
+    assert r.status_code == 200
+    resp = auth_client.post('/api/auth/token/refresh/', {'refresh': refresh}, format='json')
+    assert resp.status_code == 401
+
+
+@pytest.mark.django_db
+def test_email_change_throttled(auth_client, user):
+    # R5/R6: email_change = 3/час. clear_throttle_cache (autouse) чистит кэш МЕЖДУ
+    # тестами; внутри теста счётчик копится -> 4-й запрос подряд -> 429. Шлём с
+    # неверным паролем: троттл считает все запросы (отрабатывает до тела вью), а
+    # неверный пароль не плодит OTP и писем.
+    for _ in range(3):
+        r = request_change(auth_client, 'spam@test.com', password='wrongpass')
+        assert r.status_code != 429
+    r = request_change(auth_client, 'spam@test.com', password='wrongpass')
+    assert r.status_code == 429
+
+
+@pytest.mark.django_db
+def test_email_change_empty_fields(auth_client):
+    # R11: пустой new_email и/или password -> 400 (no_email autouse не даёт дёрнуть Resend).
+    r1 = auth_client.post('/api/auth/email-change/',
+                          {'new_email': '', 'password': 'x'}, format='json')
+    assert r1.status_code == 400
+    r2 = auth_client.post('/api/auth/email-change/',
+                          {'new_email': 'a@b.com', 'password': ''}, format='json')
+    assert r2.status_code == 400
+
+
+@pytest.mark.django_db
+def test_email_change_too_long(auth_client):
+    # N2: формат-валидный, но длиннее колонки email (varchar 254) адрес -> 400,
+    # без обращения к БД/Resend (падал бы 500 на OTPCode.generate/User.save).
+    long_email = 'a' * 250 + '@test.com'  # len 259 > 254
+    r = request_change(auth_client, long_email)
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_email_change_alert_broker_down(auth_client, user, monkeypatch, caplog,
+                                        django_capture_on_commit_callbacks):
+    # N1: брокер недоступен -> .delay кидает OperationalError. Смена уже сохранена,
+    # эндпоинт обязан вернуть 200, email сменён, ошибка - в лог (best-effort алерт).
+    def boom(*a, **k):
+        raise OperationalError('broker down')
+    monkeypatch.setattr('apps.users.views.send_notification_email.delay', boom)
+    request_change(auth_client, 'new@test.com')
+    with caplog.at_level(logging.ERROR), django_capture_on_commit_callbacks(execute=True):
+        r = verify_change(auth_client, 'new@test.com', latest_code('new@test.com'))
+    assert r.status_code == 200
+    user.refresh_from_db()
+    assert user.email == 'new@test.com'
+    assert any('alert enqueue failed' in m for m in caplog.messages)
