@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 import api from '../../api'
 import useAsyncData from '../../hooks/useAsyncData'
 import Spinner from '../states/Spinner'
@@ -63,7 +64,7 @@ export default function SizeGuideModal({ productId, onClose, prefill }) {
         initial={{ y: '100%', opacity: 0.5 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%', opacity: 0 }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        transition={MOTION}
       >
         {/* Шапка */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-line shrink-0">

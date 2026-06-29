@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 import api from '../../api'
 import useAsyncData from '../../hooks/useAsyncData'
 import { Skeleton } from '../states/Skeleton'
@@ -69,7 +70,7 @@ export default function CategoryTiles() {
             key={cat.id}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: Math.min(i * 0.03, 0.3) }}
+            transition={{ ...MOTION, delay: Math.min(i * 0.03, 0.3) }}
           >
             <Link
               to={`/catalog/${cat.id}`}

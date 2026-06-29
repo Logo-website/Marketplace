@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION, MOTION_FAST } from '../lib/motion'
 import useAuthStore from '../store/authStore'
 import useCartStore from '../store/cartStore'
 import useWishlistStore from '../store/wishlistStore'
@@ -82,7 +83,7 @@ export default function Header() {
         className="fixed top-0 left-0 right-0 z-50 bg-canvas border-b border-line"
         initial={{ y: -80 }}
         animate={{ y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={MOTION}
       >
         <div className="max-w-7xl mx-auto px-4 py-3.5">
           <div className="flex items-center gap-3">
@@ -157,7 +158,7 @@ export default function Header() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.15 }}
+                    transition={MOTION_FAST}
                     className="absolute top-full left-0 right-0 sm:right-auto sm:w-[min(28rem,calc(100vw-2rem))] sm:min-w-full mt-2 bg-card rounded-2xl shadow-lift border border-line overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
                   >
                     {hasQuery ? (

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 
 // График продаж по дням (Ф16, этап 4). Лёгкий столбчатый график на SVG/CSS,
 // без chart-библиотеки (правило репо: доказать рациональность каждого куска
@@ -66,7 +67,7 @@ export default function SalesChart({ data }) {
               <motion.div
                 initial={{ height: 0 }}
                 animate={{ height: `${heightPct}%` }}
-                transition={{ delay: i * 0.02, duration: 0.4, ease: 'easeOut' }}
+                transition={{ ...MOTION, delay: i * 0.02 }}
                 className={`w-full rounded-t-md min-h-[2px] ${value > 0 ? 'bg-accent group-hover:bg-accent-hover' : 'bg-surface'}`}
               />
             </div>

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION } from './lib/motion'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import HomePage from './pages/HomePage'
@@ -70,7 +71,7 @@ function PageWrapper({ children }) {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.2 }}
+        transition={MOTION}
       >
         {/* resetKey по маршруту - после краша переход по ссылке сбрасывает boundary */}
         <ErrorBoundary resetKey={location.pathname}>

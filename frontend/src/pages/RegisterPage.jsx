@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION } from '../lib/motion'
 import api from '../api'
 import useAuthStore from '../store/authStore'
 
@@ -130,7 +131,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-lg">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={MOTION}>
 
           {/* Вордмарк (бренд-гайд §4) */}
           <div className="text-center mb-8">

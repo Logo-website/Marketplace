@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { orderStatusInfo } from '../../utils/orderStatus'
+import Icon from '../ui/Icon'
 import OrderDetail from './OrderDetail'
 
 // Строка заказа в реестре продавца (Ф14): №, дата, статус-бейдж, кол-во своих
@@ -24,8 +25,8 @@ export default function SellerOrderCard({ order, expanded, onToggle, busy, onSta
         className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-surface transition gap-3 text-left"
       >
         <div className="flex items-center gap-4 min-w-0">
-          <div className="w-10 h-10 bg-surface rounded-xl flex items-center justify-center text-lg border border-line shrink-0">
-            {st.icon}
+          <div className={`w-10 h-10 bg-surface rounded-xl flex items-center justify-center border border-line shrink-0 ${st.tone}`}>
+            <Icon name="orders" className="w-5 h-5" />
           </div>
           <div className="min-w-0">
             <p className="font-bold text-ink">Заказ #{order.id}</p>

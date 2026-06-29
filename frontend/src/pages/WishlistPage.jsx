@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { MOTION } from '../lib/motion'
 import useWishlistStore from '../store/wishlistStore'
 import ProductCard from '../components/ProductCard'
 import EmptyState from '../components/states/EmptyState'
@@ -41,7 +42,7 @@ export default function WishlistPage() {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: i * 0.03 }}
+                  transition={{ ...MOTION, delay: i * 0.03 }}
                 >
                   <ProductCard product={product} />
                 </motion.div>

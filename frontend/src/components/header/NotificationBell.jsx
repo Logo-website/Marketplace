@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { MOTION_FAST } from '../../lib/motion'
 import useDropdown from '../../hooks/useDropdown'
 import useNotificationStore from '../../store/notificationStore'
 
@@ -50,7 +51,7 @@ export default function NotificationBell() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.15 }}
+            transition={MOTION_FAST}
             className="absolute top-full right-0 mt-2 w-80 max-w-[90vw] bg-card rounded-2xl shadow-lift border border-line overflow-hidden z-50"
           >
             <div className="px-4 py-3 border-b border-line flex items-center justify-between">

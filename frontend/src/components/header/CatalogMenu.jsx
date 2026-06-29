@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION_FAST } from '../../lib/motion'
 import api from '../../api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useDropdown from '../../hooks/useDropdown'
@@ -114,7 +115,7 @@ export default function CatalogMenu({ onNavigate, embedded = false }) {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.15 }}
+            transition={MOTION_FAST}
             className="absolute top-full left-0 mt-2 w-[min(90vw,32rem)] bg-card rounded-2xl shadow-lift border border-line overflow-hidden z-50"
           >
             {tree}

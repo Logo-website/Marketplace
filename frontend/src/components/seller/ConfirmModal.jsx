@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 
 // Модалка подтверждения деструктивного действия (Ф13: удаление товара).
 // Заменяет нативный confirm() (правило карты: показывать, что удаляется).
@@ -47,7 +48,7 @@ export default function ConfirmModal({
         initial={{ y: '100%', opacity: 0.5 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%', opacity: 0 }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        transition={MOTION}
       >
         <h2 className="font-display text-lg font-bold text-ink mb-1">{title}</h2>
         {message && <p className="text-sm text-ink-faint mb-5">{message}</p>}

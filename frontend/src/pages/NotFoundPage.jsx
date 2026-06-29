@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { MOTION } from '../lib/motion'
 
 export default function NotFoundPage() {
   const navigate = useNavigate()
@@ -9,14 +10,14 @@ export default function NotFoundPage() {
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={MOTION}
         className="text-center max-w-md w-full"
       >
         {/* Большая цифра */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1, type: 'spring' }}
+          transition={{ ...MOTION, delay: 0.1 }}
           className="relative mb-8"
         >
           <p className="font-display text-[160px] font-extrabold text-line leading-none select-none">404</p>
@@ -32,7 +33,7 @@ export default function NotFoundPage() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ ...MOTION, delay: 0.2 }}
         >
           <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink mb-2">Страница не найдена</h1>
           <p className="text-ink-faint text-sm mb-8">

@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { MOTION } from '../lib/motion'
 import api from '../api'
 import useAsyncData from '../hooks/useAsyncData'
 import LookCard from '../components/LookCard'
@@ -135,7 +136,7 @@ export default function LooksPage() {
               key={`${source}-${seller}-${page}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={MOTION}
               className={LOOKS_GRID}
             >
               {looks.map((look) => (

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 import FilterGroup, { FilterOption } from './FilterGroup'
 
 // Боковой блок фильтров, data-driven от фасетов каталога (Ф2). Группа
@@ -193,7 +194,7 @@ export default function FilterSidebar({
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'tween', duration: 0.25 }}
+              transition={MOTION}
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-bold text-ink">Фильтры</h2>

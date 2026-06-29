@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 import api from '../../api'
 import useAsyncData from '../../hooks/useAsyncData'
 import ErrorState from '../states/ErrorState'
@@ -197,7 +198,7 @@ export default function ProductQA({ productId, isAuthenticated, onLoginRequired,
               key={q.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: Math.min(i * 0.04, 0.3) }}
+              transition={{ ...MOTION, delay: Math.min(i * 0.04, 0.3) }}
               className="py-5 first:pt-0 last:pb-0"
             >
               {/* Вопрос */}

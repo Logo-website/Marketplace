@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 import api from '../../api'
 import useAsyncData from '../../hooks/useAsyncData'
 
@@ -218,7 +219,7 @@ export default function ReviewsSection({ productId, productRating = 0, reviewsCo
               key={review.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: Math.min(i * 0.04, 0.3) }}
+              transition={{ ...MOTION, delay: Math.min(i * 0.04, 0.3) }}
               className="py-4 first:pt-0 last:pb-0"
             >
               <div className="flex items-center justify-between mb-2">

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION } from '../lib/motion'
 import api from '../api'
 
 const passwordChecks = [
@@ -88,7 +89,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={MOTION}>
 
           {/* Вордмарк (бренд-гайд §4) */}
           <div className="text-center mb-8">
@@ -241,7 +242,7 @@ export default function ForgotPasswordPage() {
                       <p className="text-xs text-danger mt-1">Пароли не совпадают</p>
                     )}
                     {passwordConfirm && password === passwordConfirm && (
-                      <p className="text-xs text-success mt-1">Пароли совпадают ✓</p>
+                      <p className="text-xs text-success mt-1">Пароли совпадают</p>
                     )}
                   </div>
 
@@ -277,7 +278,7 @@ export default function ForgotPasswordPage() {
                   <motion.div
                     className="w-16 h-16 bg-success/10 rounded-2xl flex items-center justify-center mx-auto mb-5"
                     initial={{ scale: 0 }} animate={{ scale: 1 }}
-                    transition={{ type: 'spring', delay: 0.1 }}
+                    transition={{ ...MOTION, delay: 0.1 }}
                   >
                     <svg className="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

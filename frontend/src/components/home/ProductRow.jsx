@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 import ProductCard from '../ProductCard'
 import { CardSkeleton } from '../states/Skeleton'
 import ErrorState from '../states/ErrorState'
@@ -106,7 +107,7 @@ export default function ProductRow({
                   className={`${CARD_WIDTH} shrink-0 snap-start`}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                  transition={{ ...MOTION, delay: Math.min(i * 0.03, 0.3) }}
                 >
                   <ProductCard product={product} />
                 </motion.div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION } from '../lib/motion'
 import api from '../api'
 import useCartStore from '../store/cartStore'
 import useAuthStore from '../store/authStore'
@@ -383,7 +384,7 @@ export default function ProductPage() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ ...MOTION, delay: 0.1 }}
             className="bg-card rounded-2xl border border-line mt-4 p-6 md:p-8"
           >
             <h2 className="font-display text-xl font-bold text-ink mb-4">Характеристики</h2>
@@ -395,7 +396,7 @@ export default function ProductPage() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
+          transition={{ ...MOTION, delay: 0.15 }}
           className="bg-card rounded-2xl border border-line mt-4 overflow-hidden"
         >
           <ReviewsSection
@@ -413,7 +414,7 @@ export default function ProductPage() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.18 }}
+          transition={{ ...MOTION, delay: 0.18 }}
           className="bg-card rounded-2xl border border-line mt-4 overflow-hidden"
         >
           <ProductQA
@@ -429,7 +430,7 @@ export default function ProductPage() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.19 }}
+            transition={{ ...MOTION, delay: 0.19 }}
             className="mt-4"
           >
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -450,7 +451,7 @@ export default function ProductPage() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ ...MOTION, delay: 0.2 }}
             className="mt-4"
           >
             <h2 className="font-display text-xl font-bold text-ink mb-4">С этим покупают</h2>

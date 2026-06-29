@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION } from '../lib/motion'
 import useCartStore, { itemKey } from '../store/cartStore'
 import useAuthStore from '../store/authStore'
 import api from '../api'
@@ -236,7 +237,7 @@ export default function CheckoutPage() {
           className="w-16 h-16 bg-success/10 rounded-2xl flex items-center justify-center mx-auto mb-6"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          transition={{ type: 'spring', delay: 0.15 }}
+          transition={{ ...MOTION, delay: 0.15 }}
         >
           <svg className="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -289,7 +290,7 @@ export default function CheckoutPage() {
               key={i}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 + i * 0.08 }}
+              transition={{ ...MOTION, delay: 0.3 + i * 0.08 }}
               className="flex items-center gap-3 text-sm text-ink-soft"
             >
               <span className="text-accent shrink-0">{item.icon}</span>
@@ -351,7 +352,7 @@ export default function CheckoutPage() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
+              transition={{ ...MOTION, delay: 0.05 }}
               className="bg-card rounded-2xl p-6 border border-line"
             >
               <h2 className="text-sm font-bold text-ink uppercase tracking-wide mb-4">Получатель</h2>
@@ -382,7 +383,7 @@ export default function CheckoutPage() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+              transition={{ ...MOTION, delay: 0.1 }}
               className="bg-card rounded-2xl p-6 border border-line"
             >
               <h2 className="text-sm font-bold text-ink uppercase tracking-wide mb-4">Способ доставки</h2>
@@ -476,7 +477,7 @@ export default function CheckoutPage() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.13 }}
+              transition={{ ...MOTION, delay: 0.13 }}
               className="bg-card rounded-2xl p-6 border border-line"
             >
               <div className="flex items-center justify-between mb-4">
@@ -511,7 +512,7 @@ export default function CheckoutPage() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
+              transition={{ ...MOTION, delay: 0.15 }}
               className="bg-card rounded-2xl p-6 border border-line"
             >
               <h2 className="text-sm font-bold text-ink uppercase tracking-wide mb-4">Комментарий</h2>

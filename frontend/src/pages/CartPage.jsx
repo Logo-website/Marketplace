@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION } from '../lib/motion'
 import useCartStore, { itemKey } from '../store/cartStore'
 import useAuthStore from '../store/authStore'
 import useWishlistStore from '../store/wishlistStore'
@@ -26,7 +27,7 @@ function SectionBlock({ title, products, limit }) {
             key={product.id}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.02 }}
+            transition={{ ...MOTION, delay: i * 0.02 }}
           >
             <ProductCard product={product} />
           </motion.div>
@@ -265,7 +266,7 @@ export default function CartPage() {
                           initial={{ opacity: 0, x: -16 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 16, height: 0 }}
-                          transition={{ delay: i * 0.04 }}
+                          transition={{ ...MOTION, delay: i * 0.04 }}
                           className="bg-card rounded-2xl p-4 border border-line"
                         >
                           <div className="flex items-start gap-4">

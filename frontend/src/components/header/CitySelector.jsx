@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
+import { MOTION_FAST } from '../../lib/motion'
 import useDropdown from '../../hooks/useDropdown'
 import { CITIES, DEFAULT_CITY } from '../../data/cities'
 
@@ -52,7 +53,7 @@ export default function CitySelector({ onNavigate }) {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.15 }}
+            transition={MOTION_FAST}
             className="absolute top-full right-0 mt-2 w-56 bg-card rounded-2xl shadow-lift border border-line overflow-hidden z-50 max-h-[60vh] overflow-y-auto"
           >
             <p className="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-widest text-ink-faint">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION } from '../lib/motion'
 import api from '../api'
 import { toast } from '../store/toastStore'
 import Dashboard from '../components/seller/Dashboard'
@@ -279,7 +280,7 @@ export default function SellerPage() {
               key={stat.label}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.08 }}
+              transition={{ ...MOTION, delay: i * 0.08 }}
               className="bg-card rounded-2xl p-5 border border-line"
             >
               <div className="flex items-start justify-between mb-3">
@@ -424,7 +425,7 @@ export default function SellerPage() {
                             key={item.product_id}
                             initial={{ opacity: 0, x: -8 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.04 }}
+                            transition={{ ...MOTION, delay: i * 0.04 }}
                             className="border-b border-line last:border-0 hover:bg-surface transition"
                           >
                             <td className="px-6 py-4 text-sm text-ink font-medium">{item.name}</td>

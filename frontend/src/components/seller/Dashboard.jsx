@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 import api from '../../api'
 import ErrorState from '../states/ErrorState'
 import SalesChart from './SalesChart'
@@ -92,7 +93,7 @@ export default function Dashboard({ onNavigate }) {
                 key={c.label}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06 }}
+                transition={{ ...MOTION, delay: i * 0.06 }}
                 className="bg-card rounded-2xl p-5 border border-line"
               >
                 <p className="text-sm text-ink-faint mb-1">{c.label}</p>

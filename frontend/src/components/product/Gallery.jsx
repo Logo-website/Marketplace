@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 
 // Галерея карточки товара (Ф4): крупное фото + миниатюры + зум по наведению.
 // Презентационный: фото/состояние избранного приходят пропами.
@@ -43,7 +44,7 @@ export default function Gallery({ images = [], name = '', liked = false, onToggl
             initial={{ opacity: 0, scale: 1.04 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={MOTION}
             draggable={false}
             onError={(e) => { e.target.src = '' }}
           />

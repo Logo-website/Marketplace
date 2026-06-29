@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { MOTION } from '../../lib/motion'
 import api from '../../api'
 import ProductCard from '../ProductCard'
 import EmptyState from '../states/EmptyState'
@@ -50,7 +51,7 @@ export default function OverviewTab() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {recentlyViewed.slice(0, 8).map((product, i) => (
-              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ ...MOTION, delay: i * 0.04 }}>
                 <ProductCard product={product} />
               </motion.div>
             ))}
@@ -63,7 +64,7 @@ export default function OverviewTab() {
           <h2 className="font-display text-base font-bold text-ink mb-5">Подобрали для вас</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {recommendations.map((product, i) => (
-              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
+              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ ...MOTION, delay: i * 0.02 }}>
                 <ProductCard product={product} />
               </motion.div>
             ))}

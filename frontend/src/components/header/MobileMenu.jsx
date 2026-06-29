@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION_FAST } from '../../lib/motion'
 import useDropdown from '../../hooks/useDropdown'
 import CatalogMenu from './CatalogMenu'
 import CitySelector from './CitySelector'
@@ -36,7 +37,7 @@ export default function MobileMenu({ isAuthenticated, user, onLogout }) {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.15 }}
+            transition={MOTION_FAST}
             className="absolute top-full right-0 mt-2 w-[min(92vw,22rem)] bg-card rounded-2xl shadow-lift border border-line p-4 z-50 max-h-[80vh] overflow-y-auto flex flex-col gap-4"
           >
             <CatalogMenu embedded onNavigate={close} />

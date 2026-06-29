@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { MOTION } from '../../lib/motion'
 import api from '../../api'
 import EmptyState from '../states/EmptyState'
 import ErrorState from '../states/ErrorState'
@@ -110,7 +111,7 @@ export default function OrdersTab() {
             const isExpanded = expanded === order.id
             const busy = busyId === order.id
             return (
-              <motion.div key={order.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="bg-card rounded-2xl overflow-hidden border border-line">
+              <motion.div key={order.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ ...MOTION, delay: i * 0.04 }} className="bg-card rounded-2xl overflow-hidden border border-line">
                 <button onClick={() => setExpanded(isExpanded ? null : order.id)} className="w-full p-5 flex items-center justify-between hover:bg-surface transition gap-3">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className={`w-10 h-10 bg-surface rounded-xl flex items-center justify-center border border-line shrink-0 ${st.tone}`}><Icon name="orders" className="w-5 h-5" /></div>

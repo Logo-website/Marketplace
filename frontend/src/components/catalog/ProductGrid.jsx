@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 import ProductCard from '../ProductCard'
 import { ProductGridSkeleton } from '../states/Skeleton'
 import EmptyState from '../states/EmptyState'
@@ -64,7 +65,7 @@ export default function ProductGrid({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={MOTION}
           className={gridClassName}
         >
           {products.map((product, i) => (
@@ -73,7 +74,7 @@ export default function ProductGrid({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               // Капаем задержку, чтобы на большой странице карточки не «доезжали» секундами.
-              transition={{ delay: Math.min(i * 0.02, 0.3) }}
+              transition={{ ...MOTION, delay: Math.min(i * 0.02, 0.3) }}
             >
               <ProductCard product={product} />
             </motion.div>

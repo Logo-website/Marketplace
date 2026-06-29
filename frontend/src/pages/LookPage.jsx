@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { MOTION } from '../lib/motion'
 import api from '../api'
 import useAsyncData from '../hooks/useAsyncData'
 import useCartStore from '../store/cartStore'
@@ -192,7 +193,7 @@ export default function LookPage() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ ...MOTION, delay: 0.1 }}
           className="mt-6"
         >
           <h2 className="font-display text-xl font-extrabold tracking-tight text-ink mb-4">Вещи в образе</h2>

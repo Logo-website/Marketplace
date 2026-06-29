@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { MOTION } from '../../lib/motion'
 import StatusBadge from './StatusBadge'
 
 // Реестр товаров продавца (Ф13, узел 2.2): таблица на desktop, карточки-строки
@@ -46,7 +47,7 @@ export default function ProductTable({ products, onEdit, onToggleVisibility, onD
                 key={p.id}
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.03 }}
+                transition={{ ...MOTION, delay: i * 0.03 }}
                 className="border-b border-line last:border-0 hover:bg-surface transition"
               >
                 <td className="px-6 py-3">
@@ -82,7 +83,7 @@ export default function ProductTable({ products, onEdit, onToggleVisibility, onD
             key={p.id}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.03 }}
+            transition={{ ...MOTION, delay: i * 0.03 }}
             className="bg-card rounded-2xl border border-line p-4"
           >
             <div className="flex items-start gap-3">
