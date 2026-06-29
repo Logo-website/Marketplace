@@ -1,5 +1,7 @@
 import pytest
-from apps.users.models import User, Address
+from unittest import mock
+from django.core.cache import cache
+from apps.users.models import User, Address, OTPCode
 
 STRONG_PASSWORD = 'Newpass123!'
 
@@ -169,3 +171,145 @@ def test_notification_prefs_reject_unknown_key(auth_client):
         'notification_prefs': {'unknown_key': True},
     }, format='json')
     assert r.status_code == 400
+
+
+# --- Смена email через OTP (план 2026-06-29, Фаза 2) ---
+
+@pytest.fixture(autouse=True)
+def clear_throttle_cache():
+    # Троттлы смены email держат счётчики в кэше - чистим между тестами,
+    # иначе email_change (3/час) и verify (5/мин) текут из теста в тест.
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def no_email(monkeypatch):
+    # OTP-письмо на новый адрес - не дёргаем Resend.
+    monkeypatch.setattr('apps.users.views.send_otp_email', lambda *a, **k: None)
+
+
+@pytest.fixture(autouse=True)
+def mock_alert(monkeypatch):
+    # Security-алерт старому владельцу уходит через Celery (.delay) - мокаем,
+    # чтобы не слать наружу и заодно ассертить R10.
+    m = mock.Mock()
+    monkeypatch.setattr('apps.users.views.send_notification_email.delay', m)
+    return m
+
+
+def latest_code(email):
+    otp = OTPCode.objects.filter(email=email).order_by('-created_at').first()
+    return otp.code if otp else None
+
+
+def request_change(client, new_email, password='testpass123'):
+    return client.post('/api/auth/email-change/', {
+        'new_email': new_email, 'password': password,
+    }, format='json')
+
+
+def verify_change(client, new_email, code):
+    return client.post('/api/auth/email-change/verify/', {
+        'new_email': new_email, 'code': code,
+    }, format='json')
+
+
+@pytest.mark.django_db
+def test_email_change_full_flow(auth_client, user):
+    # Успешный поток: шаг 1 -> шаг 2 -> email обновлён, вход новым адресом находит юзера.
+    r1 = request_change(auth_client, 'new@test.com')
+    assert r1.status_code == 200
+    r2 = verify_change(auth_client, 'new@test.com', latest_code('new@test.com'))
+    assert r2.status_code == 200
+    user.refresh_from_db()
+    assert user.email == 'new@test.com'
+    # вход новым email находит пользователя (login делает User.objects.get(email=...))
+    assert User.objects.get(email='new@test.com').pk == user.pk
+
+
+@pytest.mark.django_db
+def test_email_change_normalizes_case(auth_client, user):
+    # R1: New@Mail.ru нормализуется в lower, вход после смены работает.
+    request_change(auth_client, 'New@Mail.ru')
+    r = verify_change(auth_client, 'New@Mail.ru', latest_code('new@mail.ru'))
+    assert r.status_code == 200
+    user.refresh_from_db()
+    assert user.email == 'new@mail.ru'
+    assert User.objects.filter(email='new@mail.ru').exists()
+
+
+@pytest.mark.django_db
+def test_email_change_same_as_current(auth_client, user):
+    # R3: новый == текущий -> 400, в т.ч. свой же адрес в другом регистре.
+    r1 = request_change(auth_client, 'test@test.com')
+    assert r1.status_code == 400
+    r2 = request_change(auth_client, 'Test@Test.com')
+    assert r2.status_code == 400
+
+
+@pytest.mark.django_db
+def test_email_change_invalid_format(auth_client):
+    # R12: голый APIView, формат проверяет validate_email -> мусор без @ -> 400.
+    r = request_change(auth_client, 'notanemail')
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_email_change_taken_by_other_on_request(auth_client, other_user):
+    # R2: занятость регистронезависима - Other@test.com vs other@test.com -> 400 на шаге 1.
+    r = request_change(auth_client, 'Other@test.com')
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_email_change_taken_between_steps(auth_client, user):
+    # R2/R4: адрес заняли между шагом 1 и verify -> 400, не 500. Занимаем в ДРУГОМ
+    # регистре (Race@) - проверка iexact на verify тоже должна быть регистронезависима.
+    request_change(auth_client, 'race@test.com')
+    code = latest_code('race@test.com')
+    User.objects.create_user(
+        username='racer', email='Race@test.com', password='testpass123', role='buyer'
+    )
+    r = verify_change(auth_client, 'race@test.com', code)
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_email_change_wrong_password(auth_client):
+    # Личность подтверждается паролём - неверный пароль на шаге 1 -> 400.
+    r = request_change(auth_client, 'new@test.com', password='wrongpass')
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_email_change_foreign_user_id(auth_client, user, other_user):
+    # R7 (анти-IDOR): код выписан другому user_id -> verify под нашим токеном -> 403.
+    OTPCode.generate('foreign@test.com', {
+        'action': 'change_email',
+        'user_id': other_user.id,
+        'new_email': 'foreign@test.com',
+    })
+    r = verify_change(auth_client, 'foreign@test.com', latest_code('foreign@test.com'))
+    assert r.status_code == 403
+    user.refresh_from_db()
+    assert user.email == 'test@test.com'  # email не изменён
+
+
+@pytest.mark.django_db
+def test_email_change_wrong_code(auth_client):
+    # R8: неверный код делегируется consume_otp -> 400.
+    request_change(auth_client, 'new@test.com')
+    r = verify_change(auth_client, 'new@test.com', '000000')
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
+def test_email_change_alerts_old_email(auth_client, user, mock_alert):
+    # R10: на успехе security-алерт уходит на СТАРЫЙ адрес.
+    request_change(auth_client, 'new@test.com')
+    r = verify_change(auth_client, 'new@test.com', latest_code('new@test.com'))
+    assert r.status_code == 200
+    mock_alert.assert_called_once()
+    assert mock_alert.call_args.args[0] == 'test@test.com'
