@@ -5,9 +5,19 @@ django.setup()
 
 import csv
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
+from django.utils import timezone
 from apps.products.models import Product, Review
 from apps.users.models import User
+
+# Отключаем сигналы пересчёта рейтинга на время сидирования: при поштучном
+# delete/save они дёргают агрегаты на КАЖДУЮ строку, и на удалённой Neon это
+# тянется вечно (а само удаление перестаёт быть быстрым SQL DELETE). Рейтинг
+# пересчитываем сами одним bulk_update в конце.
+from django.db.models.signals import post_save, post_delete
+from apps.products import signals as product_signals
+post_save.disconnect(product_signals.review_saved, sender=Review)
+post_delete.disconnect(product_signals.review_deleted, sender=Review)
 
 print('Очищаем старые отзывы...')
 Review.objects.all().delete()
@@ -28,19 +38,20 @@ with open('reviews.csv', encoding='utf-8') as f:
 
 print(f'Найдено {len(all_reviews)} отзывов')
 
-# Получаем пользователей
-users = list(User.objects.filter(role='buyer'))
-if not users:
-    # Создаём тестовых покупателей
-    for i in range(20):
-        u, _ = User.objects.get_or_create(
-            email=f'buyer{i+1}@market.com',
-            defaults={'username': f'buyer{i+1}', 'role': 'buyer'}
-        )
-        if _:
-            u.set_password('Buyer123!')
-            u.save()
-        users.append(u)
+# Пул отзывов формируем ТОЛЬКО из тестовых покупателей. Берём не всех buyer'ов
+# подряд: иначе реальные зарегистрированные пользователи (например владелец) получат
+# фейковые отзывы на купленные ими товары. И гарантируем именно 20 аккаунтов, чтобы
+# распределение не схлопнулось до 1 отзыва на товар, когда реальный buyer всего один.
+users = []
+for i in range(20):
+    u, created_user = User.objects.get_or_create(
+        email=f'buyer{i+1}@market.com',
+        defaults={'username': f'buyer{i+1}', 'role': 'buyer'}
+    )
+    if created_user:
+        u.set_password('Buyer123!')
+        u.save()
+    users.append(u)
 
 print(f'Пользователей: {len(users)}')
 
@@ -73,46 +84,49 @@ for p in products[360:560]:
 
 # Остальные — без отзывов
 
+# Быстрая пакетная вставка. Собираем все объекты Review в память и вставляем
+# bulk_create - сигнал пересчёта рейтинга при bulk_create НЕ срабатывает, поэтому
+# рейтинг считаем сами и пишем одним bulk_update. На удалённой Neon это секунды,
+# а не часы (поштучный create + recalc на каждый отзыв тянулся вечно).
 random.shuffle(all_reviews)
 review_index = 0
-total_created = 0
+to_create = []
 
 for product, count in distribution:
-    used_users = set()
-    created = 0
-    attempts = 0
-
-    while created < count and attempts < count * 3:
-        attempts += 1
-        if review_index >= len(all_reviews):
-            review_index = 0
-
-        review_data = all_reviews[review_index]
+    # unique_together (product, user): на товар не больше одного отзыва от юзера,
+    # значит и не больше len(users) отзывов на товар.
+    n = min(count, len(users))
+    for user in random.sample(users, n):
+        review_data = all_reviews[review_index % len(all_reviews)]
         review_index += 1
+        to_create.append(Review(
+            product=product,
+            user=user,
+            rating=review_data['rating'],
+            text=review_data['text'],
+        ))
 
-        user = random.choice(users)
-        if user.id in used_users:
-            continue
-        used_users.add(user.id)
+print(f'Вставляем {len(to_create)} отзывов одной пачкой...')
+Review.objects.bulk_create(to_create, batch_size=500)
 
-        try:
-            # Генерируем случайную дату за последние 2 года
-            days_ago = random.randint(1, 730)
-            created_at = datetime.now() - timedelta(days=days_ago)
+# created_at - auto_now_add, bulk_create проставил "сейчас". Разносим даты за
+# последние 2 года отдельным bulk_update (он обходит auto_now_add).
+now = timezone.now()
+for r in to_create:
+    r.created_at = now - timedelta(days=random.randint(1, 730))
+Review.objects.bulk_update(to_create, ['created_at'], batch_size=500)
 
-            Review.objects.create(
-                product=product,
-                user=user,
-                rating=review_data['rating'],
-                text=review_data['text'],
-                created_at=created_at
-            )
-            created += 1
-            total_created += 1
-        except Exception:
-            continue
+# Денормализованные Product.rating/reviews_count считаем в памяти (сигнал при
+# bulk_create не сработал) и пишем одним bulk_update по всем товарам. Товары без
+# отзывов -> rating 0, count 0.
+sums, counts = {}, {}
+for r in to_create:
+    sums[r.product_id] = sums.get(r.product_id, 0) + r.rating
+    counts[r.product_id] = counts.get(r.product_id, 0) + 1
+for p in products:
+    c = counts.get(p.id, 0)
+    p.rating = round(sums[p.id] / c, 2) if c else 0
+    p.reviews_count = c
+Product.objects.bulk_update(products, ['rating', 'reviews_count'], batch_size=500)
 
-    if total_created % 500 == 0 and total_created > 0:
-        print(f'Создано {total_created} отзывов...')
-
-print(f'Готово! Создано {total_created} отзывов')
+print(f'Готово! Создано {len(to_create)} отзывов')
