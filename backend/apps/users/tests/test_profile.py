@@ -1,7 +1,6 @@
 import logging
 import pytest
 from unittest import mock
-from kombu.exceptions import OperationalError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.cache import cache
 from apps.users.models import User, Address, OTPCode
@@ -195,10 +194,11 @@ def no_email(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def mock_alert(monkeypatch):
-    # Security-алерт старому владельцу уходит через Celery (.delay) - мокаем,
-    # чтобы не слать наружу и заодно ассертить R10.
+    # Security-алерт старому владельцу отправляется СИНХРОННО (вызов задачи напрямую,
+    # не .delay - на проде брокера нет) - мокаем сам вызов, чтобы не слать наружу и
+    # заодно ассертить R10.
     m = mock.Mock()
-    monkeypatch.setattr('apps.users.views.send_notification_email.delay', m)
+    monkeypatch.setattr('apps.users.views.send_notification_email', m)
     return m
 
 
@@ -384,17 +384,18 @@ def test_email_change_too_long(auth_client):
 
 
 @pytest.mark.django_db
-def test_email_change_alert_broker_down(auth_client, user, monkeypatch, caplog,
-                                        django_capture_on_commit_callbacks):
-    # N1: брокер недоступен -> .delay кидает OperationalError. Смена уже сохранена,
-    # эндпоинт обязан вернуть 200, email сменён, ошибка - в лог (best-effort алерт).
+def test_email_change_alert_send_fails(auth_client, user, monkeypatch, caplog,
+                                       django_capture_on_commit_callbacks):
+    # N1: отправка алерта падает (Resend недоступен) -> вызов кидает. Смена уже
+    # сохранена, эндпоинт обязан вернуть 200, email сменён, ошибка - в лог
+    # (best-effort алерт, _enqueue_email_change_alert ловит и не роняет смену).
     def boom(*a, **k):
-        raise OperationalError('broker down')
-    monkeypatch.setattr('apps.users.views.send_notification_email.delay', boom)
+        raise RuntimeError('resend down')
+    monkeypatch.setattr('apps.users.views.send_notification_email', boom)
     request_change(auth_client, 'new@test.com')
     with caplog.at_level(logging.ERROR), django_capture_on_commit_callbacks(execute=True):
         r = verify_change(auth_client, 'new@test.com', latest_code('new@test.com'))
     assert r.status_code == 200
     user.refresh_from_db()
     assert user.email == 'new@test.com'
-    assert any('alert enqueue failed' in m for m in caplog.messages)
+    assert any('alert send failed' in m for m in caplog.messages)

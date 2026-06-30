@@ -19,13 +19,19 @@ def deliver_onsite_live(notification):
 
 def send_email(user, subject, html):
     """E-mail-канал: адрес берём ТОЛЬКО из user.email (анти-relay/анти-enumeration,
-    §8), никогда из входных данных запроса. Пустой email - молча пропускаем."""
+    §8), никогда из входных данных запроса. Пустой email - молча пропускаем.
+
+    Отправка СИНХРОННАЯ (вызов задачи напрямую, не .delay): на проде Celery/брокера
+    нет, поэтому .delay() уходил в недоступный брокер и письмо не отправлялось. Тело
+    задачи само обёрнуто в try/except (tasks.py), плюс этот try/except - двойная
+    защита от сбоя Resend. Trade-off: HTTP-вызов Resend идёт в потоке ответа (1 вызов
+    на чекаут); приемлемо как у OTP, на pre-launch без нагрузки."""
     if not user.email:
         return
     try:
-        send_notification_email.delay(user.email, subject, html)
+        send_notification_email(user.email, subject, html)
     except Exception as e:
-        logger.error(f'notification email dispatch error (user={user.id}): {e}')
+        logger.error(f'notification email send error (user={user.id}): {e}')
 
 
 def deliver_sms_push_stub(user, notification):

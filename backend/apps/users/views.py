@@ -506,17 +506,18 @@ def _email_change_alert_html(new_email):
 
 
 def _enqueue_email_change_alert(old_email, new_email):
-    """N1: ставим security-алерт в очередь best-effort. Сбой публикации в брокер
-    (RabbitMQ недоступен -> OperationalError) не должен ронять уже зафиксированную
-    смену email - смена необратима, алерт логируем и продолжаем."""
+    """N1: security-алерт об смене email на СТАРЫЙ адрес, best-effort. Отправка
+    СИНХРОННАЯ (вызов задачи напрямую): на проде Celery/брокера нет, .delay() уходил
+    в недоступный брокер и алерт не доходил. Сбой/латентность Resend не должны ронять
+    уже зафиксированную смену email - смена необратима, ошибку логируем и продолжаем."""
     try:
-        send_notification_email.delay(
+        send_notification_email(
             old_email,
             'Email вашего аккаунта изменён — Marketplace',
             _email_change_alert_html(new_email),
         )
     except Exception as e:
-        logger.error(f'email change alert enqueue failed: {e}')
+        logger.error(f'email change alert send failed: {e}')
 
 
 class EmailChangeRequestView(APIView):
