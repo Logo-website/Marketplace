@@ -246,3 +246,16 @@ if not DEBUG:
     # Django admin и DRF browsable API - отдельный от API контур
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+# Гигиена логов (1B). На проде ClickHouse не деплоим; его клиент при сбое коннекта
+# пишет в логгер clickhouse_driver полный трейсбек (наш код такого не делает - только
+# logger.error со строкой, грепом подтверждено). Поднимаем порог этого логгера, чтобы
+# ожидаемые ошибки подключения к отключённому сервису не засоряли логи. На поведение
+# не влияет. Других подтверждённых источников шума нет - не добавляем «на всякий случай».
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'loggers': {
+        'clickhouse_driver': {'level': 'CRITICAL'},
+    },
+}
