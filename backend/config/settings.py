@@ -225,6 +225,14 @@ CSRF_TRUSTED_ORIGINS = [
     o.strip() for o in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
 ]
 
+# На Render публичный хост сервиса доступен в RENDER_EXTERNAL_HOSTNAME. Подхватываем
+# его автоматически, чтобы при DEBUG=False не ловить 400 из-за пустого ALLOWED_HOSTS
+# и чтобы вход в admin работал по CSRF. Локально переменной нет - блок пропускается.
+RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
+
 # Production-блок безопасности транспорта (S12).
 # В DEBUG не включаем, чтобы не ломать локальную разработку по http.
 if not DEBUG:
