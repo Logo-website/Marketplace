@@ -1,12 +1,18 @@
+import os
 import random
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.utils.crypto import get_random_string
 
 from apps.users.models import User
 from apps.products.models import Product
 from apps.orders.models import Order, OrderItem
 from services.clickhouse_service import write_event
+
+# Пароль сид-аккаунтов: из env SEED_PASSWORD, иначе случайный НЕИЗВЕСТНЫЙ - чтобы
+# повторное сидирование не возвращало слабый дефолтный пароль на публичный прод.
+SEED_PASSWORD = os.getenv('SEED_PASSWORD') or get_random_string(20)
 
 
 class Command(BaseCommand):
@@ -37,7 +43,7 @@ class Command(BaseCommand):
                 defaults={'username': f'seed_buyer{i+1}', 'role': User.ROLE_BUYER},
             )
             if created:
-                user.set_password('Buyer123!')
+                user.set_password(SEED_PASSWORD)
                 user.save()
             buyers.append(user)
 

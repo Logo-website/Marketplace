@@ -6,8 +6,13 @@ django.setup()
 import csv
 import random
 import ast
+from django.utils.crypto import get_random_string
 from apps.users.models import User
 from apps.products.models import Category, Product, ProductImage
+
+# Пароль сид-аккаунтов: из env SEED_PASSWORD, иначе случайный НЕИЗВЕСТНЫЙ - чтобы
+# повторное сидирование не возвращало слабый дефолтный пароль на публичный прод.
+SEED_PASSWORD = os.getenv('SEED_PASSWORD') or get_random_string(20)
 
 print('Очищаем старые данные...')
 ProductImage.objects.all().delete()
@@ -23,7 +28,7 @@ for i in range(5):
         defaults={'username': f'seller{i+1}', 'role': 'seller'}
     )
     if created:
-        seller.set_password('Seller123!')
+        seller.set_password(SEED_PASSWORD)
         seller.save()
     sellers.append(seller)
 

@@ -7,8 +7,13 @@ import csv
 import random
 from datetime import timedelta
 from django.utils import timezone
+from django.utils.crypto import get_random_string
 from apps.products.models import Product, Review
 from apps.users.models import User
+
+# Пароль сид-аккаунтов: из env SEED_PASSWORD, иначе случайный НЕИЗВЕСТНЫЙ - чтобы
+# повторное сидирование не возвращало слабый дефолтный пароль на публичный прод.
+SEED_PASSWORD = os.getenv('SEED_PASSWORD') or get_random_string(20)
 
 # Отключаем сигналы пересчёта рейтинга на время сидирования: при поштучном
 # delete/save они дёргают агрегаты на КАЖДУЮ строку, и на удалённой Neon это
@@ -49,7 +54,7 @@ for i in range(20):
         defaults={'username': f'buyer{i+1}', 'role': 'buyer'}
     )
     if created_user:
-        u.set_password('Buyer123!')
+        u.set_password(SEED_PASSWORD)
         u.save()
     users.append(u)
 
