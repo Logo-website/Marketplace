@@ -6,6 +6,31 @@ A multi-vendor e-commerce platform with a Django REST API, a React storefront, a
 
 ---
 
+## Live deployment (production)
+
+The project is deployed live (study / portfolio, pre-launch):
+
+- **Storefront:** https://marketplace-web-z98x.onrender.com
+- **API / Swagger:** https://marketplace-api-rusx.onrender.com/api/docs/
+
+**Only the core is deployed — the heavy stack is intentionally left out.** Hosting is Render (Web Service for the API, Static Site for the frontend, Key Value for Redis) + Neon (managed PostgreSQL) + Resend (email). Elasticsearch, RabbitMQ/Celery, Kafka + `node_service`, ClickHouse and the C++ recommender are **not** deployed: they need managed hosting or dedicated RAM that is expensive and unjustified for a pre-launch study project with no real load. The code is written with graceful fallbacks, so a missing service degrades one feature instead of breaking the app.
+
+| Capability | On prod | If off — visible effect |
+|---|---|---|
+| Catalog, cards, cart, checkout, orders | Yes | — |
+| Registration / login / email change (OTP via Resend) | Yes | — |
+| Order & account emails (Resend, sent synchronously) | Yes | — |
+| Reviews, ratings, Q&A, brands, looks, chat, admin, moderation | Yes | — |
+| Full-text search (Elasticsearch) | No | `/search` returns 503; catalog browsing still works |
+| Real-time notifications (Kafka + WebSocket) | No | bell feed persists in DB, just not live |
+| Marketing broadcasts (Celery) | No | admin broadcast doesn't send |
+| Seller analytics (ClickHouse) | No | dashboard charts are empty |
+| Recommendations (C++ co-purchase) | No | falls back to popular-by-category |
+
+Free-tier notes: the API sleeps after ~15 min idle (the first request after that can take up to ~50 s); PostgreSQL is on Neon's free tier (no time-based deletion, unlike Render's).
+
+---
+
 ## Tech stack
 
 ### Backend
